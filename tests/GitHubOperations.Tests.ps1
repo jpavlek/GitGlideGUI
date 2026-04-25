@@ -32,3 +32,27 @@ Describe 'GitHubOperations module' {
         (@($lines) -join ' ') | Should -Match 'do not initialize'
     }
 }
+
+Describe 'GitHub remote diagnostics helpers' {
+    It 'parses git remote -v output and converts GitHub remotes to web URLs' {
+        $rows = ConvertFrom-GghubRemoteList -Text "origin https://github.com/jpavlek/GitGlideGUI.git (fetch)`norigin https://github.com/jpavlek/GitGlideGUI.git (push)"
+        @($rows).Count | Should -Be 2
+        $rows[0].Name | Should -Be 'origin'
+        Get-GghubRepositoryWebUrl -RemoteUrl 'https://github.com/jpavlek/GitGlideGUI.git' | Should -Be 'https://github.com/jpavlek/GitGlideGUI'
+        Get-GghubRepositoryWebUrl -RemoteUrl 'git@github.com:jpavlek/GitGlideGUI.git' | Should -Be 'https://github.com/jpavlek/GitGlideGUI'
+    }
+
+    It 'builds remote diagnostics command plans' {
+        (Get-GghubRemoteListCommandPlan).Display | Should -Be 'git remote -v'
+        (Get-GghubUpstreamCommandPlan).Display | Should -Match '@\{u\}'
+        (Get-GghubRemoteAccessTestCommandPlan -RemoteName 'origin').Arguments | Should -Be @('ls-remote','--heads','origin')
+        (Get-GghubSetUpstreamPushCommandPlan -RemoteName 'origin').Arguments | Should -Be @('push','-u','origin','HEAD')
+    }
+
+    It 'diagnoses GitHub remote failures with repository not found guidance' {
+        $g = Get-GghubRemoteFailureGuidance -ExitCode 128 -StdErr "remote: Repository not found.`nfatal: repository 'https://github.com/jpavlek/GitGlideGUI.git/' not found" -RemoteName 'origin' -Operation 'push with upstream'
+        $g.Kind | Should -Be 'repository-not-found'
+        $g.Message | Should -Match 'may not exist'
+        (@($g.RecoverySteps) -join ' ') | Should -Match 'owner'
+    }
+}
