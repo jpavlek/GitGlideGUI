@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.5",
+  "version": "3.6.6",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.5.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.6.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.5 conflict-marker verification before staging resolved files",
+  "iteration_focus": "v3.6.6 GitHub publish guidance and privacy reminders",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -22,34 +22,25 @@
     "modules/GitGlideGUI.Core/GitHistoryOperations.psm1",
     "modules/GitGlideGUI.Core/GitConflictRecovery.psm1",
     "modules/GitGlideGUI.Core/GitCherryPickOperations.psm1",
-    "modules/GitGlideGUI.Core/GitLearningGuidance.psm1"
+    "modules/GitGlideGUI.Core/GitLearningGuidance.psm1",
+    "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
-    "Conflict-marker scan before Stage resolved file to reduce accidental marker commits",
-    "ASCII-safe history visual graph lane markers for Windows PowerShell 5.1 source-encoding robustness",
-    "Decorated history model rows with branch, remote branch, tag, HEAD, merge, and ref-kind classifications",
-    "History / Graph ListView columns for branches, tags, remotes, author, and date",
-    "Curated ScriptAnalyzer runner with optional strict/fail-on-warning modes and generated-folder exclusions",
-    "Resolved/unresolved conflict-state detection from status, unmerged files, and Git operation markers",
-    "Stage selected resolved conflict file",
-    "Continue operation guidance based on MERGE_HEAD, CHERRY_PICK_HEAD, and rebase markers",
-    "External merge tool command configuration and launch action",
-    "Improved visual graph selection and command preview coupling",
-    "Startup X/close now aborts startup instead of continuing without a repository",
-    "Fixed untracked-overwrite recovery classification priority",
-    "Fixed cherry-pick conflict workflow test capture for PowerShell/Pester"
+    "Guided GitHub publish workflow for creating an empty private repository, configuring origin, and optionally pushing the current branch",
+    "GitHub remote URL generation for HTTPS and SSH",
+    "Privacy checklist reminding users to prefer private repositories for proprietary/client code and review GitHub Copilot AI/data-training settings where available",
+    "Default GitHub repository description and copy-to-clipboard support",
+    "Conflict-marker scan before Stage resolved file to reduce accidental marker commits"
   ],
   "next_recommended": [
-    "Add pre-continue verification across all resolved candidate files",
-    "Add configurable external diff/merge tool profiles",
-    "Improve rebase workflow support",
-    "Add reflog/recovery browser",
-    "Start GitHub/GitLab pull request integration planning"
+    "Add GitHub CLI detection and optional gh repo create integration",
+    "Add pull-request/compare URL helper",
+    "Add remote health/status panel with authentication hints",
+    "Add pre-continue verification across all resolved candidate files"
   ],
   "highlights": [
-    "Correct unstaging behavior before the first commit by using git rm --cached when HEAD does not exist",
-    "Removed fragile SplitterMoved PowerShell event handler to avoid resize/shutdown PipelineStoppedException dialogs",
-    "Added regression tests for no-HEAD unstaging workflows",
-    "Added conflict-marker verification before staging resolved files"
+    "Local-first GitHub publication guidance with private-repository reminder",
+    "Developer-controlled push workflow using command previews and explicit confirmation",
+    "Privacy reminder for GitHub Copilot AI/data-training settings"
   ]
 }

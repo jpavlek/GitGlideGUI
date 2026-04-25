@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.5
+# Git Glide GUI - Enhanced Version v3.6.6
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -32,6 +32,7 @@
 # - v3.2: extracted commit operations, commit workflow tests, Conventional Commits guidance, and history model scaffold
 # - v3.5: conflict/recovery guidance module, recovery panel, and cherry-pick command planning
 # - v3.6: resolved/unresolved conflict state, stage resolved file, operation-aware continue guidance, merge tool config, and improved graph-action coupling
+# - v3.6.6: GitHub publish guidance with private-repository and Copilot-training privacy reminders
 
 param(
     [string]$RepositoryPath = '',
@@ -58,7 +59,8 @@ $script:HistoryModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.C
 $script:RecoveryModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitConflictRecovery.psm1'
 $script:CherryPickModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitCherryPickOperations.psm1'
 $script:LearningModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitLearningGuidance.psm1'
-foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $script:OnboardingModulePath, $script:StagingModulePath, $script:BranchModulePath, $script:StashModulePath, $script:TagModulePath, $script:CommitModulePath, $script:HistoryModulePath, $script:RecoveryModulePath, $script:CherryPickModulePath, $script:LearningModulePath)) {
+$script:GitHubModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitHubOperations.psm1'
+foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $script:OnboardingModulePath, $script:StagingModulePath, $script:BranchModulePath, $script:StashModulePath, $script:TagModulePath, $script:CommitModulePath, $script:HistoryModulePath, $script:RecoveryModulePath, $script:CherryPickModulePath, $script:LearningModulePath, $script:GitHubModulePath)) {
     if (Test-Path -LiteralPath $modulePath) {
         try { Import-Module -Name $modulePath -Force -DisableNameChecking -ErrorAction Stop }
         catch { Write-Warning "Failed to import Git Glide GUI core module '$modulePath': $_" }
@@ -66,7 +68,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.5 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.6 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -113,6 +115,9 @@ $script:DefaultConfig = @{
     LastRepositoryRoot = ''
     DefaultGitIgnoreTemplate = 'General / Windows'
     DefaultRemoteName = 'origin'
+    DefaultGitHubOwner = ''
+    DefaultGitHubProtocol = 'HTTPS'
+    GitHubRepositoryDescription = 'Git Glide GUI is a lightweight, privacy-first Windows Git interface for safer human and AI-assisted software development. It turns fast coding changes into clear versioning choices, helping developers stay in control and use their judgment with command previews, visual staging, recovery guidance, custom actions, and code & documentation checks.'
     ExternalMergeToolCommand = 'git mergetool'
     BeginnerMode = $true
     BeginnerGuidanceVisible = $true
@@ -1620,6 +1625,252 @@ function Get-UnstageGitArgumentsForPath {
     }
 
     return @('restore','--staged','--',$Path)
+}
+
+function Get-GitHubDefaultDescription {
+    try {
+        $cmd = Get-Command Get-GghubDefaultRepositoryDescription -ErrorAction SilentlyContinue
+        if ($cmd) { return (Get-GghubDefaultRepositoryDescription) }
+    } catch {}
+    return 'Git Glide GUI is a lightweight, privacy-first Windows Git interface for safer human and AI-assisted software development. It turns fast coding changes into clear versioning choices, helping developers stay in control and use their judgment with command previews, visual staging, recovery guidance, custom actions, and code & documentation checks.'
+}
+
+function Get-GitHubRemoteUrlSafe {
+    param(
+        [string]$Owner,
+        [string]$Repository,
+        [string]$Protocol = 'HTTPS'
+    )
+    try {
+        $cmd = Get-Command New-GghubRemoteUrl -ErrorAction SilentlyContinue
+        if ($cmd) { return (New-GghubRemoteUrl -Owner $Owner -Repository $Repository -Protocol $Protocol) }
+    } catch { throw }
+    $ownerText = ([string]$Owner).Trim()
+    $repoText = ([string]$Repository).Trim()
+    if ($Protocol -eq 'SSH') { return "git@github.com:$ownerText/$repoText.git" }
+    return "https://github.com/$ownerText/$repoText.git"
+}
+
+function Show-GitHubPrivacyGuidance {
+    try {
+        $cmd = Get-Command Get-GghubPrivacyChecklist -ErrorAction SilentlyContinue
+        if ($cmd) {
+            $lines = Get-GghubPrivacyChecklist -PrivateRepositoryRecommended -ReviewCopilotTrainingOptOut
+            [System.Windows.Forms.MessageBox]::Show(($lines -join "`r`n`r`n"), 'GitHub privacy checklist', 'OK', 'Information') | Out-Null
+            return
+        }
+    } catch {}
+    [System.Windows.Forms.MessageBox]::Show('Recommended: create the GitHub repository as Private for proprietary/client work, do not initialize it with README/.gitignore/license when pushing an existing local repository, and review GitHub Copilot settings if you want to opt out of AI training/data use where your plan allows it.', 'GitHub privacy checklist', 'OK', 'Information') | Out-Null
+}
+
+function Open-GitHubNewRepositoryPage {
+    try {
+        $url = 'https://github.com/new'
+        $cmd = Get-Command Get-GghubNewRepositoryUrl -ErrorAction SilentlyContinue
+        if ($cmd) { $url = Get-GghubNewRepositoryUrl }
+        Start-Process $url
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show('Open https://github.com/new in your browser.', 'Open GitHub', 'OK', 'Information') | Out-Null
+    }
+}
+
+function Open-GitHubCopilotSettingsPage {
+    try {
+        $url = 'https://github.com/settings/copilot'
+        $cmd = Get-Command Get-GghubCopilotSettingsUrl -ErrorAction SilentlyContinue
+        if ($cmd) { $url = Get-GghubCopilotSettingsUrl }
+        Start-Process $url
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show('Open GitHub account settings, then review Copilot settings and AI/data training options.', 'Open Copilot settings', 'OK', 'Information') | Out-Null
+    }
+}
+
+function Copy-GitHubRepositoryDescription {
+    param([string]$Description)
+    try {
+        [System.Windows.Forms.Clipboard]::SetText([string]$Description)
+        Set-SuggestedNextAction -Text 'GitHub repository description copied. Paste it into GitHub when creating the repository.'
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show('Could not copy to clipboard. Select and copy the text manually.', 'Copy failed', 'OK', 'Warning') | Out-Null
+    }
+}
+
+function Build-GitHubPublishPreview {
+    try {
+        $cmd = Get-Command Get-GghubPublishCommandPreview -ErrorAction SilentlyContinue
+        if ($cmd) { return (Get-GghubPublishCommandPreview -Owner '<owner>' -Repository '<repo>' -Protocol 'HTTPS' -RemoteName ([string]$script:Config.DefaultRemoteName) -PushAfter) }
+    } catch {}
+    return "open https://github.com/new`r`ncreate an empty private repository`r`ngit remote add origin https://github.com/<owner>/<repo>.git`r`noptional: git push -u origin HEAD"
+}
+
+function Show-GitHubPublishDialog {
+    if (-not (Test-GitRepository)) {
+        [void](Ensure-RepositorySelected)
+        if (-not (Test-GitRepository)) { return $false }
+    }
+
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = 'Publish to GitHub'
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.Width = 760
+    $dialog.Height = 560
+    $dialog.MinimizeBox = $false
+    $dialog.MaximizeBox = $false
+    $dialog.FormBorderStyle = 'FixedDialog'
+
+    $layout = New-Object System.Windows.Forms.TableLayoutPanel
+    $layout.Dock = 'Fill'
+    $layout.Padding = New-Object System.Windows.Forms.Padding(12)
+    $layout.ColumnCount = 2
+    $layout.RowCount = 10
+    [void]$layout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$layout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    $dialog.Controls.Add($layout)
+
+    $intro = New-WrappingLabel -Text 'GitHub workflow: create an empty GitHub repository first, preferably Private for proprietary or unfinished work. Git Glide then configures the local remote and can push the current branch.' -Height 48
+    $layout.Controls.Add($intro, 0, 0)
+    $layout.SetColumnSpan($intro, 2)
+
+    $ownerLabel = New-Object System.Windows.Forms.Label
+    $ownerLabel.Text = 'GitHub owner/org:'
+    $ownerLabel.AutoSize = $true
+    $ownerLabel.Margin = New-Object System.Windows.Forms.Padding(4, 8, 8, 4)
+    $layout.Controls.Add($ownerLabel, 0, 1)
+
+    $ownerBox = New-Object System.Windows.Forms.TextBox
+    $ownerBox.Dock = 'Fill'
+    $ownerBox.Text = [string]$script:Config.DefaultGitHubOwner
+    $layout.Controls.Add($ownerBox, 1, 1)
+
+    $repoLabel = New-Object System.Windows.Forms.Label
+    $repoLabel.Text = 'Repository name:'
+    $repoLabel.AutoSize = $true
+    $repoLabel.Margin = New-Object System.Windows.Forms.Padding(4, 8, 8, 4)
+    $layout.Controls.Add($repoLabel, 0, 2)
+
+    $repoBox = New-Object System.Windows.Forms.TextBox
+    $repoBox.Dock = 'Fill'
+    try { $repoBox.Text = Split-Path -Leaf $script:RepoRoot } catch { $repoBox.Text = 'GitGlideGUI' }
+    $layout.Controls.Add($repoBox, 1, 2)
+
+    $protocolLabel = New-Object System.Windows.Forms.Label
+    $protocolLabel.Text = 'Remote protocol:'
+    $protocolLabel.AutoSize = $true
+    $protocolLabel.Margin = New-Object System.Windows.Forms.Padding(4, 8, 8, 4)
+    $layout.Controls.Add($protocolLabel, 0, 3)
+
+    $protocolBox = New-Object System.Windows.Forms.ComboBox
+    $protocolBox.DropDownStyle = 'DropDownList'
+    [void]$protocolBox.Items.Add('HTTPS')
+    [void]$protocolBox.Items.Add('SSH')
+    $protocolBox.SelectedItem = if ([string]$script:Config.DefaultGitHubProtocol -eq 'SSH') { 'SSH' } else { 'HTTPS' }
+    $layout.Controls.Add($protocolBox, 1, 3)
+
+    $descLabel = New-Object System.Windows.Forms.Label
+    $descLabel.Text = 'GitHub description:'
+    $descLabel.AutoSize = $true
+    $descLabel.Margin = New-Object System.Windows.Forms.Padding(4, 8, 8, 4)
+    $layout.Controls.Add($descLabel, 0, 4)
+
+    $descBox = New-Object System.Windows.Forms.TextBox
+    $descBox.Multiline = $true
+    $descBox.Height = 78
+    $descBox.Dock = 'Fill'
+    $descBox.ScrollBars = 'Vertical'
+    $descBox.Text = if ([string]::IsNullOrWhiteSpace([string]$script:Config.GitHubRepositoryDescription)) { Get-GitHubDefaultDescription } else { [string]$script:Config.GitHubRepositoryDescription }
+    $layout.Controls.Add($descBox, 1, 4)
+
+    $private = New-Object System.Windows.Forms.CheckBox
+    $private.Text = 'Create the GitHub repository as Private for proprietary/client/unfinished code'
+    $private.AutoSize = $true
+    $private.Checked = $true
+    $layout.Controls.Add($private, 1, 5)
+
+    $copilot = New-Object System.Windows.Forms.CheckBox
+    $copilot.Text = 'Review GitHub Copilot AI/data training settings and opt out where available'
+    $copilot.AutoSize = $true
+    $copilot.Checked = $true
+    $layout.Controls.Add($copilot, 1, 6)
+
+    $push = New-Object System.Windows.Forms.CheckBox
+    $push.Text = 'After the empty GitHub repository exists, add/update origin and push current branch'
+    $push.AutoSize = $true
+    $push.Checked = $true
+    $layout.Controls.Add($push, 1, 7)
+
+    $warn = New-WrappingLabel -Text 'Privacy note: Git Glide GUI cannot change GitHub account policy. Private visibility and Copilot data/training choices must be reviewed in GitHub. The GUI only prepares local Git commands after your confirmation.' -Height 52
+    $layout.Controls.Add($warn, 0, 8)
+    $layout.SetColumnSpan($warn, 2)
+
+    $buttons = New-Object System.Windows.Forms.FlowLayoutPanel
+    $buttons.FlowDirection = 'RightToLeft'
+    $buttons.Dock = 'Fill'
+    $buttons.WrapContents = $true
+    $layout.Controls.Add($buttons, 0, 9)
+    $layout.SetColumnSpan($buttons, 2)
+
+    $ok = New-Object System.Windows.Forms.Button
+    $ok.Text = 'Configure remote / push'
+    $ok.Width = 165
+    $ok.Height = 32
+    $ok.Add_Click({ $dialog.DialogResult = [System.Windows.Forms.DialogResult]::OK; $dialog.Close() })
+    $buttons.Controls.Add($ok)
+
+    $cancel = New-Object System.Windows.Forms.Button
+    $cancel.Text = 'Cancel'
+    $cancel.Width = 90
+    $cancel.Height = 32
+    $cancel.Add_Click({ $dialog.DialogResult = [System.Windows.Forms.DialogResult]::Cancel; $dialog.Close() })
+    $buttons.Controls.Add($cancel)
+
+    $openGitHub = New-Object System.Windows.Forms.Button
+    $openGitHub.Text = 'Open GitHub new repo'
+    $openGitHub.Width = 155
+    $openGitHub.Height = 32
+    $openGitHub.Add_Click({ Open-GitHubNewRepositoryPage })
+    $buttons.Controls.Add($openGitHub)
+
+    $openCopilot = New-Object System.Windows.Forms.Button
+    $openCopilot.Text = 'Open Copilot settings'
+    $openCopilot.Width = 150
+    $openCopilot.Height = 32
+    $openCopilot.Add_Click({ Open-GitHubCopilotSettingsPage })
+    $buttons.Controls.Add($openCopilot)
+
+    $copyDesc = New-Object System.Windows.Forms.Button
+    $copyDesc.Text = 'Copy description'
+    $copyDesc.Width = 130
+    $copyDesc.Height = 32
+    $copyDesc.Add_Click({ Copy-GitHubRepositoryDescription -Description $descBox.Text })
+    $buttons.Controls.Add($copyDesc)
+
+    $privacyButton = New-Object System.Windows.Forms.Button
+    $privacyButton.Text = 'Privacy checklist'
+    $privacyButton.Width = 125
+    $privacyButton.Height = 32
+    $privacyButton.Add_Click({ Show-GitHubPrivacyGuidance })
+    $buttons.Controls.Add($privacyButton)
+
+    $dialog.AcceptButton = $ok
+    $dialog.CancelButton = $cancel
+    $result = $dialog.ShowDialog($form)
+    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return $false }
+
+    try {
+        $ownerText = $ownerBox.Text.Trim()
+        $repoText = $repoBox.Text.Trim()
+        $protocolText = [string]$protocolBox.SelectedItem
+        $remoteUrl = Get-GitHubRemoteUrlSafe -Owner $ownerText -Repository $repoText -Protocol $protocolText
+        Set-ConfigValue -Name 'DefaultGitHubOwner' -Value $ownerText
+        Set-ConfigValue -Name 'DefaultGitHubProtocol' -Value $protocolText
+        Set-ConfigValue -Name 'GitHubRepositoryDescription' -Value $descBox.Text
+        Save-Config -Config $script:Config
+        if ($private.Checked -or $copilot.Checked) { Show-GitHubPrivacyGuidance }
+        return (Invoke-RemoteSetup -RemoteName ([string]$script:Config.DefaultRemoteName) -RemoteUrl $remoteUrl -PushAfter:([bool]$push.Checked))
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'GitHub publish setup failed', 'OK', 'Error') | Out-Null
+        return $false
+    }
 }
 
 function Invoke-RemoteSetup {
@@ -5119,7 +5370,7 @@ function Save-LayoutConfig {
 #region UI Setup
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Git Glide GUI v3.6.5 - safer visual Git workflows'
+$form.Text = 'Git Glide GUI v3.6.6 - safer visual Git workflows'
 $form.Size = New-Object System.Drawing.Size -ArgumentList @((Get-ConfigInt -Name 'WindowWidth' -DefaultValue 1580), (Get-ConfigInt -Name 'WindowHeight' -DefaultValue 1080))
 $form.StartPosition = 'CenterScreen'
 $form.MinimumSize = New-Object System.Drawing.Size(1320, 860)
@@ -5522,6 +5773,7 @@ $script:ModeToggleButton = New-ActionButton -ParentPanel $setupActionsPanel -Tex
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'First commit...' -Width 135 -Handler { Invoke-FirstCommitWizard } -PreviewBuilder { Build-FirstCommitPreview } -PreviewTitle 'First commit wizard' -Notes 'Creates or updates .gitignore, stages files, creates the first commit, and optionally configures/pushes to a remote.')
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'Add .gitignore...' -Width 140 -Handler { Show-GitIgnoreTemplateDialog } -PreviewBuilder { Build-GitIgnorePreview } -PreviewTitle 'Create or update .gitignore' -Notes 'Adds a starter .gitignore template before committing generated files by accident.')
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'Add remote...' -Width 125 -Handler { Show-RemoteSetupDialog } -PreviewBuilder { Build-RemoteSetupPreview } -PreviewTitle 'Add or update remote' -Notes 'Adds or updates origin and can optionally push the current branch with upstream tracking.')
+[void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'GitHub publish...' -Width 145 -Handler { Show-GitHubPublishDialog } -PreviewBuilder { Build-GitHubPublishPreview } -PreviewTitle 'GitHub publish workflow' -Notes 'Guides private GitHub repository creation, privacy/Copilot settings review, remote setup, and optional push.')
 
 # Inspect/Build actions
 [void](New-ActionGuidance -ParentPanel $inspectActionsPanel -Text 'Inspect first when unsure: refresh status, read git status, preview diffs, or inspect the branch graph before committing, pushing, merging, or stashing.')
@@ -7187,10 +7439,10 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.5 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.6 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
-Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.5" -f $script:RepoRoot)
+Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.6" -f $script:RepoRoot)
 
 $repositoryReady = Ensure-RepositorySelected -InitialStartup
 
@@ -7200,7 +7452,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.5' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore and Remote setup. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.6' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish guidance. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {

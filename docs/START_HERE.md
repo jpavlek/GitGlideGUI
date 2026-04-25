@@ -1,4 +1,4 @@
-# Git Glide GUI v3.6.5
+# Git Glide GUI v3.6.6
 
 Git Glide GUI is a Windows PowerShell/WinForms Git helper focused on safer visual Git workflows, onboarding, staging, branching, stash recovery, tags/releases, commit guidance, and guided next actions.
 
@@ -92,6 +92,11 @@ v3.6.4 improves the visual history table with ASCII graph badges and explicit br
 v3.6.4 improves the first-commit path. If you stage a file before the repository has a first commit, **Unstage selected** now uses `git rm --cached -- <file>` instead of `git restore --staged -- <file>`, because `git restore --staged` requires `HEAD`. It also removes a fragile splitter event handler that could show a WinForms JIT dialog during resize or shutdown.
 
 
-## v3.6.5 Conflict marker verification
+## v3.6.6 Conflict marker verification
 
-v3.6.5 improves Recovery safety. Before **Stage resolved file** runs `git add -- <file>`, Git Glide scans the selected file for a complete Git conflict marker block using `<<<<<<<`, `=======`, and `>>>>>>>`. If markers remain, staging is blocked and the user is told which marker lines need attention. This lowers the risk of accidentally committing unresolved conflict text.
+v3.6.6 improves Recovery safety. Before **Stage resolved file** runs `git add -- <file>`, Git Glide scans the selected file for a complete Git conflict marker block using `<<<<<<<`, `=======`, and `>>>>>>>`. If markers remain, staging is blocked and the user is told which marker lines need attention. This lowers the risk of accidentally committing unresolved conflict text.
+
+
+## GitHub publish guidance
+
+Use **Setup -> GitHub publish...** after you have local commits and want to connect the project to GitHub. The workflow recommends a private GitHub repository for proprietary, client, security-sensitive, or unfinished work, helps build the correct remote URL, and reminds you to review GitHub Copilot AI/data-training settings where your plan allows opt-out.
