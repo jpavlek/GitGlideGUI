@@ -119,7 +119,7 @@ function Get-GgbMergeFeatureIntoBaseCommandPlan {
         (New-GgbGitCommandPlan -Verb 'switch-base' -Arguments @('switch', $BaseBranch) -Description 'Switch to the integration branch.')
         (New-GgbGitCommandPlan -Verb 'pull-base' -Arguments @('pull', '--ff-only') -Description 'Fast-forward the integration branch before merging.')
         (New-GgbGitCommandPlan -Verb 'merge-feature' -Arguments @('merge', '--no-ff', $FeatureBranch) -Description 'Merge the feature branch with an explicit merge commit.')
-        (New-GgbGitCommandPlan -Verb 'push-base' -Arguments @('push', 'origin', $BaseBranch) -Description 'Push the updated integration branch.')
+        (New-GgbGitCommandPlan -Verb 'push-base' -Arguments @('push', '-u', 'origin', $BaseBranch) -Description 'Push the updated integration branch.')
     )
 }
 
@@ -133,8 +133,61 @@ function Get-GgbMergeBaseIntoMainCommandPlan {
         (New-GgbGitCommandPlan -Verb 'switch-main' -Arguments @('switch', $MainBranch) -Description 'Switch to the main branch.')
         (New-GgbGitCommandPlan -Verb 'pull-main' -Arguments @('pull', '--ff-only') -Description 'Fast-forward main before merging.')
         (New-GgbGitCommandPlan -Verb 'merge-base' -Arguments @('merge', '--no-ff', $BaseBranch) -Description 'Merge the integration branch into main.')
-        (New-GgbGitCommandPlan -Verb 'push-main' -Arguments @('push', 'origin', $MainBranch) -Description 'Push the updated main branch.')
+        (New-GgbGitCommandPlan -Verb 'push-main' -Arguments @('push', '-u', 'origin', $MainBranch) -Description 'Push the updated main branch.')
     )
+}
+
+
+function Get-GgbBranchTrackingCommandPlan {
+    return New-GgbGitCommandPlan -Verb 'branch-tracking' -Arguments @('branch', '-vv') -Description 'Show local branches, upstream branches, and ahead/behind tracking state.'
+}
+
+function Get-GgbPushBranchWithUpstreamCommandPlan {
+    param([string]$BranchName = 'HEAD', [string]$RemoteName = 'origin')
+    if ([string]::IsNullOrWhiteSpace($RemoteName)) { $RemoteName = 'origin' }
+    if ([string]::IsNullOrWhiteSpace($BranchName)) { $BranchName = 'HEAD' }
+    return @(New-GgbGitCommandPlan -Verb 'push-branch-upstream' -Arguments @('push', '-u', $RemoteName, $BranchName) -Description 'Push the branch and set upstream tracking so later git push works without extra arguments.')
+}
+
+function Get-GgbSyncMainIntoBaseCommandPlan {
+    param([string]$MainBranch = 'main', [string]$BaseBranch = 'develop')
+    return @(
+        (New-GgbGitCommandPlan -Verb 'switch-main' -Arguments @('switch', $MainBranch) -Description 'Switch to the stable main branch.')
+        (New-GgbGitCommandPlan -Verb 'pull-main' -Arguments @('pull', '--ff-only') -Description 'Fast-forward main before syncing it into develop.')
+        (New-GgbGitCommandPlan -Verb 'switch-base' -Arguments @('switch', $BaseBranch) -Description 'Switch to the integration branch.')
+        (New-GgbGitCommandPlan -Verb 'pull-base' -Arguments @('pull', '--ff-only') -Description 'Fast-forward develop before merging main into it.')
+        (New-GgbGitCommandPlan -Verb 'merge-main-into-base' -Arguments @('merge', $MainBranch) -Description 'Bring main/hotfix/release corrections into develop.')
+        (New-GgbGitCommandPlan -Verb 'push-base-upstream' -Arguments @('push', '-u', 'origin', $BaseBranch) -Description 'Push develop and set upstream if missing.')
+    )
+}
+
+function Get-GgbMergeNamedFeatureIntoBaseCommandPlan {
+    param([Parameter(Mandatory=$true)][string]$FeatureBranch, [string]$BaseBranch = 'develop')
+    return @(
+        (New-GgbGitCommandPlan -Verb 'switch-base' -Arguments @('switch', $BaseBranch) -Description 'Switch to the integration branch.')
+        (New-GgbGitCommandPlan -Verb 'pull-base' -Arguments @('pull', '--ff-only') -Description 'Fast-forward the integration branch before merging the feature.')
+        (New-GgbGitCommandPlan -Verb 'merge-feature' -Arguments @('merge', '--no-ff', $FeatureBranch) -Description 'Merge the selected feature branch with an explicit merge commit.')
+        (New-GgbGitCommandPlan -Verb 'push-base-upstream' -Arguments @('push', '-u', 'origin', $BaseBranch) -Description 'Push develop and set upstream if missing.')
+    )
+}
+
+function Get-GgbGitFlowMergeAndPublishGuide {
+    param([string]$MainBranch = 'main', [string]$BaseBranch = 'develop', [string]$FeatureBranch = '<feature-branch>')
+    if ([string]::IsNullOrWhiteSpace($FeatureBranch)) { $FeatureBranch = '<feature-branch>' }
+    return @(
+        'git status',
+        'git branch -vv',
+        'git switch ' + $FeatureBranch,
+        'git push -u origin HEAD',
+        'git switch ' + $BaseBranch,
+        'git merge ' + $MainBranch,
+        'git merge --no-ff ' + $FeatureBranch,
+        'scripts\windows\run-quality-checks.bat',
+        'git push -u origin ' + $BaseBranch,
+        'git switch ' + $MainBranch,
+        'git merge --no-ff ' + $BaseBranch,
+        'git push -u origin ' + $MainBranch
+    ) -join "`r`n"
 }
 
 function Get-GgbDirtyWorkingTreeGuidance {
@@ -197,6 +250,11 @@ Export-ModuleMember -Function `
     Get-GgbSwitchBranchCommandPlan, `
     Get-GgbPullCurrentBranchCommandPlan, `
     Get-GgbPushCurrentBranchCommandPlan, `
+    Get-GgbBranchTrackingCommandPlan, `
+    Get-GgbPushBranchWithUpstreamCommandPlan, `
+    Get-GgbSyncMainIntoBaseCommandPlan, `
+    Get-GgbMergeNamedFeatureIntoBaseCommandPlan, `
+    Get-GgbGitFlowMergeAndPublishGuide, `
     Get-GgbMergeFeatureIntoBaseCommandPlan, `
     Get-GgbMergeBaseIntoMainCommandPlan, `
     Get-GgbDirtyWorkingTreeGuidance

@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.6.9 - Git Flow merge/publish workflow restoration
+
+- Restored visible merge workflow support in the Integrate tab with a clearer Merge & Publish flow.
+- Added branch tracking overview (`git branch -vv`).
+- Added `main -> develop` sync workflow.
+- Added selected-feature merge into `develop`, so a feature branch can be merged while currently on `develop`.
+- Added quality-check gate button before promoting `develop` back to `main`.
+- Added GitHub pull-request URL detection from push output.
+
 ## v3.6.8
 
 - Added Stage -> Browse tracked files for clean tracked files that do not appear in Changed Files.

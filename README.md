@@ -23,3 +23,8 @@ run-quality-checks.bat
 ## Repository tracking
 
 This package is ready to be tracked as a dedicated Git repository. See `docs/REPOSITORY_WORKFLOW.md`.
+
+
+## v3.6.9 Merge & Publish workflow
+
+The Integrate tab now includes branch tracking, push-with-upstream, `main -> develop` sync, selected feature merge into `develop`, quality checks, and `develop -> main` promotion.

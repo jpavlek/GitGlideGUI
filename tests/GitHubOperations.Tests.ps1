@@ -49,6 +49,14 @@ Describe 'GitHub remote diagnostics helpers' {
         (Get-GghubSetUpstreamPushCommandPlan -RemoteName 'origin').Arguments | Should -Be @('push','-u','origin','HEAD')
     }
 
+
+    It 'extracts GitHub pull request URLs from push output' {
+        $text = "remote: Create a pull request for 'feature/x' on GitHub by visiting:`nremote:      https://github.com/jpavlek/GitGlideGUI/pull/new/feature/x`n"
+        $urls = @(Get-GghubPullRequestUrlsFromText -Text $text)
+        $urls.Count | Should -Be 1
+        $urls[0] | Should -Be 'https://github.com/jpavlek/GitGlideGUI/pull/new/feature/x'
+    }
+
     It 'diagnoses GitHub remote failures with repository not found guidance' {
         $g = Get-GghubRemoteFailureGuidance -ExitCode 128 -StdErr "remote: Repository not found.`nfatal: repository 'https://github.com/jpavlek/GitGlideGUI.git/' not found" -RemoteName 'origin' -Operation 'push with upstream'
         $g.Kind | Should -Be 'repository-not-found'
