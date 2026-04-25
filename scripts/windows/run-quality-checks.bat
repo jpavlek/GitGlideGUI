@@ -11,7 +11,7 @@ setlocal
 set "ROOT=%~dp0..\.."
 cd /d "%ROOT%"
 
-echo === Git Glide GUI v3.6.10 quality checks ===
+echo === Git Glide GUI v3.6.10.1 quality checks ===
 
 echo.
 echo [1/4] Static package smoke test
