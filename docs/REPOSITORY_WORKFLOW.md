@@ -77,3 +77,23 @@ This release fixes the GitHub remote parser for Windows PowerShell 5.1 / Pester 
 ## Clean tracked file replacement
 
 Changed Files lists changed paths only. To replace a clean tracked file, use **Browse tracked files**, select the file, then choose **Remove from Git and disk** or **Stop tracking, keep local**.
+
+
+## v3.6.9: Feature -> develop -> main
+
+Recommended sequence:
+
+```bat
+git branch -vv
+git push -u origin HEAD
+git switch develop
+git merge main
+git merge --no-ff <feature-branch>
+scripts\windows\run-quality-checks.bat
+git push -u origin develop
+git switch main
+git merge --no-ff develop
+git push -u origin main
+```
+
+Git Glide GUI exposes this as a guided, previewable workflow in the Integrate tab.
