@@ -1,6 +1,6 @@
 param(
     [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
-    [string]$Version = '3.6.4',
+    [string]$Version = '3.6.5',
     [string]$RemoteUrl = '',
     [switch]$SkipQualityChecks
 )

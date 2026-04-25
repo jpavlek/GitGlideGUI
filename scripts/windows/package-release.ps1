@@ -5,7 +5,7 @@
 # logs, user config, nested archives, and repository metadata are excluded.
 
 param(
-    [string]$Version = '3.6.4',
+    [string]$Version = '3.6.5',
     [string]$OutputZip = ''
 )
 

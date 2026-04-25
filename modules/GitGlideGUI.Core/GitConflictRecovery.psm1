@@ -312,6 +312,110 @@ function Format-GgrConflictState {
     return ('Operation: {0}; unresolved files: {1}; staged/resolved candidates: {2}; state: {3}' -f $operation, [int]$State.UnresolvedCount, [int]$State.ResolvedCandidateCount, $status)
 }
 
+
+function Get-GgrConflictMarkerScan {
+    param([AllowNull()][string]$Text)
+
+    $lines = @()
+    if ($null -ne $Text) { $lines = @([string]$Text -split "`r?`n") }
+
+    $markerLines = New-Object System.Collections.Generic.List[string]
+    $hasOpen = $false
+    $hasSeparator = $false
+    $hasClose = $false
+    $lineNumber = 0
+
+    foreach ($line in $lines) {
+        $lineNumber++
+        $value = [string]$line
+        $trimmed = $value.TrimStart()
+        $isMarker = $false
+
+        if ($trimmed -match '^<<<<<<<(\s|$)') { $hasOpen = $true; $isMarker = $true }
+        elseif ($trimmed -match '^=======(\s*)$') { $hasSeparator = $true; $isMarker = $true }
+        elseif ($trimmed -match '^>>>>>>>(\s|$)') { $hasClose = $true; $isMarker = $true }
+        elseif ($trimmed -match '^\|\|\|\|\|\|\|(\s|$)') { $isMarker = $true }
+
+        if ($isMarker) { [void]$markerLines.Add(('{0}: {1}' -f $lineNumber, $value.Trim())) }
+    }
+
+    $hasMarkers = [bool]($hasOpen -and $hasSeparator -and $hasClose)
+    $summary = if ($hasMarkers) {
+        ('Conflict markers remain at: {0}' -f ((@($markerLines) | Select-Object -First 8) -join '; '))
+    } else {
+        'No complete Git conflict marker block detected.'
+    }
+
+    return [pscustomobject]@{
+        HasMarkers = $hasMarkers
+        MarkerCount = @($markerLines).Count
+        MarkerLines = @($markerLines)
+        HasOpenMarker = $hasOpen
+        HasSeparatorMarker = $hasSeparator
+        HasCloseMarker = $hasClose
+        Summary = $summary
+        Readable = $true
+        ReadError = ''
+    }
+}
+
+function Get-GgrConflictMarkerScanForFile {
+    param([Parameter(Mandatory=$true)][string]$Path)
+
+    try {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+            return [pscustomobject]@{
+                HasMarkers = $false
+                MarkerCount = 0
+                MarkerLines = @()
+                HasOpenMarker = $false
+                HasSeparatorMarker = $false
+                HasCloseMarker = $false
+                Summary = 'File not found.'
+                Readable = $false
+                ReadError = 'File not found.'
+                Path = $Path
+            }
+        }
+        $text = [System.IO.File]::ReadAllText($Path)
+        $scan = Get-GgrConflictMarkerScan -Text $text
+        $scan | Add-Member -NotePropertyName Path -NotePropertyValue $Path -Force
+        return $scan
+    } catch {
+        return [pscustomobject]@{
+            HasMarkers = $false
+            MarkerCount = 0
+            MarkerLines = @()
+            HasOpenMarker = $false
+            HasSeparatorMarker = $false
+            HasCloseMarker = $false
+            Summary = 'Could not read file for conflict marker verification.'
+            Readable = $false
+            ReadError = $_.Exception.Message
+            Path = $Path
+        }
+    }
+}
+
+function Format-GgrConflictMarkerScan {
+    param([Parameter(Mandatory=$true)][object]$Scan)
+
+    if (-not $Scan.Readable) {
+        return ('Conflict marker verification could not read the file. {0}' -f [string]$Scan.ReadError)
+    }
+    if (-not $Scan.HasMarkers) { return 'No complete Git conflict marker block detected.' }
+
+    $lines = @()
+    $lines += 'Conflict markers still appear to be present in the selected file.'
+    $lines += ''
+    $lines += 'Marker lines:'
+    foreach ($line in @($Scan.MarkerLines | Select-Object -First 12)) { $lines += ('- ' + [string]$line) }
+    if (@($Scan.MarkerLines).Count -gt 12) { $lines += ('- ... {0} more marker line(s)' -f (@($Scan.MarkerLines).Count - 12)) }
+    $lines += ''
+    $lines += 'Open the file, remove the conflict markers, save it, then stage it as resolved.'
+    return ($lines -join "`r`n")
+}
+
 function Get-GgrStageResolvedFileCommandPlan {
     param([Parameter(Mandatory=$true)][string]$Path)
     return New-GgrGitCommandPlan -Verb 'stage-resolved-file' -Arguments @('add','--',$Path) -Description 'Stage a file after conflict markers were resolved.'
@@ -417,6 +521,9 @@ Export-ModuleMember -Function `
     Format-GgrConflictFileGuidance, `
     ConvertFrom-GgrConflictState, `
     Format-GgrConflictState, `
+    Get-GgrConflictMarkerScan, `
+    Get-GgrConflictMarkerScanForFile, `
+    Format-GgrConflictMarkerScan, `
     Get-GgrStageResolvedFileCommandPlan, `
     Get-GgrContinueMergeCommandPlan, `
     Get-GgrContinueRebaseCommandPlan, `

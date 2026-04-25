@@ -72,3 +72,27 @@ Describe 'Conflict state and continue-operation helpers' {
         (Get-GgrExternalMergeToolCommandPlan -ToolCommand 'git mergetool --tool vscode').Display | Should -Match 'git mergetool --tool vscode'
     }
 }
+
+Describe 'Conflict marker verification helpers' {
+    It 'detects complete Git conflict marker blocks' {
+        $text = "before`n<<<<<<< HEAD`nours`n=======`ntheirs`n>>>>>>> feature/demo`nafter"
+        $scan = Get-GgrConflictMarkerScan -Text $text
+        $scan.HasMarkers | Should -BeTrue
+        $scan.MarkerCount | Should -Be 3
+        $scan.Summary | Should -Match 'Conflict markers remain'
+    }
+
+    It 'does not flag incomplete or unrelated separator text as a resolved-file blocker' {
+        $scan = Get-GgrConflictMarkerScan -Text "Title`n=======`nNormal markdown-style underline"
+        $scan.HasMarkers | Should -BeFalse
+        $scan.MarkerCount | Should -Be 1
+    }
+
+    It 'formats conflict marker scan guidance for the UI' {
+        $text = "<<<<<<< HEAD`nours`n=======`ntheirs`n>>>>>>> branch"
+        $scan = Get-GgrConflictMarkerScan -Text $text
+        $message = Format-GgrConflictMarkerScan -Scan $scan
+        $message | Should -Match 'Conflict markers still appear'
+        $message | Should -Match 'Open the file'
+    }
+}

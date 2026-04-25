@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.6.5
+
+- Added conflict-marker verification before staging a file as resolved.
+- Recovery now blocks **Stage resolved file** when a complete `<<<<<<<` / `=======` / `>>>>>>>` marker block remains.
+- Added UI guidance showing the detected marker lines.
+- Added unit tests for clean, unresolved, and incomplete marker-scan cases.
+- Updated package metadata, launcher, smoke test, and docs to v3.6.5.
+
 ## v3.6.4
 
 - Removed a fragile PowerShell `SplitterMoved` event handler that could trigger a WinForms JIT dialog during resize/shutdown.

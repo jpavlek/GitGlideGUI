@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.4",
+  "version": "3.6.5",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.4.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.5.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.4 stability hotfix, first-commit unstaging, and splitter PipelineStoppedException prevention",
+  "iteration_focus": "v3.6.5 conflict-marker verification before staging resolved files",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -25,7 +25,7 @@
     "modules/GitGlideGUI.Core/GitLearningGuidance.psm1"
   ],
   "added": [
-    "Consistent v3.6.4 version metadata, launcher target, smoke-launch target, static smoke markers, and release documentation",
+    "Conflict-marker scan before Stage resolved file to reduce accidental marker commits",
     "ASCII-safe history visual graph lane markers for Windows PowerShell 5.1 source-encoding robustness",
     "Decorated history model rows with branch, remote branch, tag, HEAD, merge, and ref-kind classifications",
     "History / Graph ListView columns for branches, tags, remotes, author, and date",
@@ -40,7 +40,7 @@
     "Fixed cherry-pick conflict workflow test capture for PowerShell/Pester"
   ],
   "next_recommended": [
-    "Add file-level conflict helper actions and resolved-file verification",
+    "Add pre-continue verification across all resolved candidate files",
     "Add configurable external diff/merge tool profiles",
     "Improve rebase workflow support",
     "Add reflog/recovery browser",
@@ -49,6 +49,7 @@
   "highlights": [
     "Correct unstaging behavior before the first commit by using git rm --cached when HEAD does not exist",
     "Removed fragile SplitterMoved PowerShell event handler to avoid resize/shutdown PipelineStoppedException dialogs",
-    "Added regression tests for no-HEAD unstaging workflows"
+    "Added regression tests for no-HEAD unstaging workflows",
+    "Added conflict-marker verification before staging resolved files"
   ]
 }

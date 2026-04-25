@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.4
+# Git Glide GUI - Enhanced Version v3.6.5
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -66,7 +66,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.4 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.5 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -3880,8 +3880,24 @@ function Stage-SelectedConflictFileAsResolved {
         if (-not (Test-GitRepository)) { [void](Ensure-RepositorySelected); return }
         $path = Get-SelectedConflictFilePath
         if ([string]::IsNullOrWhiteSpace($path)) { [System.Windows.Forms.MessageBox]::Show('Select a conflicted file first.', 'No conflicted file selected', 'OK', 'Information') | Out-Null; return }
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { [System.Windows.Forms.MessageBox]::Show("The selected conflict file was not found:`r`n$path", 'File not found', 'OK', 'Warning') | Out-Null; return }
         $relative = [string]$script:ConflictFilesListBox.SelectedItem
-        $ok = Confirm-GuiAction -Title 'Stage resolved file' -Message ("This will run:`r`n`r`ngit add -- $relative`r`n`r`nOnly do this after you have resolved conflict markers and saved the file.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+
+        if (Get-Command Get-GgrConflictMarkerScanForFile -ErrorAction SilentlyContinue) {
+            $scan = Get-GgrConflictMarkerScanForFile -Path $path
+            if ($scan.HasMarkers) {
+                $message = if (Get-Command Format-GgrConflictMarkerScan -ErrorAction SilentlyContinue) { Format-GgrConflictMarkerScan -Scan $scan } else { [string]$scan.Summary }
+                [System.Windows.Forms.MessageBox]::Show($message, 'Conflict markers still present', 'OK', 'Warning') | Out-Null
+                Set-CommandPreview -Title 'Conflict markers still present' -Commands ('git add -- ' + (Quote-Arg $relative)) -Notes 'Git Glide blocked staging this file as resolved because conflict markers remain. Open the file, remove the markers, save, then stage again.'
+                return
+            }
+            if (-not $scan.Readable) {
+                $okRead = Confirm-GuiAction -Title 'Could not verify conflict markers' -Message ("Git Glide could not read this file to verify whether conflict markers remain:`r`n`r`n$path`r`n`r`nReason: $($scan.ReadError)`r`n`r`nStage anyway?") -Icon ([System.Windows.Forms.MessageBoxIcon]::Warning)
+                if (-not $okRead) { return }
+            }
+        }
+
+        $ok = Confirm-GuiAction -Title 'Stage resolved file' -Message ("Git Glide did not detect a complete conflict-marker block in:`r`n`r`n$relative`r`n`r`nThis will run:`r`n`r`ngit add -- $relative") -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
         if (-not $ok) { return }
         $plan = if (Get-Command Get-GgrStageResolvedFileCommandPlan -ErrorAction SilentlyContinue) { Get-GgrStageResolvedFileCommandPlan -Path $relative } else { [pscustomobject]@{ Arguments=@('add','--',$relative); Display=('git add -- ' + (Quote-Arg $relative)) } }
         $result = Run-External -FileName 'git' -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) -Caption ([string]$plan.Display) -AllowFailure -ShowProgress
@@ -5103,7 +5119,7 @@ function Save-LayoutConfig {
 #region UI Setup
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Git Glide GUI v3.6.4 - safer visual Git workflows'
+$form.Text = 'Git Glide GUI v3.6.5 - safer visual Git workflows'
 $form.Size = New-Object System.Drawing.Size -ArgumentList @((Get-ConfigInt -Name 'WindowWidth' -DefaultValue 1580), (Get-ConfigInt -Name 'WindowHeight' -DefaultValue 1080))
 $form.StartPosition = 'CenterScreen'
 $form.MinimumSize = New-Object System.Drawing.Size(1320, 860)
@@ -7171,10 +7187,10 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.4 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.5 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
-Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.4" -f $script:RepoRoot)
+Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.5" -f $script:RepoRoot)
 
 $repositoryReady = Ensure-RepositorySelected -InitialStartup
 
@@ -7184,7 +7200,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.4' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore and Remote setup. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, stage resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.5' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore and Remote setup. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {

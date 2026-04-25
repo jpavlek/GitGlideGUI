@@ -3,7 +3,7 @@
 # but exits before opening the WinForms window.
 
 $ErrorActionPreference = 'Stop'
-$scriptPath = Join-Path $PSScriptRoot 'GitGlideGUI-v3.6.4.ps1'
+$scriptPath = Join-Path $PSScriptRoot 'GitGlideGUI-v3.6.5.ps1'
 if (-not (Test-Path -LiteralPath $scriptPath)) {
     throw "Main GUI script not found: $scriptPath"
 }

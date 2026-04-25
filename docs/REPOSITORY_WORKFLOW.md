@@ -12,15 +12,15 @@ From the extracted package root:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\windows\init-gitglide-repo.ps1
 ```
 
-This initializes a local Git repository if needed, commits the current package, and tags it as `v3.6.4`.
+This initializes a local Git repository if needed, commits the current package, and tags it as `v3.6.5`.
 
 ## Manual equivalent
 
 ```bat
 git init -b main
 git add -A
-git commit -m "chore: initialize Git Glide GUI repository at v3.6.4"
-git tag -a v3.6.4 -m "Git Glide GUI v3.6.4"
+git commit -m "chore: initialize Git Glide GUI repository at v3.6.5"
+git tag -a v3.6.5 -m "Git Glide GUI v3.6.5"
 ```
 
 If your Git version does not support `git init -b main`:
@@ -33,13 +33,13 @@ git branch -M main
 ## Suggested release flow
 
 ```bat
-git switch -c feature/v3-6-4-conflict-verification
+git switch -c feature/v3-6-5-conflict-marker-verification
 run-quality-checks.bat
 git add -A
 git commit -m "feat: implement conflict verification workflow"
 git switch main
-git merge --no-ff feature/v3-6-4-conflict-verification
-git tag -a v3.6.4 -m "Git Glide GUI v3.6.4"
+git merge --no-ff feature/v3-6-5-conflict-marker-verification
+git tag -a v3.6.5 -m "Git Glide GUI v3.6.5"
 ```
 
 ## Remote setup

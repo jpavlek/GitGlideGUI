@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static smoke tests for the Git Glide GUI v3.6.4 package.
+"""Static smoke tests for the Git Glide GUI v3.6.5 package.
 
 This test intentionally checks explicit known paths only. It does not use
 recursive os.walk, which avoids symlink/network-share traversal problems.
@@ -13,7 +13,7 @@ required = [
     "git-flow-gui2.bat",
     "run-quality-checks.bat",
     "run-pester-tests.bat",
-    "scripts/windows/GitGlideGUI-v3.6.4.ps1",
+    "scripts/windows/GitGlideGUI-v3.6.5.ps1",
     "scripts/windows/smoke-launch.ps1",
     "scripts/windows/run-quality-checks.bat",
     "scripts/windows/run-pester-tests.ps1",
@@ -54,9 +54,9 @@ required = [
     "tests/GitRepositoryCherryPickWorkflow.Tests.ps1",
     "tests/GitLearningGuidance.Tests.ps1",
     "docs/START_HERE.md",
-    "docs/RELEASE_NOTES_v3_6_4.md",
-    "docs/SWOT_AND_ROADMAP_v3_6_4.md",
-    "docs/ROADMAP_REVIEW_v3_6_4.md",
+    "docs/RELEASE_NOTES_v3_6_5.md",
+    "docs/SWOT_AND_ROADMAP_v3_6_5.md",
+    "docs/ROADMAP_REVIEW_v3_6_5.md",
 ]
 missing = [p for p in required if not (ROOT / p).exists()]
 if missing:
@@ -65,9 +65,9 @@ if missing:
         print(" -", p)
     sys.exit(1)
 
-main = (ROOT / "scripts/windows/GitGlideGUI-v3.6.4.ps1").read_text(encoding="utf-8")
+main = (ROOT / "scripts/windows/GitGlideGUI-v3.6.5.ps1").read_text(encoding="utf-8")
 for marker in [
-    "Git Glide GUI v3.6.4",
+    "Git Glide GUI v3.6.5",
     "Stage-SelectedConflictFileAsResolved",
     "ContinueOperationButton",
     "ExternalMergeToolTextBox",
@@ -79,6 +79,8 @@ for marker in [
     "Refresh-ConflictFiles",
     "Open-SelectedConflictFile",
     "Open-SelectedConflictFolder",
+    "Get-GgrConflictMarkerScanForFile",
+    "Conflict markers still present",
     "HistoryVisualListView",
     "H*=HEAD",
     "Branches",
@@ -97,7 +99,7 @@ for marker in [
         sys.exit(1)
 
 launcher = (ROOT / "git-glide-gui.bat").read_text(encoding="utf-8")
-if "GitGlideGUI-v3.6.4.ps1" not in launcher:
+if "GitGlideGUI-v3.6.5.ps1" not in launcher:
     print("Launcher does not target v3.6 script.")
     sys.exit(1)
 
@@ -108,7 +110,7 @@ for marker in ["Get-GghGraphCommandPlan", "ConvertFrom-GghCommitLogLine", "Conve
         sys.exit(1)
 
 recovery_module = (ROOT / "modules/GitGlideGUI.Core/GitConflictRecovery.psm1").read_text(encoding="utf-8")
-for marker in ["Get-GgrRecoveryGuidance", "Get-GgrUnmergedFilesCommandPlan", "ConvertFrom-GgrConflictFileList", "Format-GgrConflictFileGuidance", "ConvertFrom-GgrConflictState", "Get-GgrStageResolvedFileCommandPlan", "Get-GgrExternalMergeToolCommandPlan"]:
+for marker in ["Get-GgrRecoveryGuidance", "Get-GgrUnmergedFilesCommandPlan", "ConvertFrom-GgrConflictFileList", "Format-GgrConflictFileGuidance", "ConvertFrom-GgrConflictState", "Get-GgrConflictMarkerScan", "Get-GgrConflictMarkerScanForFile", "Format-GgrConflictMarkerScan", "Get-GgrStageResolvedFileCommandPlan", "Get-GgrExternalMergeToolCommandPlan"]:
     if marker not in recovery_module:
         print(f"Missing recovery module marker: {marker}")
         sys.exit(1)
