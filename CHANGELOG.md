@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.6.8
+
+- Added Stage -> Browse tracked files for clean tracked files that do not appear in Changed Files.
+- Added tracked-file remove/stop-tracking path for replacement workflows.
+- Added staging module tests for tracked-file parsing and clean tracked command plans.
+
+## v3.6.7.1 - GitHub diagnostics parser hotfix
+
+- Fixed `ConvertFrom-GghubRemoteList` for Windows PowerShell 5.1 and Pester 3 compatibility.
+- Replaced a generic .NET `List[object]` return path with a plain PowerShell array of remote rows.
+- Keeps the v3.6.7 GitHub diagnostics, safer file-removal workflows, and explicit staging badges intact.
+
 ## v3.6.7 - GitHub diagnostics and safer file removal
 
 - Added GitHub remote diagnostics for remotes, current branch, upstream tracking, remote access tests, and push-with-upstream.

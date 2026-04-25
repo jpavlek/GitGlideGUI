@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.7
+# Git Glide GUI - Enhanced Version v3.6.8
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -33,7 +33,7 @@
 # - v3.5: conflict/recovery guidance module, recovery panel, and cherry-pick command planning
 # - v3.6: resolved/unresolved conflict state, stage resolved file, operation-aware continue guidance, merge tool config, and improved graph-action coupling
 # - v3.6.6: GitHub publish guidance with private-repository and Copilot-training privacy reminders
-# - v3.6.7: GitHub remote diagnostics, safer git rm workflows, and clearer staging status badges
+# - v3.6.8: PowerShell 5.1/Pester 3 GitHub remote parser hotfix
 
 param(
     [string]$RepositoryPath = '',
@@ -69,7 +69,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.7 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.8 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -2897,6 +2897,51 @@ function Get-SelectedStatusPath {
     return '<selected-file>'
 }
 
+function New-CleanTrackedStatusItem {
+    param([string]$Path)
+    return [pscustomobject]@{ Status = '  '; IndexStatus = ' '; WorkTreeStatus = ' '; Path = [string]$Path; RawPath = [string]$Path; OriginalPath = $null; IsTracked = $true; IsCleanTracked = $true }
+}
+
+function Get-TrackedFileItemsFromGit {
+    if (-not (Test-GitRepository)) { return @() }
+    $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'ls-files', '--cached', '--full-name') -Caption 'git ls-files --cached --full-name' -AllowFailure -QuietOutput
+    if ($result.ExitCode -ne 0) {
+        $message = if (-not [string]::IsNullOrWhiteSpace($result.StdErr)) { $result.StdErr.Trim() } else { 'git ls-files failed.' }
+        throw $message
+    }
+    if (Get-Command ConvertFrom-GggTrackedFileList -ErrorAction SilentlyContinue) { return @(ConvertFrom-GggTrackedFileList -Text $result.StdOut) }
+    $items = @()
+    foreach ($line in @($result.StdOut -split "`r?`n")) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $items += (New-CleanTrackedStatusItem -Path $line.Trim())
+    }
+    return @($items)
+}
+
+function Get-TrackedFileDialogDisplayText {
+    param($Item)
+    if ($null -eq $Item) { return '[tracked] <file>' }
+    $path = if ($Item.Path) { [string]$Item.Path } else { '<file>' }
+    return ('[tracked] ' + $path)
+}
+
+function Build-RemoveFromGitPreviewForItems {
+    param([object[]]$Items)
+    $items = @($Items | Where-Object { $_ })
+    if (Get-Command Get-GggRemoveFromGitCommandPlan -ErrorAction SilentlyContinue) { return (ConvertTo-GggCommandPreview -Plans (Get-GggRemoveFromGitCommandPlan -Items $items)) }
+    if ($items.Count -eq 0) { return 'git rm -- <selected-file>' }
+    return ($items | ForEach-Object { 'git rm -- ' + (Quote-Arg $_.Path) }) -join "`r`n"
+}
+
+function Build-StopTrackingPreviewForItems {
+    param([object[]]$Items)
+    $items = @($Items | Where-Object { $_ })
+    if (Get-Command Get-GggStopTrackingCommandPlan -ErrorAction SilentlyContinue) { return (ConvertTo-GggCommandPreview -Plans (Get-GggStopTrackingCommandPlan -Items $items)) }
+    if ($items.Count -eq 0) { return 'git rm --cached -- <selected-file>' }
+    return ($items | ForEach-Object { 'git rm --cached -- ' + (Quote-Arg $_.Path) }) -join "`r`n"
+}
+
+
 function Get-SelectedBranchName {
     $targetBranch = ''
     if ($script:BranchSwitchComboBox) { 
@@ -3158,21 +3203,11 @@ function Build-UnstageSelectedPreview {
 
 
 function Build-RemoveSelectedFromGitPreview {
-    $items = Get-SelectedStatusItems
-    if (Get-Command Get-GggRemoveFromGitCommandPlan -ErrorAction SilentlyContinue) {
-        return (ConvertTo-GggCommandPreview -Plans (Get-GggRemoveFromGitCommandPlan -Items $items))
-    }
-    if ($items.Count -le 1) { return ('git rm -- ' + (Quote-Arg (Get-SelectedStatusPath))) }
-    return ($items | ForEach-Object { 'git rm -- ' + (Quote-Arg $_.Path) }) -join "`r`n"
+    return (Build-RemoveFromGitPreviewForItems -Items (Get-SelectedStatusItems))
 }
 
 function Build-StopTrackingSelectedPreview {
-    $items = Get-SelectedStatusItems
-    if (Get-Command Get-GggStopTrackingCommandPlan -ErrorAction SilentlyContinue) {
-        return (ConvertTo-GggCommandPreview -Plans (Get-GggStopTrackingCommandPlan -Items $items))
-    }
-    if ($items.Count -le 1) { return ('git rm --cached -- ' + (Quote-Arg (Get-SelectedStatusPath))) }
-    return ($items | ForEach-Object { 'git rm --cached -- ' + (Quote-Arg $_.Path) }) -join "`r`n"
+    return (Build-StopTrackingPreviewForItems -Items (Get-SelectedStatusItems))
 }
 
 function Build-ShowDiffPreview {
@@ -3983,13 +4018,14 @@ function Unstage-SelectedFile {
 }
 
 
-function Remove-SelectedFilesFromGitAndDisk {
-    $items = Get-SelectedStatusItems
+function Invoke-RemoveFilesFromGitAndDisk {
+    param([object[]]$Items)
+    $items = @($Items | Where-Object { $_ })
     if ($items.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show('Select one or more tracked files first.', 'No file selected', 'OK', 'Information') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show('Select one or more tracked files first. Use Browse tracked files if the file is clean and not listed under Changed Files.', 'No file selected', 'OK', 'Information') | Out-Null
         return
     }
-    $preview = Build-RemoveSelectedFromGitPreview
+    $preview = Build-RemoveFromGitPreviewForItems -Items $items
     $ok = Confirm-GuiAction -Title 'Remove from Git and disk' -Message ("This deletes the selected file(s) from the working folder and stages the deletion.`r`n`r`n$preview`r`n`r`nUse Stop tracking instead if the file should stay on disk.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Warning)
     if (-not $ok) { return }
     try {
@@ -4002,19 +4038,18 @@ function Remove-SelectedFilesFromGitAndDisk {
             foreach ($item in $items) { [void](Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'rm', '--', $item.Path) -Caption ('git rm -- ' + $item.Path) -AllowFailure -ShowProgress) }
         }
         Refresh-Status
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Remove from Git failed', 'OK', 'Error') | Out-Null
-    }
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Remove from Git failed', 'OK', 'Error') | Out-Null }
 }
 
-function Stop-TrackingSelectedFilesKeepLocal {
-    $items = Get-SelectedStatusItems
+function Invoke-StopTrackingFilesKeepLocal {
+    param([object[]]$Items)
+    $items = @($Items | Where-Object { $_ })
     if ($items.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show('Select one or more tracked files first.', 'No file selected', 'OK', 'Information') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show('Select one or more tracked files first. Use Browse tracked files if the file is clean and not listed under Changed Files.', 'No file selected', 'OK', 'Information') | Out-Null
         return
     }
-    $preview = Build-StopTrackingSelectedPreview
-    $ok = Confirm-GuiAction -Title 'Stop tracking but keep local files' -Message ("This removes the selected file(s) from the Git index but keeps them on disk.`r`n`r`n$preview`r`n`r`nTypical use: accidentally committed config, logs, build output, or local settings. Add them to .gitignore if they should stay untracked.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+    $preview = Build-StopTrackingPreviewForItems -Items $items
+    $ok = Confirm-GuiAction -Title 'Stop tracking but keep local files' -Message ("This removes the selected file(s) from the Git index but keeps them on disk.`r`n`r`n$preview`r`n`r`nTypical use: replacing tracked files, accidentally committed config/log/build output, or local settings. Add them to .gitignore if they should stay untracked.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
     if (-not $ok) { return }
     try {
         if (Get-Command Get-GggStopTrackingCommandPlan -ErrorAction SilentlyContinue) {
@@ -4026,9 +4061,90 @@ function Stop-TrackingSelectedFilesKeepLocal {
             foreach ($item in $items) { [void](Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'rm', '--cached', '--', $item.Path) -Caption ('git rm --cached -- ' + $item.Path) -AllowFailure -ShowProgress) }
         }
         Refresh-Status
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Stop tracking failed', 'OK', 'Error') | Out-Null
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Stop tracking failed', 'OK', 'Error') | Out-Null }
+}
+
+function Remove-SelectedFilesFromGitAndDisk { Invoke-RemoveFilesFromGitAndDisk -Items (Get-SelectedStatusItems) }
+function Stop-TrackingSelectedFilesKeepLocal { Invoke-StopTrackingFilesKeepLocal -Items (Get-SelectedStatusItems) }
+
+function Show-TrackedFilesDialog {
+    if (-not (Test-GitRepository)) { [System.Windows.Forms.MessageBox]::Show('Open or initialize a Git repository first.', 'No repository', 'OK', 'Information') | Out-Null; return }
+    $trackedItems = @()
+    try { $trackedItems = @(Get-TrackedFileItemsFromGit) } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Could not list tracked files', 'OK', 'Error') | Out-Null; return }
+
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = 'Browse tracked files'
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.Size = New-Object System.Drawing.Size(760, 560)
+    $dialog.MinimumSize = New-Object System.Drawing.Size(620, 420)
+
+    $layout = New-Object System.Windows.Forms.TableLayoutPanel
+    $layout.Dock = 'Fill'; $layout.ColumnCount = 1; $layout.RowCount = 4; $layout.Padding = New-Object System.Windows.Forms.Padding(10)
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    $dialog.Controls.Add($layout)
+
+    $help = New-Object System.Windows.Forms.Label
+    $help.Text = 'Clean tracked files are not shown in Changed Files. Select tracked files here when you need to replace, remove, or stop tracking a file that has not been modified yet.'
+    $help.AutoSize = $false; $help.Height = 42; $help.Dock = 'Fill'
+    $layout.Controls.Add($help, 0, 0)
+
+    $filterPanel = New-Object System.Windows.Forms.FlowLayoutPanel
+    $filterPanel.Dock = 'Fill'; $filterPanel.AutoSize = $true; $filterPanel.WrapContents = $false
+    $layout.Controls.Add($filterPanel, 0, 1)
+    $filterLabel = New-Object System.Windows.Forms.Label
+    $filterLabel.Text = 'Filter:'; $filterLabel.AutoSize = $true; $filterLabel.Margin = New-Object System.Windows.Forms.Padding(0, 7, 8, 4)
+    $filterPanel.Controls.Add($filterLabel)
+    $filterBox = New-Object System.Windows.Forms.TextBox
+    $filterBox.Width = 420; $filterBox.Margin = New-Object System.Windows.Forms.Padding(0, 3, 8, 4)
+    $filterPanel.Controls.Add($filterBox)
+    $countLabel = New-Object System.Windows.Forms.Label
+    $countLabel.AutoSize = $true; $countLabel.Margin = New-Object System.Windows.Forms.Padding(8, 7, 4, 4)
+    $filterPanel.Controls.Add($countLabel)
+
+    $list = New-Object System.Windows.Forms.CheckedListBox
+    $list.Dock = 'Fill'; $list.CheckOnClick = $true; $list.HorizontalScrollbar = $true; $list.DisplayMember = 'Display'
+    $layout.Controls.Add($list, 0, 2)
+
+    $buttonPanel = New-Object System.Windows.Forms.FlowLayoutPanel
+    $buttonPanel.Dock = 'Fill'; $buttonPanel.FlowDirection = 'RightToLeft'; $buttonPanel.AutoSize = $true; $buttonPanel.WrapContents = $false
+    $layout.Controls.Add($buttonPanel, 0, 3)
+    $closeButton = New-Object System.Windows.Forms.Button; $closeButton.Text = 'Close'; $closeButton.Width = 90; $closeButton.Height = 32; $buttonPanel.Controls.Add($closeButton)
+    $removeButton = New-Object System.Windows.Forms.Button; $removeButton.Text = 'Remove from Git and disk'; $removeButton.Width = 170; $removeButton.Height = 32; $buttonPanel.Controls.Add($removeButton)
+    $stopButton = New-Object System.Windows.Forms.Button; $stopButton.Text = 'Stop tracking, keep local'; $stopButton.Width = 170; $stopButton.Height = 32; $buttonPanel.Controls.Add($stopButton)
+    $checkAllButton = New-Object System.Windows.Forms.Button; $checkAllButton.Text = 'Check visible'; $checkAllButton.Width = 110; $checkAllButton.Height = 32; $buttonPanel.Controls.Add($checkAllButton)
+    $refreshButton = New-Object System.Windows.Forms.Button; $refreshButton.Text = 'Refresh'; $refreshButton.Width = 90; $refreshButton.Height = 32; $buttonPanel.Controls.Add($refreshButton)
+
+    $populate = {
+        $list.BeginUpdate()
+        try {
+            $list.Items.Clear(); $needle = $filterBox.Text.Trim()
+            foreach ($item in @($trackedItems)) {
+                if (-not $item) { continue }
+                $path = [string]$item.Path
+                if (-not [string]::IsNullOrWhiteSpace($needle) -and $path.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+                $row = [pscustomobject]@{ Display = (Get-TrackedFileDialogDisplayText -Item $item); StatusItem = $item; Path = $path }
+                [void]$list.Items.Add($row)
+            }
+            $countLabel.Text = ('{0} shown / {1} tracked' -f $list.Items.Count, @($trackedItems).Count)
+        } finally { $list.EndUpdate() }
     }
+    $getPicked = {
+        $picked = @()
+        foreach ($checked in @($list.CheckedItems)) { try { if ($checked.StatusItem) { $picked += $checked.StatusItem } } catch {} }
+        if (@($picked).Count -eq 0) { foreach ($selected in @($list.SelectedItems)) { try { if ($selected.StatusItem) { $picked += $selected.StatusItem } } catch {} } }
+        return @($picked)
+    }
+    $filterBox.Add_TextChanged({ & $populate })
+    $refreshButton.Add_Click({ try { $trackedItems = @(Get-TrackedFileItemsFromGit); & $populate } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Refresh tracked files failed', 'OK', 'Error') | Out-Null } })
+    $checkAllButton.Add_Click({ for ($i = 0; $i -lt $list.Items.Count; $i++) { $list.SetItemChecked($i, $true) } })
+    $stopButton.Add_Click({ $picked = @(& $getPicked); if ($picked.Count -eq 0) { [System.Windows.Forms.MessageBox]::Show('Check or select one or more tracked files first.', 'No tracked file selected', 'OK', 'Information') | Out-Null; return }; Invoke-StopTrackingFilesKeepLocal -Items $picked; $trackedItems = @(Get-TrackedFileItemsFromGit); & $populate })
+    $removeButton.Add_Click({ $picked = @(& $getPicked); if ($picked.Count -eq 0) { [System.Windows.Forms.MessageBox]::Show('Check or select one or more tracked files first.', 'No tracked file selected', 'OK', 'Information') | Out-Null; return }; Invoke-RemoveFilesFromGitAndDisk -Items $picked; $trackedItems = @(Get-TrackedFileItemsFromGit); & $populate })
+    $closeButton.Add_Click({ $dialog.Close() })
+    & $populate
+    [void]$dialog.ShowDialog($form)
 }
 
 function Stage-AllChanges {
@@ -6473,12 +6589,13 @@ if ($script:ToolTip) {
 }
 
 # Stage actions
-[void](New-ActionGuidance -ParentPanel $stageActionsPanel -Text 'Stage means choose what goes into the next commit. Use Stage selected for intentional commits; Stage all is faster but should be used only after reviewing the diff.')
+[void](New-ActionGuidance -ParentPanel $stageActionsPanel -Text 'Stage means choose what goes into the next commit. Clean tracked files are not listed as changed; use Browse tracked files when replacing, removing, or stop-tracking an unchanged file.')
 [void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Stage selected' -Width 125 -Handler { Stage-SelectedFile } -PreviewBuilder { Build-StageSelectedPreview } -PreviewTitle 'Stage selected file(s)' -Notes 'Adds the selected file(s) to the Git index so they will be included in the next commit.')
 [void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Unstage selected' -Width 135 -Handler { Unstage-SelectedFile } -PreviewBuilder { Build-UnstageSelectedPreview } -PreviewTitle 'Unstage selected file(s)' -Notes 'Removes the selected file(s) from the Git index while keeping your working-tree edits.')
 [void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Stage all' -Width 110 -Handler { Stage-AllChanges } -PreviewBuilder { if (Get-Command Get-GggStageAllCommandPlan -ErrorAction SilentlyContinue) { ConvertTo-GggCommandPreview -Plans (Get-GggStageAllCommandPlan) } else { 'git add -A' } } -PreviewTitle 'Stage all changes' -Notes 'Stages everything in the repository.')
 [void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Stop tracking' -Width 125 -Handler { Stop-TrackingSelectedFilesKeepLocal } -PreviewBuilder { Build-StopTrackingSelectedPreview } -PreviewTitle 'Stop tracking selected file(s)' -Notes 'Runs git rm --cached so the file stays on disk but is removed from Git tracking. Useful for accidental config/log/build output commits.')
 [void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Remove file' -Width 115 -Handler { Remove-SelectedFilesFromGitAndDisk } -PreviewBuilder { Build-RemoveSelectedFromGitPreview } -PreviewTitle 'Remove selected file(s) from Git and disk' -Notes 'Runs git rm. This deletes the selected file from disk and stages the deletion, after confirmation.')
+[void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Browse tracked files' -Width 155 -Handler { Show-TrackedFilesDialog } -PreviewBuilder { 'git ls-files --cached --full-name' } -PreviewTitle 'Browse clean tracked files' -Notes 'Lists tracked files even when they are clean, so you can remove or stop tracking a file before replacing it.')
 
 # Branch actions
 [void](New-ActionGuidance -ParentPanel $branchActionsPanel -Text 'Branches isolate work. Create feature branches for focused changes, switch only when your working tree is clean or safely stashed, and push when ready to share.')
@@ -7743,7 +7860,7 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.7 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.8 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
 Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.6" -f $script:RepoRoot)
@@ -7756,7 +7873,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.7' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.8' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {
