@@ -59,6 +59,32 @@ function Get-GggDiffTargetPaths {
 }
 
 
+
+function New-GggTrackedFileStatusItem {
+    param([string]$Path)
+    return [pscustomobject]@{
+        Status = '  '
+        IndexStatus = ' '
+        WorkTreeStatus = ' '
+        Path = [string]$Path
+        RawPath = [string]$Path
+        OriginalPath = $null
+        IsTracked = $true
+        IsCleanTracked = $true
+    }
+}
+
+function ConvertFrom-GggTrackedFileList {
+    param([AllowNull()][string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return @() }
+    $items = @()
+    foreach ($line in @($Text -split "`r?`n")) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $items += (New-GggTrackedFileStatusItem -Path $line.Trim())
+    }
+    return @($items)
+}
+
 function Get-GggStatusDisplayText {
     param($Item)
     if ($null -eq $Item) { return '[unknown] <selected-file>' }
@@ -224,6 +250,8 @@ Export-ModuleMember -Function `
     Get-GggDiffTargetPaths, `
     Get-GggStatusMeaning, `
     Get-GggStatusDisplayText, `
+    New-GggTrackedFileStatusItem, `
+    ConvertFrom-GggTrackedFileList, `
     New-GggGitCommandPlan, `
     Get-GggStageSelectedCommandPlan, `
     Get-GggUnstageSelectedCommandPlan, `

@@ -62,4 +62,15 @@ Describe 'GitStagingOperations module' {
         (Get-GggStopTrackingCommandPlan -Items @($item))[0].Arguments | Should -Be @('rm','--cached','--','local.config.json')
     }
 
+    It 'parses tracked files into clean selectable status items' {
+        $items = @(ConvertFrom-GggTrackedFileList -Text "README.md`r`ndocs/guide.md`r`n")
+        @($items).Count | Should -Be 2
+        $items[0].Path | Should -Be 'README.md'
+        $items[0].Status | Should -Be '  '
+        $items[0].IsCleanTracked | Should -BeTrue
+        Get-GggStatusDisplayText -Item $items[0] | Should -Be '[index:- work:-] README.md'
+        (Get-GggRemoveFromGitCommandPlan -Items @($items[0]))[0].Display | Should -Be 'git rm -- README.md'
+        (Get-GggStopTrackingCommandPlan -Items @($items[0]))[0].Display | Should -Be 'git rm --cached -- README.md'
+    }
+
 }

@@ -105,3 +105,11 @@ Use **Setup -> GitHub publish...** after you have local commits and want to conn
 ## v3.6.7 GitHub diagnostics and file removal
 
 Use Setup -> GitHub diagnostics to inspect remotes, upstream tracking, repository access, and push-with-upstream. Use Stop tracking when a file should stay local but no longer be versioned, and Remove file only when it should be deleted from disk and staged as a deletion.
+
+## v3.6.7.1 GitHub diagnostics hotfix
+
+This release fixes the GitHub remote parser for Windows PowerShell 5.1 / Pester 3 compatibility while preserving the v3.6.7 GitHub diagnostics and safer file-removal workflows.
+
+## v3.6.8 tracked-file browsing
+
+Use **Stage -> Browse tracked files** when a committed file is clean and therefore not visible in Changed Files, but you still need to remove it from Git or stop tracking it before replacement.
