@@ -1,0 +1,54 @@
+{
+  "name": "Git Glide GUI",
+  "former_name": "GitFlowGUI / Git Flow GUI",
+  "version": "3.6.4",
+  "created_utc": "2026-04-25T18:20:00Z",
+  "entrypoint": "git-glide-gui.bat",
+  "compatibility_entrypoint": "git-flow-gui2.bat",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.4.ps1",
+  "startup_parameter": "-RepositoryPath <path-to-git-repository>",
+  "smoke_test_parameter": "-SmokeTest",
+  "release_packaging_gate": "scripts/windows/package-release.ps1",
+  "iteration_focus": "v3.6.4 stability hotfix, first-commit unstaging, and splitter PipelineStoppedException prevention",
+  "core_modules": [
+    "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
+    "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
+    "modules/GitGlideGUI.Core/GitRepositoryOnboarding.psm1",
+    "modules/GitGlideGUI.Core/GitStagingOperations.psm1",
+    "modules/GitGlideGUI.Core/GitBranchOperations.psm1",
+    "modules/GitGlideGUI.Core/GitStashOperations.psm1",
+    "modules/GitGlideGUI.Core/GitTagOperations.psm1",
+    "modules/GitGlideGUI.Core/GitCommitOperations.psm1",
+    "modules/GitGlideGUI.Core/GitHistoryOperations.psm1",
+    "modules/GitGlideGUI.Core/GitConflictRecovery.psm1",
+    "modules/GitGlideGUI.Core/GitCherryPickOperations.psm1",
+    "modules/GitGlideGUI.Core/GitLearningGuidance.psm1"
+  ],
+  "added": [
+    "Consistent v3.6.4 version metadata, launcher target, smoke-launch target, static smoke markers, and release documentation",
+    "ASCII-safe history visual graph lane markers for Windows PowerShell 5.1 source-encoding robustness",
+    "Decorated history model rows with branch, remote branch, tag, HEAD, merge, and ref-kind classifications",
+    "History / Graph ListView columns for branches, tags, remotes, author, and date",
+    "Curated ScriptAnalyzer runner with optional strict/fail-on-warning modes and generated-folder exclusions",
+    "Resolved/unresolved conflict-state detection from status, unmerged files, and Git operation markers",
+    "Stage selected resolved conflict file",
+    "Continue operation guidance based on MERGE_HEAD, CHERRY_PICK_HEAD, and rebase markers",
+    "External merge tool command configuration and launch action",
+    "Improved visual graph selection and command preview coupling",
+    "Startup X/close now aborts startup instead of continuing without a repository",
+    "Fixed untracked-overwrite recovery classification priority",
+    "Fixed cherry-pick conflict workflow test capture for PowerShell/Pester"
+  ],
+  "next_recommended": [
+    "Add file-level conflict helper actions and resolved-file verification",
+    "Add configurable external diff/merge tool profiles",
+    "Improve rebase workflow support",
+    "Add reflog/recovery browser",
+    "Start GitHub/GitLab pull request integration planning"
+  ],
+  "highlights": [
+    "Correct unstaging behavior before the first commit by using git rm --cached when HEAD does not exist",
+    "Removed fragile SplitterMoved PowerShell event handler to avoid resize/shutdown PipelineStoppedException dialogs",
+    "Added regression tests for no-HEAD unstaging workflows"
+  ]
+}

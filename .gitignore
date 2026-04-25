@@ -1,0 +1,10 @@
+# Git Glide GUI local/generated files
+.gitglide-test-temp/
+*.log
+GitGlideGUI-Config.json
+GitGlideGUI-Audit.log
+*.tmp
+*.bak
+*.zip
+.DS_Store
+Thumbs.db

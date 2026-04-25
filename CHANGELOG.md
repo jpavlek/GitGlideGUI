@@ -1,0 +1,29 @@
+# Changelog
+
+## v3.6.4
+
+- Removed a fragile PowerShell `SplitterMoved` event handler that could trigger a WinForms JIT dialog during resize/shutdown.
+- Fixed unstaging before the first commit by using `git rm --cached -- <file>` when `HEAD` does not exist.
+- Added staging tests for the no-HEAD/unborn-repository workflow.
+
+## v3.6.4
+
+- Fixed internal version consistency for the v3.6.4 package.
+- Improved History / Graph visual model with ASCII lane badges and branch/tag/remote columns.
+- Preserved full commit hash in visual history row selection.
+- Added curated ScriptAnalyzer settings and runner behavior for useful optional linting.
+
+## v3.6.1
+
+- Fixed PowerShell parser regression caused by `$kind:` interpolation in recovery text.
+- Added repository hygiene files: `README.md`, `VERSION`, `.gitignore`, `.gitattributes`, and `CHANGELOG.md`.
+- Added repository workflow documentation and bootstrap script for consistent local Git tracking.
+- Extended static smoke test to catch the `$kind:` parser regression before packaging.
+
+## v3.6
+
+- Added resolved/unresolved conflict-state detection.
+- Added stage-resolved selected conflict file.
+- Added operation-aware continue guidance for merge, cherry-pick, and rebase states.
+- Added external merge tool configuration.
+- Improved visual graph selection and command-preview coupling.
