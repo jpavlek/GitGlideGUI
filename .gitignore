@@ -8,3 +8,11 @@ GitGlideGUI-Audit.log
 *.zip
 .DS_Store
 Thumbs.db
+
+# Added by Git Glide GUI: General / Windows
+# Git Glide GUI .gitignore template: General / Windows
+Desktop.ini
+.vscode/
+.idea/
+build/
+dist/
