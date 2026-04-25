@@ -115,14 +115,23 @@ function Get-GghubSetUpstreamPushCommandPlan {
 
 function ConvertFrom-GghubRemoteList {
     param([string]$Text)
-    $rows = New-Object System.Collections.Generic.List[object]
+
+    # Use a plain PowerShell array instead of a generic .NET List here.
+    # Windows PowerShell 5.1 can throw "Argument types do not match" when a
+    # generic List[object] containing PSCustomObject values is returned through
+    # a Pester 3 compatibility test run.
+    $rows = @()
     foreach ($line in @(([string]$Text) -split "`r?`n")) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         if ($line -match '^([^\s]+)\s+([^\s]+)\s+\((fetch|push)\)') {
-            [void]$rows.Add([pscustomobject]@{ Name = $Matches[1]; Url = $Matches[2]; Direction = $Matches[3] })
+            $rows += [pscustomobject]@{
+                Name = [string]$Matches[1]
+                Url = [string]$Matches[2]
+                Direction = [string]$Matches[3]
+            }
         }
     }
-    return @($rows)
+    return $rows
 }
 
 function Get-GghubRepositoryWebUrl {
@@ -131,6 +140,17 @@ function Get-GghubRepositoryWebUrl {
     if ($url -match '^https://github\.com/([^/]+)/(.+?)(?:\.git)?/?$') { return "https://github.com/$($Matches[1])/$($Matches[2])" }
     if ($url -match '^git@github\.com:([^/]+)/(.+?)(?:\.git)?$') { return "https://github.com/$($Matches[1])/$($Matches[2])" }
     return ''
+}
+
+
+function Get-GghubPullRequestUrlsFromText {
+    param([AllowNull()][string]$Text)
+    $urls = @()
+    foreach ($match in [regex]::Matches([string]$Text, 'https://github\.com/[^\s]+/pull/new/[^\s]+')) {
+        $value = ([string]$match.Value).TrimEnd('.', ',', ';', ')', ']')
+        if ($urls -notcontains $value) { $urls += $value }
+    }
+    return @($urls)
 }
 
 function Get-GghubRemoteFailureGuidance {
@@ -195,6 +215,7 @@ Export-ModuleMember -Function `
     Get-GghubSetUpstreamPushCommandPlan, `
     ConvertFrom-GghubRemoteList, `
     Get-GghubRepositoryWebUrl, `
+    Get-GghubPullRequestUrlsFromText, `
     Get-GghubRemoteFailureGuidance, `
     Get-GghubPrivacyChecklist, `
     Get-GghubPublishCommandPreview

@@ -113,3 +113,8 @@ This release fixes the GitHub remote parser for Windows PowerShell 5.1 / Pester 
 ## v3.6.8 tracked-file browsing
 
 Use **Stage -> Browse tracked files** when a committed file is clean and therefore not visible in Changed Files, but you still need to remove it from Git or stop tracking it before replacement.
+
+
+## v3.6.9: Merge & Publish
+
+Use **Integrate -> Merge & Publish** to inspect branch tracking, push a new branch with upstream, sync `main -> develop`, merge a selected feature branch into `develop`, run quality checks, and promote `develop -> main`.

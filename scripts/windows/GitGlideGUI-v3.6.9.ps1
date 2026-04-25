@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.8
+# Git Glide GUI - Enhanced Version v3.6.9
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -33,7 +33,8 @@
 # - v3.5: conflict/recovery guidance module, recovery panel, and cherry-pick command planning
 # - v3.6: resolved/unresolved conflict state, stage resolved file, operation-aware continue guidance, merge tool config, and improved graph-action coupling
 # - v3.6.6: GitHub publish guidance with private-repository and Copilot-training privacy reminders
-# - v3.6.8: PowerShell 5.1/Pester 3 GitHub remote parser hotfix
+# - v3.6.8: tracked-file browser for clean file replacement/remove workflows
+# - v3.6.9: restored and extended Git Flow merge/publish workflow guidance
 
 param(
     [string]$RepositoryPath = '',
@@ -69,7 +70,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.8 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.9 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -118,6 +119,7 @@ $script:DefaultConfig = @{
     DefaultRemoteName = 'origin'
     DefaultGitHubOwner = ''
     DefaultGitHubProtocol = 'HTTPS'
+    LastPullRequestUrl = ''
     GitHubRepositoryDescription = 'Git Glide GUI is a lightweight, privacy-first Windows Git interface for safer human and AI-assisted software development. It turns fast coding changes into clear versioning choices, helping developers stay in control and use their judgment with command previews, visual staging, recovery guidance, custom actions, and code & documentation checks.'
     ExternalMergeToolCommand = 'git mergetool'
     BeginnerMode = $true
@@ -1724,6 +1726,45 @@ function Get-CurrentRemoteUrl {
     return ''
 }
 
+
+function Build-BranchTrackingPreview {
+    if (Get-Command Get-GgbBranchTrackingCommandPlan -ErrorAction SilentlyContinue) { return (Get-GgbBranchTrackingCommandPlan).Display }
+    return 'git branch -vv'
+}
+
+function Build-SyncMainIntoDevelopPreview {
+    if (Get-Command Get-GgbSyncMainIntoBaseCommandPlan -ErrorAction SilentlyContinue) {
+        return (ConvertTo-GgbCommandPreview -Plans (Get-GgbSyncMainIntoBaseCommandPlan -MainBranch $script:Config.MainBranch -BaseBranch $script:Config.BaseBranch))
+    }
+    return "git switch $($script:Config.MainBranch)`r`ngit pull --ff-only`r`ngit switch $($script:Config.BaseBranch)`r`ngit pull --ff-only`r`ngit merge $($script:Config.MainBranch)`r`ngit push -u origin $($script:Config.BaseBranch)"
+}
+
+function Get-SelectedIntegrationFeatureBranch {
+    $branch = ''
+    if ($script:IntegrationFeatureBranchComboBox) { $branch = $script:IntegrationFeatureBranchComboBox.Text.Trim() }
+    if ([string]::IsNullOrWhiteSpace($branch)) { $branch = '<feature-branch>' }
+    return $branch
+}
+
+function Build-MergeSelectedFeatureIntoDevelopPreview {
+    $featureBranch = Get-SelectedIntegrationFeatureBranch
+    if (Get-Command Get-GgbMergeNamedFeatureIntoBaseCommandPlan -ErrorAction SilentlyContinue) {
+        return (ConvertTo-GgbCommandPreview -Plans (Get-GgbMergeNamedFeatureIntoBaseCommandPlan -FeatureBranch $featureBranch -BaseBranch $script:Config.BaseBranch))
+    }
+    return "git switch $($script:Config.BaseBranch)`r`ngit pull --ff-only`r`ngit merge --no-ff $featureBranch`r`ngit push -u origin $($script:Config.BaseBranch)"
+}
+
+function Build-RunQualityChecksPreview {
+    return 'scripts\windows\run-quality-checks.bat'
+}
+
+function Build-MergeWorkflowGuidePreview {
+    if (Get-Command Get-GgbGitFlowMergeAndPublishGuide -ErrorAction SilentlyContinue) {
+        return (Get-GgbGitFlowMergeAndPublishGuide -MainBranch $script:Config.MainBranch -BaseBranch $script:Config.BaseBranch -FeatureBranch (Get-SelectedIntegrationFeatureBranch))
+    }
+    return "git branch -vv`r`ngit push -u origin HEAD`r`ngit switch $($script:Config.BaseBranch)`r`ngit merge --no-ff <feature-branch>`r`nscripts\windows\run-quality-checks.bat`r`ngit switch $($script:Config.MainBranch)`r`ngit merge --no-ff $($script:Config.BaseBranch)"
+}
+
 function Get-GitHubRepositoryWebUrlFromRemote {
     param([string]$RemoteUrl)
     try {
@@ -1808,6 +1849,35 @@ function Open-GitHubRepositoryPage {
         return
     }
     Start-Process $webUrl
+}
+
+
+function Show-GitHubPullRequestUrlFromResult {
+    param([AllowNull()][object]$Result)
+    try {
+        if (-not $Result) { return }
+        $combined = (([string]$Result.StdOut) + "`n" + ([string]$Result.StdErr))
+        $urls = @()
+        if (Get-Command Get-GghubPullRequestUrlsFromText -ErrorAction SilentlyContinue) {
+            $urls = @(Get-GghubPullRequestUrlsFromText -Text $combined)
+        } else {
+            $urls = @([regex]::Matches($combined, 'https://github\.com/[^\s]+/pull/new/[^\s]+') | ForEach-Object { $_.Value })
+        }
+        if (@($urls).Count -eq 0) { return }
+        $url = [string]$urls[0]
+        Set-ConfigValue -Name 'LastPullRequestUrl' -Value $url
+        Append-Log -Text ('GitHub pull request URL detected: ' + $url) -Color ([System.Drawing.Color]::DarkGreen)
+        Set-SuggestedNextAction -Text 'GitHub offered a pull request URL. Review the pushed branch and open the pull request when ready.' -Action 'open-pr-url'
+    } catch { Append-Log -Text ('Could not parse GitHub pull request URL: ' + $_.Exception.Message) -Color ([System.Drawing.Color]::DarkOrange) }
+}
+
+function Open-LastPullRequestUrl {
+    $url = if ($script:Config.ContainsKey('LastPullRequestUrl')) { [string]$script:Config.LastPullRequestUrl } else { '' }
+    if ([string]::IsNullOrWhiteSpace($url)) {
+        [System.Windows.Forms.MessageBox]::Show('No pull request URL was detected yet. Push a feature branch to GitHub first.', 'No pull request URL', 'OK', 'Information') | Out-Null
+        return
+    }
+    Start-Process $url | Out-Null
 }
 
 function Show-GitHubRemoteDiagnosticsDialog {
@@ -3564,6 +3634,25 @@ function Load-LocalBranches {
             
             $script:BranchSwitchComboBox.EndUpdate()
         }
+        if ($script:IntegrationFeatureBranchComboBox) {
+            $currentFeatureText = [string]$script:IntegrationFeatureBranchComboBox.Text
+            $script:IntegrationFeatureBranchComboBox.BeginUpdate()
+            $script:IntegrationFeatureBranchComboBox.Items.Clear()
+            foreach ($branch in $branches) {
+                $b = $branch.Trim()
+                if ($b -and $b -ne [string]$script:Config.BaseBranch -and $b -ne [string]$script:Config.MainBranch) {
+                    [void]$script:IntegrationFeatureBranchComboBox.Items.Add($b)
+                }
+            }
+            if ($currentFeatureText -and $script:IntegrationFeatureBranchComboBox.Items.Contains($currentFeatureText)) {
+                $script:IntegrationFeatureBranchComboBox.SelectedItem = $currentFeatureText
+            } elseif ($script:CurrentBranch -and $script:IntegrationFeatureBranchComboBox.Items.Contains($script:CurrentBranch)) {
+                $script:IntegrationFeatureBranchComboBox.SelectedItem = $script:CurrentBranch
+            } elseif ($script:IntegrationFeatureBranchComboBox.Items.Count -gt 0) {
+                $script:IntegrationFeatureBranchComboBox.SelectedIndex = 0
+            }
+            $script:IntegrationFeatureBranchComboBox.EndUpdate()
+        }
     } catch {
         Append-Log -Text ('Branch list refresh failed: ' + $_.Exception.Message) -Color ([System.Drawing.Color]::Firebrick)
     }
@@ -3793,6 +3882,7 @@ function Invoke-SuggestedNextAction {
         'pull-current' { Pull-CurrentBranch -ConfirmBeforePull; break }
         'stash-dirty-work' { Invoke-StashDirtyWorkSuggestedAction; break }
         'remote-setup' { [void](Show-RemoteSetupDialog); break }
+        'open-pr-url' { Open-LastPullRequestUrl; break }
         'show-diff' { Show-SelectedDiff; break }
         default {
             Set-CommandPreview -Title 'Suggested next action' -Commands '(no safe one-click action is available for this state)' -Notes 'The suggestion is informational because automatically executing this Git workflow could surprise the user.'
@@ -4779,7 +4869,9 @@ function Push-CurrentBranch {
         if ((Get-Command Get-GgbPushCurrentBranchCommandPlan -ErrorAction SilentlyContinue) -and -not ($script:Config.UseForceWithLease -and $script:CommitAmendCheckBox -and $script:CommitAmendCheckBox.Checked)) {
             foreach ($plan in @(Get-GgbPushCurrentBranchCommandPlan)) {
                 $gitArgs = @('-C', $script:RepoRoot) + @($plan.Arguments)
-                [void](Run-External -FileName 'git' -Arguments $gitArgs -Caption $plan.Display -AllowFailure -ShowProgress)
+                $result = Run-External -FileName 'git' -Arguments $gitArgs -Caption $plan.Display -AllowFailure -ShowProgress
+                Show-GitHubPullRequestUrlFromResult -Result $result
+                if ($result.ExitCode -ne 0) { Show-GitHubRemoteFailureGuidance -Result $result -Operation 'push current branch' -RemoteName ([string]$script:Config.DefaultRemoteName) }
             }
         } else {
             $args = @('-C', $script:RepoRoot, 'push', '-u', 'origin', 'HEAD')
@@ -4788,7 +4880,9 @@ function Push-CurrentBranch {
                 $args = @('-C', $script:RepoRoot, 'push', '--force-with-lease')
                 $caption = 'git push --force-with-lease'
             }
-            [void](Run-External -FileName 'git' -Arguments $args -Caption $caption -AllowFailure -ShowProgress)
+            $result = Run-External -FileName 'git' -Arguments $args -Caption $caption -AllowFailure -ShowProgress
+            Show-GitHubPullRequestUrlFromResult -Result $result
+            if ($result.ExitCode -ne 0) { Show-GitHubRemoteFailureGuidance -Result $result -Operation 'push current branch' -RemoteName ([string]$script:Config.DefaultRemoteName) }
         }
         Refresh-Status
     } catch {
@@ -4808,6 +4902,74 @@ function Invoke-GitPlansWithRecovery {
         if ($result.ExitCode -ne 0) { Show-GitFailureGuidance -Result $result -Operation $Operation -ShowDialog; Refresh-Status; return $false }
     }
     return $true
+}
+
+
+function Show-BranchTrackingOverview {
+    try {
+        $plan = if (Get-Command Get-GgbBranchTrackingCommandPlan -ErrorAction SilentlyContinue) { Get-GgbBranchTrackingCommandPlan } else { [pscustomobject]@{ Arguments=@('branch','-vv'); Display='git branch -vv' } }
+        $result = Run-External -FileName 'git' -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) -Caption ([string]$plan.Display) -AllowFailure -QuietOutput
+        $text = if ([string]::IsNullOrWhiteSpace([string]$result.StdOut)) { [string]$result.StdErr } else { [string]$result.StdOut }
+        Set-CommandPreview -Title 'Branch tracking overview' -Commands ([string]$plan.Display) -Notes $text.Trim()
+        Append-Log -Text 'Branch tracking overview:' -Color ([System.Drawing.Color]::DarkBlue)
+        foreach ($line in @($text -split "`r?`n")) { if (-not [string]::IsNullOrWhiteSpace($line)) { Append-Log -Text $line -Color ([System.Drawing.Color]::Black) } }
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Branch tracking failed', 'OK', 'Error') | Out-Null }
+}
+
+function Sync-MainIntoDevelop {
+    try {
+        if (-not (Test-CleanWorkingTree -Operation "sync $($script:Config.MainBranch) into $($script:Config.BaseBranch)")) { return }
+        $msg = "This will run:`r`n`r`n$(Build-SyncMainIntoDevelopPreview)`r`n`r`nUse this before integrating features when main may have hotfixes or release corrections. Continue?"
+        $answer = [System.Windows.Forms.MessageBox]::Show($msg, "Confirm sync: $($script:Config.MainBranch) -> $($script:Config.BaseBranch)", 'YesNo', 'Question')
+        if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+        $plans = if (Get-Command Get-GgbSyncMainIntoBaseCommandPlan -ErrorAction SilentlyContinue) { @(Get-GgbSyncMainIntoBaseCommandPlan -MainBranch $script:Config.MainBranch -BaseBranch $script:Config.BaseBranch) } else { @(
+            [pscustomobject]@{ Arguments=@('switch',$script:Config.MainBranch); Display="git switch $($script:Config.MainBranch)" },
+            [pscustomobject]@{ Arguments=@('pull','--ff-only'); Display='git pull --ff-only' },
+            [pscustomobject]@{ Arguments=@('switch',$script:Config.BaseBranch); Display="git switch $($script:Config.BaseBranch)" },
+            [pscustomobject]@{ Arguments=@('pull','--ff-only'); Display='git pull --ff-only' },
+            [pscustomobject]@{ Arguments=@('merge',$script:Config.MainBranch); Display="git merge $($script:Config.MainBranch)" },
+            [pscustomobject]@{ Arguments=@('push','-u','origin',$script:Config.BaseBranch); Display="git push -u origin $($script:Config.BaseBranch)" }
+        ) }
+        $ok = Invoke-GitPlansWithRecovery -Plans $plans -Operation "sync $($script:Config.MainBranch) into $($script:Config.BaseBranch)"
+        if ($ok) { Refresh-Status }
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Sync main into develop failed', 'OK', 'Error') | Out-Null }
+}
+
+function Merge-SelectedFeatureIntoDevelop {
+    try {
+        $featureBranch = Get-SelectedIntegrationFeatureBranch
+        if ([string]::IsNullOrWhiteSpace($featureBranch) -or $featureBranch -eq '<feature-branch>') { [System.Windows.Forms.MessageBox]::Show('Select or type a feature branch first.', 'No feature branch selected', 'OK', 'Information') | Out-Null; return }
+        if ($featureBranch -eq [string]$script:Config.BaseBranch -or $featureBranch -eq [string]$script:Config.MainBranch) { [System.Windows.Forms.MessageBox]::Show('Choose a feature branch, not main or develop.', 'Invalid feature branch', 'OK', 'Warning') | Out-Null; return }
+        if (-not (Test-CleanWorkingTree -Operation "merge '$featureBranch' into $($script:Config.BaseBranch)")) { return }
+        $msg = "This will run:`r`n`r`n$(Build-MergeSelectedFeatureIntoDevelopPreview)`r`n`r`nContinue?"
+        $answer = [System.Windows.Forms.MessageBox]::Show($msg, 'Confirm merge: selected feature -> develop', 'YesNo', 'Question')
+        if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+        $plans = if (Get-Command Get-GgbMergeNamedFeatureIntoBaseCommandPlan -ErrorAction SilentlyContinue) { @(Get-GgbMergeNamedFeatureIntoBaseCommandPlan -FeatureBranch $featureBranch -BaseBranch $script:Config.BaseBranch) } else { @(
+            [pscustomobject]@{ Arguments=@('switch',$script:Config.BaseBranch); Display="git switch $($script:Config.BaseBranch)" },
+            [pscustomobject]@{ Arguments=@('pull','--ff-only'); Display='git pull --ff-only' },
+            [pscustomobject]@{ Arguments=@('merge','--no-ff',$featureBranch); Display=('git merge --no-ff ' + (Quote-Arg $featureBranch)) },
+            [pscustomobject]@{ Arguments=@('push','-u','origin',$script:Config.BaseBranch); Display="git push -u origin $($script:Config.BaseBranch)" }
+        ) }
+        $ok = Invoke-GitPlansWithRecovery -Plans $plans -Operation "merge '$featureBranch' into $($script:Config.BaseBranch)"
+        if ($ok) { Refresh-Status }
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Merge selected feature failed', 'OK', 'Error') | Out-Null }
+}
+
+function Run-QualityChecksForMergeGate {
+    try {
+        $scriptPath = Join-Path $script:RepoRoot 'scripts\windows\run-quality-checks.bat'
+        if (-not (Test-Path -LiteralPath $scriptPath)) { [System.Windows.Forms.MessageBox]::Show("Could not find quality checks script:`r`n$scriptPath", 'Quality checks not found', 'OK', 'Warning') | Out-Null; return }
+        [void](Run-External -FileName 'cmd.exe' -Arguments @('/c', $scriptPath) -WorkingDirectory $script:RepoRoot -Caption 'scripts\windows\run-quality-checks.bat' -ShowProgress -AllowFailure)
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Quality checks failed', 'OK', 'Error') | Out-Null }
+}
+
+function Show-MergeWorkflowGuide {
+    try {
+        $text = Build-MergeWorkflowGuidePreview
+        Set-CommandPreview -Title 'Git Flow merge and publish guide' -Commands $text -Notes 'Use this as a deliberate promotion path: feature -> develop, quality checks, develop -> main, then push/tag.'
+        Append-Log -Text 'Git Flow merge and publish guide:' -Color ([System.Drawing.Color]::DarkBlue)
+        foreach ($line in @($text -split "`r?`n")) { if (-not [string]::IsNullOrWhiteSpace($line)) { Append-Log -Text $line -Color ([System.Drawing.Color]::Black) } }
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Merge workflow guide failed', 'OK', 'Error') | Out-Null }
 }
 
 function Merge-CurrentFeatureIntoDevelop {
@@ -4830,7 +4992,7 @@ function Merge-CurrentFeatureIntoDevelop {
                 [pscustomobject]@{ Arguments=@('switch', $script:Config.BaseBranch); Display="git switch $($script:Config.BaseBranch)" },
                 [pscustomobject]@{ Arguments=@('pull','--ff-only'); Display='git pull --ff-only' },
                 [pscustomobject]@{ Arguments=@('merge','--no-ff',$featureBranch); Display=('git merge --no-ff ' + (Quote-Arg $featureBranch)) },
-                [pscustomobject]@{ Arguments=@('push','origin',$script:Config.BaseBranch); Display="git push origin $($script:Config.BaseBranch)" }
+                [pscustomobject]@{ Arguments=@('push','-u','origin',$script:Config.BaseBranch); Display="git push -u origin $($script:Config.BaseBranch)" }
             )
             $ok = Invoke-GitPlansWithRecovery -Plans $plans -Operation "merge '$featureBranch' into $($script:Config.BaseBranch)"
             if (-not $ok) { return }
@@ -4855,7 +5017,7 @@ function Merge-DevelopIntoMain {
                 [pscustomobject]@{ Arguments=@('switch', $script:Config.MainBranch); Display="git switch $($script:Config.MainBranch)" },
                 [pscustomobject]@{ Arguments=@('pull','--ff-only'); Display='git pull --ff-only' },
                 [pscustomobject]@{ Arguments=@('merge','--no-ff',$script:Config.BaseBranch); Display="git merge --no-ff $($script:Config.BaseBranch)" },
-                [pscustomobject]@{ Arguments=@('push','origin',$script:Config.MainBranch); Display="git push origin $($script:Config.MainBranch)" }
+                [pscustomobject]@{ Arguments=@('push','-u','origin',$script:Config.MainBranch); Display="git push -u origin $($script:Config.MainBranch)" }
             )
             $ok = Invoke-GitPlansWithRecovery -Plans $plans -Operation "merge $($script:Config.BaseBranch) into $($script:Config.MainBranch)"
             if (-not $ok) { return }
@@ -6603,8 +6765,30 @@ if ($script:ToolTip) {
 [void](New-ActionButton -ParentPanel $branchActionsPanel -Text 'Pull current branch' -Width 145 -Handler { Pull-CurrentBranch -ConfirmBeforePull } -PreviewBuilder { Build-PullPreview } -PreviewTitle 'Pull current branch safely' -Notes 'Runs git pull --ff-only after a clean-working-tree check. This avoids surprise merge commits and gives clearer guidance when local changes are present.')
 
 # Integrate actions
-[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text "Merge feature -> $($script:Config.BaseBranch)" -Width 175 -Handler { Merge-CurrentFeatureIntoDevelop } -PreviewBuilder { Build-MergeFeaturePreview } -PreviewTitle "Merge current feature into $($script:Config.BaseBranch)" -Notes 'Requires a clean working tree. You still get a confirmation dialog before execution.')
-[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text "$($script:Config.BaseBranch) -> $($script:Config.MainBranch)" -Width 165 -Handler { Merge-DevelopIntoMain } -PreviewBuilder { Build-MergeDevelopPreview } -PreviewTitle "Merge $($script:Config.BaseBranch) into $($script:Config.MainBranch)" -Notes 'Requires a clean working tree. You still get a confirmation dialog before execution.')
+[void](New-ActionGuidance -ParentPanel $integrateActionsPanel -Text 'Merge & Publish restores the full Git Flow path: inspect branch tracking, push branches with upstream, sync main into develop, merge selected features into develop, run quality checks, then promote develop back to main.')
+$featureMergeLabel = New-Object System.Windows.Forms.Label
+$featureMergeLabel.Text = 'Feature branch to merge:'
+$featureMergeLabel.Width = 150
+$featureMergeLabel.Height = 26
+$featureMergeLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$featureMergeLabel.Margin = New-Object System.Windows.Forms.Padding(4, 8, 4, 4)
+$integrateActionsPanel.Controls.Add($featureMergeLabel)
+$script:IntegrationFeatureBranchComboBox = New-Object System.Windows.Forms.ComboBox
+$script:IntegrationFeatureBranchComboBox.Width = 260
+$script:IntegrationFeatureBranchComboBox.DropDownStyle = 'DropDown'
+$script:IntegrationFeatureBranchComboBox.Margin = New-Object System.Windows.Forms.Padding(4, 4, 12, 4)
+$script:IntegrationFeatureBranchComboBox.Add_TextChanged({ Set-CommandPreview -Title "Merge selected feature into $($script:Config.BaseBranch)" -Commands (Build-MergeSelectedFeatureIntoDevelopPreview) -Notes 'Choose or type the feature branch to merge while staying on develop.' })
+$integrateActionsPanel.Controls.Add($script:IntegrationFeatureBranchComboBox)
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Refresh branches' -Width 135 -Handler { Load-LocalBranches; Show-BranchTrackingOverview } -PreviewBuilder { Build-BranchTrackingPreview } -PreviewTitle 'Refresh branch list and tracking' -Notes 'Updates branch selectors and shows git branch -vv so upstream state is visible.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Show tracking' -Width 125 -Handler { Show-BranchTrackingOverview } -PreviewBuilder { Build-BranchTrackingPreview } -PreviewTitle 'Show branch tracking' -Notes 'Runs git branch -vv to show local branches, upstream branches, and ahead/behind state.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Push upstream' -Width 125 -Handler { Push-CurrentBranch -ConfirmBeforePush } -PreviewBuilder { Build-PushPreview } -PreviewTitle 'Push current branch with upstream' -Notes 'Runs git push -u origin HEAD. Use after creating a new feature/develop/main branch locally.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text "$($script:Config.MainBranch) -> $($script:Config.BaseBranch)" -Width 165 -Handler { Sync-MainIntoDevelop } -PreviewBuilder { Build-SyncMainIntoDevelopPreview } -PreviewTitle "Sync $($script:Config.MainBranch) into $($script:Config.BaseBranch)" -Notes 'Useful when main received hotfixes or release corrections that develop should contain before feature integration.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text "Selected feature -> $($script:Config.BaseBranch)" -Width 205 -Handler { Merge-SelectedFeatureIntoDevelop } -PreviewBuilder { Build-MergeSelectedFeatureIntoDevelopPreview } -PreviewTitle "Merge selected feature into $($script:Config.BaseBranch)" -Notes 'Merges the selected feature branch into develop with --no-ff, even when you are currently on develop.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text "Current feature -> $($script:Config.BaseBranch)" -Width 200 -Handler { Merge-CurrentFeatureIntoDevelop } -PreviewBuilder { Build-MergeFeaturePreview } -PreviewTitle "Merge current feature into $($script:Config.BaseBranch)" -Notes 'Legacy/current-branch merge path. Requires that the current branch is the feature branch.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Run quality checks' -Width 150 -Handler { Run-QualityChecksForMergeGate } -PreviewBuilder { Build-RunQualityChecksPreview } -PreviewTitle 'Run quality checks before promoting to main' -Notes 'Runs the project quality gate before you merge develop into main.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text "$($script:Config.BaseBranch) -> $($script:Config.MainBranch)" -Width 165 -Handler { Merge-DevelopIntoMain } -PreviewBuilder { Build-MergeDevelopPreview } -PreviewTitle "Merge $($script:Config.BaseBranch) into $($script:Config.MainBranch)" -Notes 'Requires a clean working tree. Recommended after quality checks pass.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Workflow guide' -Width 130 -Handler { Show-MergeWorkflowGuide } -PreviewBuilder { Build-MergeWorkflowGuidePreview } -PreviewTitle 'Git Flow merge/publish workflow' -Notes 'Shows the full intended sequence: feature push, develop integration, quality gate, main promotion, push/tag.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Open PR URL' -Width 120 -Handler { Open-LastPullRequestUrl } -PreviewBuilder { if ($script:Config.ContainsKey('LastPullRequestUrl') -and -not [string]::IsNullOrWhiteSpace([string]$script:Config.LastPullRequestUrl)) { [string]$script:Config.LastPullRequestUrl } else { 'push a feature branch to GitHub to detect a pull request URL' } } -PreviewTitle 'Open last detected pull request URL' -Notes 'When GitHub prints a pull/new URL after push, Git Glide stores it for quick opening.')
 
 # Stash panel
 $stashLayout = New-Object System.Windows.Forms.TableLayoutPanel
@@ -7860,7 +8044,7 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.8 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.9 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
 Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.6" -f $script:RepoRoot)
@@ -7873,7 +8057,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.8' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.9' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use Integrate for Merge & Publish workflows, History / Graph for read-only branch/merge inspection, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {

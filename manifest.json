@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.8",
+  "version": "3.6.9",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.8.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.9.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.8 tracked-file browser for clean tracked file replacement/remove workflows",
+  "iteration_focus": "v3.6.9 Git Flow merge/publish workflow restoration and selected-feature merge support",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -26,21 +26,22 @@
     "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
-    "GitHub remote diagnostics: show remotes, current branch, upstream tracking, and remote access tests",
-    "Repository-not-found, missing-upstream, HTTPS authentication, and SSH key guidance after failed GitHub remote operations",
-    "Set upstream and push helper using git push -u origin HEAD",
-    "Safer file removal workflows: git rm for remove from Git and disk, git rm --cached for stop tracking while keeping the local file",
-    "Clear changed-file status badges such as [index:M work:-] and [index:- work:M] so staged/unstaged state changes are visible"
+    "Merge & Publish workflow guidance for feature -> develop -> main promotion",
+    "Branch tracking overview using git branch -vv",
+    "Sync main into develop workflow",
+    "Selected feature branch merge into develop, even while currently on develop",
+    "Quality-check gate button before promoting develop to main",
+    "Pull-request URL detection from GitHub push output"
   ],
   "next_recommended": [
-    "Add GitHub CLI detection and optional gh repo create integration after explicit confirmation",
-    "Add pull-request/compare URL helper",
-    "Add pre-continue verification across all resolved candidate files",
-    "Add .gitignore suggestion after stop-tracking local config/log/build files"
+    "Add GitHub CLI support for optional gh repo create --private after explicit confirmation",
+    "Add merge conflict preflight summary before running merges",
+    "Add release tag prompt after develop -> main promotion",
+    "Add optional branch cleanup after merged feature branch is pushed and merged"
   ],
   "highlights": [
-    "Remote diagnostics reduce confusion when GitHub repository creation, upstream tracking, or authentication is incomplete",
-    "git rm workflows separate deleting files from simply stopping Git tracking",
-    "Changed-file badges make staging results easier to see"
+    "Restores clearer merge support that had become hidden or too current-branch dependent",
+    "Supports the real workflow: push feature upstream, merge selected feature into develop, run checks, merge develop into main",
+    "Keeps every merge/push action previewable and confirmation-based"
   ]
 }

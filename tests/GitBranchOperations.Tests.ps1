@@ -25,6 +25,21 @@ Describe 'GitBranchOperations module' {
         (ConvertTo-GgbCommandPreview -Plans (Get-GgbMergeFeatureIntoBaseCommandPlan -FeatureBranch 'feature/test' -BaseBranch 'develop')) | Should -Match 'git merge --no-ff feature/test'
     }
 
+
+    It 'builds Git Flow merge and publish workflow plans' {
+        (Get-GgbBranchTrackingCommandPlan).Display | Should -Be 'git branch -vv'
+        (ConvertTo-GgbCommandPreview -Plans (Get-GgbPushBranchWithUpstreamCommandPlan -BranchName 'feature/test' -RemoteName 'origin')) | Should -Be 'git push -u origin feature/test'
+        $syncPreview = ConvertTo-GgbCommandPreview -Plans (Get-GgbSyncMainIntoBaseCommandPlan -MainBranch 'main' -BaseBranch 'develop')
+        $syncPreview | Should -Match 'git switch main'
+        $syncPreview | Should -Match 'git merge main'
+        $syncPreview | Should -Match 'git push -u origin develop'
+        $mergePreview = ConvertTo-GgbCommandPreview -Plans (Get-GgbMergeNamedFeatureIntoBaseCommandPlan -FeatureBranch 'feature/github-remote-parser' -BaseBranch 'develop')
+        $mergePreview | Should -Match 'git merge --no-ff feature/github-remote-parser'
+        $guide = Get-GgbGitFlowMergeAndPublishGuide -MainBranch 'main' -BaseBranch 'develop' -FeatureBranch 'feature/github-remote-parser'
+        $guide | Should -Match 'run-quality-checks.bat'
+        $guide | Should -Match 'git merge --no-ff develop'
+    }
+
     It 'explains dirty working tree risks' {
         $summary = [pscustomobject]@{ Total = 2; Staged = 1; Unstaged = 1; Untracked = 0; Conflicted = 0 }
         $guidance = Get-GgbDirtyWorkingTreeGuidance -Summary $summary -Operation 'switch branches'
