@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.6.7 - GitHub diagnostics and safer file removal
+
+- Added GitHub remote diagnostics for remotes, current branch, upstream tracking, remote access tests, and push-with-upstream.
+- Added clearer guidance for repository-not-found, missing upstream, HTTPS authentication, and SSH key failures.
+- Added safer git rm workflows: remove from Git and disk, or stop tracking while keeping the local file.
+- Improved changed-file display badges so staged and unstaged modifications are visibly different.
+- Added module tests for GitHub diagnostics, remote failure guidance, status badges, and git rm command planning.
+
+
 ## v3.6.6
 
 - Added conflict-marker verification before staging a file as resolved.

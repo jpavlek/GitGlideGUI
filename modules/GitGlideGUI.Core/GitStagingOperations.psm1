@@ -58,6 +58,20 @@ function Get-GggDiffTargetPaths {
     return @($paths | Select-Object -Unique)
 }
 
+
+function Get-GggStatusDisplayText {
+    param($Item)
+    if ($null -eq $Item) { return '[unknown] <selected-file>' }
+    $path = Get-GggStatusItemPath -Item $Item
+    $status = try { [string]$Item.Status } catch { '' }
+    if ($status -eq '??') { return ('[untracked] ' + $path) }
+    $index = try { [string]$Item.IndexStatus } catch { ' ' }
+    $work = try { [string]$Item.WorkTreeStatus } catch { ' ' }
+    if ([string]::IsNullOrEmpty($index) -or $index -eq ' ') { $index = '-' }
+    if ([string]::IsNullOrEmpty($work) -or $work -eq ' ') { $work = '-' }
+    return ('[index:{0} work:{1}] {2}' -f $index, $work, $path)
+}
+
 function Get-GggStatusMeaning {
     param([string]$Status)
 
@@ -141,6 +155,29 @@ function Get-GggUnstageSelectedCommandPlan {
     })
 }
 
+
+function Get-GggRemoveFromGitCommandPlan {
+    param([object[]]$Items)
+    $itemsArray = @($Items | Where-Object { $_ })
+    if (@($itemsArray).Count -eq 0) {
+        return @(New-GggGitCommandPlan -Verb 'remove-from-git-and-disk' -Arguments @('rm','--','<selected-file>') -Description 'Remove the selected tracked file from Git and disk, staging the deletion.')
+    }
+    return @($itemsArray | ForEach-Object {
+        New-GggGitCommandPlan -Verb 'remove-from-git-and-disk' -Arguments @('rm','--',(Get-GggStatusItemPath -Item $_)) -Description 'Remove the selected tracked file from Git and disk, staging the deletion.'
+    })
+}
+
+function Get-GggStopTrackingCommandPlan {
+    param([object[]]$Items)
+    $itemsArray = @($Items | Where-Object { $_ })
+    if (@($itemsArray).Count -eq 0) {
+        return @(New-GggGitCommandPlan -Verb 'stop-tracking-keep-local' -Arguments @('rm','--cached','--','<selected-file>') -Description 'Remove the selected file from Git tracking while keeping the local working-tree file.')
+    }
+    return @($itemsArray | ForEach-Object {
+        New-GggGitCommandPlan -Verb 'stop-tracking-keep-local' -Arguments @('rm','--cached','--',(Get-GggStatusItemPath -Item $_)) -Description 'Remove the selected file from Git tracking while keeping the local working-tree file.'
+    })
+}
+
 function Get-GggStageAllCommandPlan {
     return @(New-GggGitCommandPlan -Verb 'stage-all' -Arguments @('add','-A') -Description 'Stage every changed, deleted, and untracked file in the repository.')
 }
@@ -186,9 +223,12 @@ Export-ModuleMember -Function `
     Get-GggStatusItemPath, `
     Get-GggDiffTargetPaths, `
     Get-GggStatusMeaning, `
+    Get-GggStatusDisplayText, `
     New-GggGitCommandPlan, `
     Get-GggStageSelectedCommandPlan, `
     Get-GggUnstageSelectedCommandPlan, `
     Get-GggStageAllCommandPlan, `
+    Get-GggRemoveFromGitCommandPlan, `
+    Get-GggStopTrackingCommandPlan, `
     ConvertTo-GggCommandPreview, `
     Get-GggShowDiffCommandPreview

@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.6",
+  "version": "3.6.7",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.6.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.7.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.6 GitHub publish guidance and privacy reminders",
+  "iteration_focus": "v3.6.7 GitHub remote diagnostics, safer git rm workflows, and clearer staging status badges",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -26,21 +26,21 @@
     "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
-    "Guided GitHub publish workflow for creating an empty private repository, configuring origin, and optionally pushing the current branch",
-    "GitHub remote URL generation for HTTPS and SSH",
-    "Privacy checklist reminding users to prefer private repositories for proprietary/client code and review GitHub Copilot AI/data-training settings where available",
-    "Default GitHub repository description and copy-to-clipboard support",
-    "Conflict-marker scan before Stage resolved file to reduce accidental marker commits"
+    "GitHub remote diagnostics: show remotes, current branch, upstream tracking, and remote access tests",
+    "Repository-not-found, missing-upstream, HTTPS authentication, and SSH key guidance after failed GitHub remote operations",
+    "Set upstream and push helper using git push -u origin HEAD",
+    "Safer file removal workflows: git rm for remove from Git and disk, git rm --cached for stop tracking while keeping the local file",
+    "Clear changed-file status badges such as [index:M work:-] and [index:- work:M] so staged/unstaged state changes are visible"
   ],
   "next_recommended": [
-    "Add GitHub CLI detection and optional gh repo create integration",
+    "Add GitHub CLI detection and optional gh repo create integration after explicit confirmation",
     "Add pull-request/compare URL helper",
-    "Add remote health/status panel with authentication hints",
-    "Add pre-continue verification across all resolved candidate files"
+    "Add pre-continue verification across all resolved candidate files",
+    "Add .gitignore suggestion after stop-tracking local config/log/build files"
   ],
   "highlights": [
-    "Local-first GitHub publication guidance with private-repository reminder",
-    "Developer-controlled push workflow using command previews and explicit confirmation",
-    "Privacy reminder for GitHub Copilot AI/data-training settings"
+    "Remote diagnostics reduce confusion when GitHub repository creation, upstream tracking, or authentication is incomplete",
+    "git rm workflows separate deleting files from simply stopping Git tracking",
+    "Changed-file badges make staging results easier to see"
   ]
 }
