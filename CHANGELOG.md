@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.6.10 - Branch switch dirty-work choice
+
+- Branch switching now warns on dirty work but allows the user to let Git attempt the switch anyway.
+- Git remains the final safety gate and blocks overwrites when needed.
+- Pull and merge workflows remain stricter.
+
 ## v3.6.9 - Git Flow merge/publish workflow restoration
 
 - Restored visible merge workflow support in the Integrate tab with a clearer Merge & Publish flow.

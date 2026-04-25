@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.9
+# Git Glide GUI - Enhanced Version v3.6.10
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -35,6 +35,7 @@
 # - v3.6.6: GitHub publish guidance with private-repository and Copilot-training privacy reminders
 # - v3.6.8: tracked-file browser for clean file replacement/remove workflows
 # - v3.6.9: restored and extended Git Flow merge/publish workflow guidance
+# - v3.6.10: branch switch now warns on dirty work but lets the user attempt the switch anyway
 
 param(
     [string]$RepositoryPath = '',
@@ -70,7 +71,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.9 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.10 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -2662,6 +2663,7 @@ function Ensure-RepositorySelected {
 function Test-CleanWorkingTree {
     param(
         [switch]$Silent,
+        [switch]$AllowContinue,
         [string]$Operation = 'this action'
     )
 
@@ -2692,6 +2694,12 @@ function Test-CleanWorkingTree {
                 }
             }
         } catch {}
+
+        if ($AllowContinue) {
+            $message = $message + "`r`n`r`nGit may still allow this switch when your changes do not overlap with the target branch. Choose Yes to let Git attempt the switch anyway. Git will stop if the switch would overwrite your work."
+            $answer = [System.Windows.Forms.MessageBox]::Show($message, "$title - switch anyway?", 'YesNo', 'Warning')
+            return ($answer -eq [System.Windows.Forms.DialogResult]::Yes)
+        }
 
         [System.Windows.Forms.MessageBox]::Show($message, $title, 'OK', 'Warning') | Out-Null
     }
@@ -4371,7 +4379,7 @@ function Switch-SelectedBranch {
     }
 
     try {
-        if (-not (Test-CleanWorkingTree -Operation "switch to branch '$targetBranch'")) { return }
+        if (-not (Test-CleanWorkingTree -Operation "switch to branch '$targetBranch'" -AllowContinue)) { return }
 
         $msg = "This will run:`r`n`r`n$(Build-SwitchBranchPreview)`r`n`r`nContinue?"
         $answer = [System.Windows.Forms.MessageBox]::Show($msg, 'Confirm branch switch', 'YesNo', 'Question')
@@ -7838,7 +7846,7 @@ Enable-VisibleSplitter -Splitter $script:AppearanceMainSplit -Tooltip 'Drag this
 # Set up tooltips
 $script:ToolTip.SetToolTip($script:FeatureBranchTextBox, "Enter a new feature branch name. Branch names are validated before creation.")
 $script:ToolTip.SetToolTip($script:BaseFromDevelopCheckBox, "When checked, the tool switches to $($script:Config.BaseBranch), pulls, then creates the new feature branch. Requires a clean working tree.")
-$script:ToolTip.SetToolTip($script:BranchSwitchComboBox, 'Choose an existing local branch or type one, then click Switch branch.')
+$script:ToolTip.SetToolTip($script:BranchSwitchComboBox, 'Choose an existing local branch or type one. If work is dirty, Git Glide warns but can let Git attempt the switch anyway.')
 $script:ToolTip.SetToolTip($script:ChangedFilesList, 'Changed files from git status --porcelain. Each row keeps its parsed Git status internally, so selecting a row should immediately load its diff. Multi-select is supported for stage/unstage; the diff preview uses the first selected file.')
 $script:ToolTip.SetToolTip($script:DiffTextBox, 'Shows selected file diff output. Staged and unstaged changes are separated when possible; untracked text files show a safe content preview.')
 $script:ToolTip.SetToolTip($script:LogTextBox, 'Shows live standard output and standard error from Git and build commands.')
@@ -7874,7 +7882,7 @@ $script:ToolTip.SetToolTip($script:SuggestedNextActionButton, 'Runs only safe su
 
 # Set up control previews
 Set-ControlPreview -Control $createBranchButton -Builder { Build-FeatureBranchCommandPreview } -Title 'Create feature branch' -Notes 'Creates a branch using the current feature branch textbox and base-from-develop option.'
-Set-ControlPreview -Control $switchBranchButton -Builder { Build-SwitchBranchPreview } -Title 'Switch branch' -Notes 'Switches to the selected or typed branch.'
+Set-ControlPreview -Control $switchBranchButton -Builder { Build-SwitchBranchPreview } -Title 'Switch branch' -Notes 'Switches to the selected or typed branch. Dirty work shows a warning, but you can choose to let Git attempt the switch anyway.'
 Set-ControlPreview -Control $showDiffButton -Builder { Build-ShowDiffPreview } -Title 'Show diff for selected file' -Notes 'Reloads the preview for the first selected changed file. Handles staged, unstaged, renamed, deleted, conflicted, and untracked files.'
 Set-ControlPreview -Control $stageSelectedButton -Builder { Build-StageSelectedPreview } -Title 'Stage selected file' -Notes 'Adds the selected file(s) to the Git index so they will be included in the next commit.'
 Set-ControlPreview -Control $unstageSelectedButton -Builder { Build-UnstageSelectedPreview } -Title 'Unstage selected file' -Notes 'Removes the selected file(s) from the Git index while keeping your working-tree edits.'
@@ -8044,7 +8052,7 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.9 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.10 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
 Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.6" -f $script:RepoRoot)
@@ -8057,7 +8065,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.9' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use Integrate for Merge & Publish workflows, History / Graph for read-only branch/merge inspection, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.10' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use Integrate for Merge & Publish workflows, History / Graph for read-only branch/merge inspection, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {
