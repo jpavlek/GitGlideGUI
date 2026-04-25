@@ -79,7 +79,7 @@ This release fixes the GitHub remote parser for Windows PowerShell 5.1 / Pester 
 Changed Files lists changed paths only. To replace a clean tracked file, use **Browse tracked files**, select the file, then choose **Remove from Git and disk** or **Stop tracking, keep local**.
 
 
-## v3.6.9: Feature -> develop -> main
+## v3.6.10: Feature -> develop -> main
 
 Recommended sequence:
 

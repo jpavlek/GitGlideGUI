@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.9",
+  "version": "3.6.10",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.9.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.10.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.9 Git Flow merge/publish workflow restoration and selected-feature merge support",
+  "iteration_focus": "v3.6.10 branch switching with dirty-work warning and user override",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -26,18 +26,14 @@
     "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
-    "Merge & Publish workflow guidance for feature -> develop -> main promotion",
-    "Branch tracking overview using git branch -vv",
-    "Sync main into develop workflow",
-    "Selected feature branch merge into develop, even while currently on develop",
-    "Quality-check gate button before promoting develop to main",
-    "Pull-request URL detection from GitHub push output"
+    "Branch switching now warns on dirty work but offers a switch anyway choice",
+    "Switch anyway lets Git attempt the branch switch and rely on Git to block unsafe overwrites",
+    "Pull, merge, and other higher-risk workflows keep stricter clean-working-tree protection"
   ],
   "next_recommended": [
-    "Add GitHub CLI support for optional gh repo create --private after explicit confirmation",
-    "Add merge conflict preflight summary before running merges",
-    "Add release tag prompt after develop -> main promotion",
-    "Add optional branch cleanup after merged feature branch is pushed and merged"
+    "Add a branch-switch preflight that predicts whether dirty files overlap with the target branch",
+    "Add optional auto-stash before branch switch with clear recovery guidance",
+    "Add branch cleanup guidance after merged feature branches"
   ],
   "highlights": [
     "Restores clearer merge support that had become hidden or too current-branch dependent",
