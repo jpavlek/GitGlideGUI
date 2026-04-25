@@ -177,17 +177,58 @@ function Get-GgbGitFlowMergeAndPublishGuide {
     return @(
         'git status',
         'git branch -vv',
-        'git switch ' + $FeatureBranch,
+        ('git switch {0}' -f $FeatureBranch),
         'git push -u origin HEAD',
-        'git switch ' + $BaseBranch,
-        'git merge ' + $MainBranch,
-        'git merge --no-ff ' + $FeatureBranch,
+        ('git switch {0}' -f $BaseBranch),
+        ('git merge {0}' -f $MainBranch),
+        ('git merge --no-ff {0}' -f $FeatureBranch),
         'scripts\windows\run-quality-checks.bat',
-        'git push -u origin ' + $BaseBranch,
-        'git switch ' + $MainBranch,
-        'git merge --no-ff ' + $BaseBranch,
-        'git push -u origin ' + $MainBranch
+        ('git push -u origin {0}' -f $BaseBranch),
+        ('git switch {0}' -f $MainBranch),
+        ('git merge --no-ff {0}' -f $BaseBranch),
+        ('git push -u origin {0}' -f $MainBranch)
     ) -join "`r`n"
+}
+
+function Test-GgbWorkflowProtectedBranch {
+    param(
+        [string]$BranchName,
+        [string]$MainBranch = 'main',
+        [string]$BaseBranch = 'develop'
+    )
+    if ([string]::IsNullOrWhiteSpace($BranchName)) { return $false }
+    return (($BranchName -eq $MainBranch) -or ($BranchName -eq $BaseBranch))
+}
+
+function Get-GgbProtectedBranchCommitGuidance {
+    param(
+        [string]$BranchName,
+        [string]$MainBranch = 'main',
+        [string]$BaseBranch = 'develop'
+    )
+
+    $isProtected = Test-GgbWorkflowProtectedBranch -BranchName $BranchName -MainBranch $MainBranch -BaseBranch $BaseBranch
+    if (-not $isProtected) {
+        return [pscustomobject]@{
+            ShouldWarn = $false
+            Title = 'Feature branch workflow'
+            Message = 'This commit is on a normal feature/work branch.'
+            RecommendedAction = 'commit'
+        }
+    }
+
+    $recommended = if ($BranchName -eq $MainBranch) {
+        ('Create a feature branch from {0}, commit there, merge feature -> {0}, run quality checks, then merge {0} -> {1}.' -f $BaseBranch, $MainBranch)
+    } else {
+        ('Prefer committing feature work on a feature branch, then merge it back into {0} after review or validation.' -f $BaseBranch)
+    }
+
+    return [pscustomobject]@{
+        ShouldWarn = $true
+        Title = ('You are committing directly on {0}' -f $BranchName)
+        Message = ('This can skip the intended Git Flow path. {0} Continue anyway?' -f $recommended)
+        RecommendedAction = 'create-feature-branch'
+    }
 }
 
 function Get-GgbDirtyWorkingTreeGuidance {
@@ -255,6 +296,8 @@ Export-ModuleMember -Function `
     Get-GgbSyncMainIntoBaseCommandPlan, `
     Get-GgbMergeNamedFeatureIntoBaseCommandPlan, `
     Get-GgbGitFlowMergeAndPublishGuide, `
+    Test-GgbWorkflowProtectedBranch, `
+    Get-GgbProtectedBranchCommitGuidance, `
     Get-GgbMergeFeatureIntoBaseCommandPlan, `
     Get-GgbMergeBaseIntoMainCommandPlan, `
     Get-GgbDirtyWorkingTreeGuidance

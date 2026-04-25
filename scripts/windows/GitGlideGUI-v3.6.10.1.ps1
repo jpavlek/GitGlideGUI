@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.10
+# Git Glide GUI - Enhanced Version v3.6.10.1
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -35,7 +35,7 @@
 # - v3.6.6: GitHub publish guidance with private-repository and Copilot-training privacy reminders
 # - v3.6.8: tracked-file browser for clean file replacement/remove workflows
 # - v3.6.9: restored and extended Git Flow merge/publish workflow guidance
-# - v3.6.10: branch switch now warns on dirty work but lets the user attempt the switch anyway
+# - v3.6.10.1: protected-branch commit warning and merge guide formatting hotfix
 
 param(
     [string]$RepositoryPath = '',
@@ -71,7 +71,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.10 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.10.1 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -895,6 +895,7 @@ function Reset-AllThemeColors {
     $answer = [System.Windows.Forms.MessageBox]::Show('Reset all saved GUI colors to the built-in defaults?', 'Reset theme colors', 'YesNo', 'Question')
     if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
     $defaults = ConvertTo-PlainHashtable -Value $script:DefaultConfig.ThemeColors
+
     $script:ThemeColors = @{}
     foreach ($key in $defaults.Keys) { $script:ThemeColors[$key] = [string]$defaults[$key] }
     Set-ConfigValue -Name 'ThemeColors' -Value $script:ThemeColors
@@ -2444,6 +2445,7 @@ function Invoke-FirstCommitWizard {
 
     $message = $subject
     if (-not [string]::IsNullOrWhiteSpace($bodyBox.Text)) { $message += "`r`n`r`n" + $bodyBox.Text.TrimEnd() }
+
     $tempFile = [System.IO.Path]::GetTempFileName()
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     try {
@@ -5693,6 +5695,34 @@ function Insert-CommitTemplate {
 
 #region Commit Operations
 
+function Confirm-CommitOnWorkflowBranch {
+    if (-not $script:CurrentBranch) { Refresh-Status }
+    $branch = [string]$script:CurrentBranch
+    if ([string]::IsNullOrWhiteSpace($branch)) { return $true }
+
+    $guidance = $null
+    if (Get-Command Get-GgbProtectedBranchCommitGuidance -ErrorAction SilentlyContinue) {
+        $guidance = Get-GgbProtectedBranchCommitGuidance -BranchName $branch -MainBranch $script:Config.MainBranch -BaseBranch $script:Config.BaseBranch
+    } else {
+        $isProtected = (($branch -eq [string]$script:Config.MainBranch) -or ($branch -eq [string]$script:Config.BaseBranch))
+        $guidance = [pscustomobject]@{
+            ShouldWarn = $isProtected
+            Title = ('You are committing directly on {0}' -f $branch)
+            Message = "This can skip the intended Git Flow path. Prefer creating a feature branch, committing there, merging feature -> $($script:Config.BaseBranch), running quality checks, and then merging $($script:Config.BaseBranch) -> $($script:Config.MainBranch). Continue anyway?"
+        }
+    }
+
+    if (-not $guidance -or -not $guidance.ShouldWarn) { return $true }
+
+    $answer = [System.Windows.Forms.MessageBox]::Show(
+        [string]$guidance.Message,
+        [string]$guidance.Title,
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    )
+    return ($answer -eq [System.Windows.Forms.DialogResult]::Yes)
+}
+
 function Commit-Changes {
     param([switch]$PushAfterOverride)
 
@@ -5713,6 +5743,8 @@ function Commit-Changes {
         $answer = [System.Windows.Forms.MessageBox]::Show($validation.Warning + "`r`n`r`nContinue anyway?", 'Commit message warning', 'YesNo', 'Warning')
         if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
     }
+
+    if (-not (Confirm-CommitOnWorkflowBranch)) { return }
 
     $tempFile = [System.IO.Path]::GetTempFileName()
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -8052,7 +8084,7 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.10 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.10.1 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
 Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.6" -f $script:RepoRoot)
@@ -8065,7 +8097,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.10' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use Integrate for Merge & Publish workflows, History / Graph for read-only branch/merge inspection, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.10.1' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use Integrate for Merge & Publish workflows, History / Graph for read-only branch/merge inspection, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {

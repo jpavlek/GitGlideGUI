@@ -40,6 +40,17 @@ Describe 'GitBranchOperations module' {
         $guide | Should -Match 'git merge --no-ff develop'
     }
 
+
+    It 'warns before committing directly on workflow branches' {
+        (Test-GgbWorkflowProtectedBranch -BranchName 'main' -MainBranch 'main' -BaseBranch 'develop') | Should -BeTrue
+        (Test-GgbWorkflowProtectedBranch -BranchName 'feature/test' -MainBranch 'main' -BaseBranch 'develop') | Should -BeFalse
+        $mainGuidance = Get-GgbProtectedBranchCommitGuidance -BranchName 'main' -MainBranch 'main' -BaseBranch 'develop'
+        $mainGuidance.ShouldWarn | Should -BeTrue
+        $mainGuidance.Message | Should -Match 'Create a feature branch'
+        $featureGuidance = Get-GgbProtectedBranchCommitGuidance -BranchName 'feature/test' -MainBranch 'main' -BaseBranch 'develop'
+        $featureGuidance.ShouldWarn | Should -BeFalse
+    }
+
     It 'explains dirty working tree risks' {
         $summary = [pscustomobject]@{ Total = 2; Staged = 1; Unstaged = 1; Untracked = 0; Conflicted = 0 }
         $guidance = Get-GgbDirtyWorkingTreeGuidance -Summary $summary -Operation 'switch branches'

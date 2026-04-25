@@ -1,10 +1,10 @@
 # Changelog
 
-## v3.6.10 - Branch switch dirty-work choice
+## v3.6.10.1 - Workflow guard and merge guide hotfix
 
-- Branch switching now warns on dirty work but allows the user to let Git attempt the switch anyway.
-- Git remains the final safety gate and blocks overwrites when needed.
-- Pull and merge workflows remain stricter.
+- Fixed Git Flow merge/publish guide formatting so branch names remain on the same command line in Windows PowerShell 5.1 / Pester 3.
+- Added protected-branch commit guidance: committing directly on `main` or `develop` now warns that the feature-branch workflow may be skipped.
+- Developers can still continue intentionally after the warning, preserving flexibility while reducing accidental workflow bypasses.
 
 ## v3.6.9 - Git Flow merge/publish workflow restoration
 

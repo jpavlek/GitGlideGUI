@@ -79,7 +79,7 @@ This release fixes the GitHub remote parser for Windows PowerShell 5.1 / Pester 
 Changed Files lists changed paths only. To replace a clean tracked file, use **Browse tracked files**, select the file, then choose **Remove from Git and disk** or **Stop tracking, keep local**.
 
 
-## v3.6.10: Feature -> develop -> main
+## v3.6.10.1: Feature -> develop -> main
 
 Recommended sequence:
 
@@ -97,3 +97,7 @@ git push -u origin main
 ```
 
 Git Glide GUI exposes this as a guided, previewable workflow in the Integrate tab.
+
+## v3.6.10.1 workflow guard
+
+Git Glide GUI warns before committing directly on `main` or `develop`. The warning is intentional but non-blocking: developers may continue when they are making a deliberate hotfix, release, or merge-resolution commit. For ordinary feature work, create a feature branch first, commit there, merge feature -> develop, run quality checks, and then merge develop -> main.
