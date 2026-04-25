@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.6
+# Git Glide GUI - Enhanced Version v3.6.7
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -33,6 +33,7 @@
 # - v3.5: conflict/recovery guidance module, recovery panel, and cherry-pick command planning
 # - v3.6: resolved/unresolved conflict state, stage resolved file, operation-aware continue guidance, merge tool config, and improved graph-action coupling
 # - v3.6.6: GitHub publish guidance with private-repository and Copilot-training privacy reminders
+# - v3.6.7: GitHub remote diagnostics, safer git rm workflows, and clearer staging status badges
 
 param(
     [string]$RepositoryPath = '',
@@ -68,7 +69,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.6 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.7 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -1703,6 +1704,219 @@ function Build-GitHubPublishPreview {
     return "open https://github.com/new`r`ncreate an empty private repository`r`ngit remote add origin https://github.com/<owner>/<repo>.git`r`noptional: git push -u origin HEAD"
 }
 
+
+function Build-GitHubDiagnosticsPreview {
+    return @(
+        'git remote -v',
+        'git branch --show-current',
+        'git rev-parse --abbrev-ref --symbolic-full-name @{u}',
+        'git ls-remote --heads origin',
+        'git push -u origin HEAD'
+    ) -join "`r`n"
+}
+
+function Get-CurrentRemoteUrl {
+    param([string]$RemoteName = 'origin')
+    try {
+        $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'remote', 'get-url', $RemoteName) -Caption ("git remote get-url $RemoteName") -AllowFailure -QuietOutput
+        if ($result.ExitCode -eq 0) { return ([string]$result.StdOut).Trim() }
+    } catch {}
+    return ''
+}
+
+function Get-GitHubRepositoryWebUrlFromRemote {
+    param([string]$RemoteUrl)
+    try {
+        $cmd = Get-Command Get-GghubRepositoryWebUrl -ErrorAction SilentlyContinue
+        if ($cmd) { return (Get-GghubRepositoryWebUrl -RemoteUrl $RemoteUrl) }
+    } catch {}
+    $url = ([string]$RemoteUrl).Trim()
+    if ($url -match '^https://github\.com/([^/]+)/(.+?)(?:\.git)?/?$') { return "https://github.com/$($Matches[1])/$($Matches[2])" }
+    if ($url -match '^git@github\.com:([^/]+)/(.+?)(?:\.git)?$') { return "https://github.com/$($Matches[1])/$($Matches[2])" }
+    return ''
+}
+
+function Show-GitHubRemoteFailureGuidance {
+    param(
+        [object]$Result,
+        [string]$Operation = 'GitHub remote operation',
+        [string]$RemoteName = 'origin'
+    )
+    try {
+        $stdout = if ($Result -and $Result.StdOut) { [string]$Result.StdOut } else { '' }
+        $stderr = if ($Result -and $Result.StdErr) { [string]$Result.StdErr } else { '' }
+        $exitCode = if ($Result) { try { [int]$Result.ExitCode } catch { 1 } } else { 1 }
+        if (Get-Command Get-GghubRemoteFailureGuidance -ErrorAction SilentlyContinue) {
+            $g = Get-GghubRemoteFailureGuidance -ExitCode $exitCode -StdOut $stdout -StdErr $stderr -RemoteName $RemoteName -Operation $Operation
+            $steps = (@($g.RecoverySteps) | ForEach-Object { '- ' + [string]$_ }) -join "`r`n"
+            $message = [string]$g.Message + "`r`n`r`n" + $steps
+            Set-CommandPreview -Title ([string]$g.Title) -Commands ([string]$g.Preview) -Notes ([string]$g.Message)
+            Set-SuggestedNextAction -Text ([string]$g.Message)
+            Append-Log -Text ('GitHub guidance: ' + [string]$g.Message) -Color ([System.Drawing.Color]::DarkOrange)
+            [System.Windows.Forms.MessageBox]::Show($message, [string]$g.Title, 'OK', 'Warning') | Out-Null
+            return
+        }
+    } catch {}
+    [System.Windows.Forms.MessageBox]::Show("The $Operation failed. Check that the GitHub repository exists, owner/name are correct, and authentication is valid.", 'GitHub remote guidance', 'OK', 'Warning') | Out-Null
+}
+
+function Show-CurrentGitRemotes {
+    if (-not (Test-GitRepository)) { [void](Ensure-RepositorySelected); if (-not (Test-GitRepository)) { return } }
+    $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'remote', '-v') -Caption 'git remote -v' -AllowFailure -QuietOutput
+    $text = if ([string]::IsNullOrWhiteSpace([string]$result.StdOut)) { '(No Git remotes are configured yet.)' } else { [string]$result.StdOut }
+    Set-CommandPreview -Title 'Current Git remotes' -Commands $text -Notes 'Use GitHub publish or Add remote to configure origin before pushing.'
+    [System.Windows.Forms.MessageBox]::Show($text, 'Current Git remotes', 'OK', 'Information') | Out-Null
+}
+
+function Test-GitHubRemoteAccess {
+    param([string]$RemoteName = 'origin')
+    if (-not (Test-GitRepository)) { [void](Ensure-RepositorySelected); if (-not (Test-GitRepository)) { return } }
+    $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'ls-remote', '--heads', $RemoteName) -Caption ("git ls-remote --heads $RemoteName") -AllowFailure -ShowProgress
+    if ($result.ExitCode -eq 0) {
+        $output = if ([string]::IsNullOrWhiteSpace([string]$result.StdOut)) { 'Remote is reachable, but no branch heads were returned.' } else { [string]$result.StdOut }
+        Set-CommandPreview -Title 'Remote access OK' -Commands $output -Notes "Git can reach remote '$RemoteName'."
+        Set-SuggestedNextAction -Text "Remote '$RemoteName' is reachable. Push with upstream if the branch is ready."
+        [System.Windows.Forms.MessageBox]::Show("Remote '$RemoteName' is reachable.", 'Remote access OK', 'OK', 'Information') | Out-Null
+    } else {
+        Show-GitHubRemoteFailureGuidance -Result $result -Operation 'test remote access' -RemoteName $RemoteName
+    }
+}
+
+function Push-CurrentBranchWithUpstream {
+    param([string]$RemoteName = 'origin')
+    if (-not (Test-GitRepository)) { [void](Ensure-RepositorySelected); if (-not (Test-GitRepository)) { return } }
+    if (-not (Test-GitHasCommits)) {
+        [System.Windows.Forms.MessageBox]::Show('Create the first commit before pushing to a remote.', 'No commits yet', 'OK', 'Information') | Out-Null
+        return
+    }
+    $branch = ''
+    try { $branch = (& git -C $script:RepoRoot branch --show-current 2>$null | Select-Object -First 1).Trim() } catch {}
+    if ([string]::IsNullOrWhiteSpace($branch)) { $branch = 'current branch' }
+    $ok = Confirm-GuiAction -Title 'Set upstream and push' -Message ("Run:`r`n`r`ngit push -u $RemoteName HEAD`r`n`r`nThis pushes $branch and records $RemoteName as its upstream remote.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+    if (-not $ok) { return }
+    $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'push', '-u', $RemoteName, 'HEAD') -Caption ("git push -u $RemoteName HEAD") -AllowFailure -ShowProgress
+    if ($result.ExitCode -ne 0) { Show-GitHubRemoteFailureGuidance -Result $result -Operation 'push with upstream' -RemoteName $RemoteName }
+    Refresh-Status
+}
+
+function Open-GitHubRepositoryPage {
+    param([string]$RemoteName = 'origin')
+    $remoteUrl = Get-CurrentRemoteUrl -RemoteName $RemoteName
+    $webUrl = Get-GitHubRepositoryWebUrlFromRemote -RemoteUrl $remoteUrl
+    if ([string]::IsNullOrWhiteSpace($webUrl)) {
+        [System.Windows.Forms.MessageBox]::Show("Could not derive a GitHub web URL from remote '$RemoteName'. Configure a GitHub remote first.", 'Open GitHub repository', 'OK', 'Information') | Out-Null
+        return
+    }
+    Start-Process $webUrl
+}
+
+function Show-GitHubRemoteDiagnosticsDialog {
+    if (-not (Test-GitRepository)) { [void](Ensure-RepositorySelected); if (-not (Test-GitRepository)) { return $false } }
+
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = 'GitHub remote diagnostics'
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.Width = 780
+    $dialog.Height = 520
+    $dialog.MinimumSize = New-Object System.Drawing.Size(700, 440)
+    $dialog.FormBorderStyle = 'Sizable'
+
+    $layout = New-Object System.Windows.Forms.TableLayoutPanel
+    $layout.Dock = 'Fill'
+    $layout.Padding = New-Object System.Windows.Forms.Padding(12)
+    $layout.ColumnCount = 1
+    $layout.RowCount = 3
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    $dialog.Controls.Add($layout)
+
+    $intro = New-WrappingLabel -Text 'Diagnose GitHub remote setup: current remotes, current branch, upstream tracking, remote access, repository-not-found/authentication hints, and push-with-upstream.' -Height 48
+    $layout.Controls.Add($intro, 0, 0)
+
+    $output = New-Object System.Windows.Forms.RichTextBox
+    $output.Dock = 'Fill'
+    $output.Font = $script:FontMono
+    $output.ReadOnly = $true
+    $output.WordWrap = $false
+    $layout.Controls.Add($output, 0, 1)
+
+    $buttons = New-Object System.Windows.Forms.FlowLayoutPanel
+    $buttons.FlowDirection = 'RightToLeft'
+    $buttons.Dock = 'Fill'
+    $buttons.WrapContents = $true
+    $layout.Controls.Add($buttons, 0, 2)
+
+    function Refresh-GitHubDiagnosticsText {
+        $lines = New-Object System.Collections.Generic.List[string]
+        [void]$lines.Add('Repository: ' + [string]$script:RepoRoot)
+        $branchResult = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'branch', '--show-current') -Caption 'git branch --show-current' -AllowFailure -QuietOutput
+        $branchText = if ($branchResult.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace([string]$branchResult.StdOut)) { ([string]$branchResult.StdOut).Trim() } else { '(unknown)' }
+        [void]$lines.Add('Current branch: ' + $branchText)
+        $upstreamResult = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}') -Caption 'git rev-parse --abbrev-ref --symbolic-full-name @{u}' -AllowFailure -QuietOutput
+        $upstreamText = if ($upstreamResult.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace([string]$upstreamResult.StdOut)) { ([string]$upstreamResult.StdOut).Trim() } else { '(missing - use Set upstream and push)' }
+        [void]$lines.Add('Upstream: ' + $upstreamText)
+        [void]$lines.Add('')
+        [void]$lines.Add('Remotes:')
+        $remoteResult = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'remote', '-v') -Caption 'git remote -v' -AllowFailure -QuietOutput
+        if ($remoteResult.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace([string]$remoteResult.StdOut)) { [void]$lines.Add(([string]$remoteResult.StdOut).TrimEnd()) } else { [void]$lines.Add('(No remotes configured.)') }
+        $output.Text = ($lines -join "`r`n")
+    }
+
+    $close = New-Object System.Windows.Forms.Button
+    $close.Text = 'Close'
+    $close.Width = 90
+    $close.Height = 32
+    $close.Add_Click({ $dialog.Close() })
+    $buttons.Controls.Add($close)
+
+    $push = New-Object System.Windows.Forms.Button
+    $push.Text = 'Set upstream and push'
+    $push.Width = 155
+    $push.Height = 32
+    $push.Add_Click({ Push-CurrentBranchWithUpstream -RemoteName ([string]$script:Config.DefaultRemoteName); Refresh-GitHubDiagnosticsText })
+    $buttons.Controls.Add($push)
+
+    $test = New-Object System.Windows.Forms.Button
+    $test.Text = 'Test remote access'
+    $test.Width = 145
+    $test.Height = 32
+    $test.Add_Click({ Test-GitHubRemoteAccess -RemoteName ([string]$script:Config.DefaultRemoteName); Refresh-GitHubDiagnosticsText })
+    $buttons.Controls.Add($test)
+
+    $showRemotes = New-Object System.Windows.Forms.Button
+    $showRemotes.Text = 'Show remotes'
+    $showRemotes.Width = 115
+    $showRemotes.Height = 32
+    $showRemotes.Add_Click({ Show-CurrentGitRemotes; Refresh-GitHubDiagnosticsText })
+    $buttons.Controls.Add($showRemotes)
+
+    $openRepo = New-Object System.Windows.Forms.Button
+    $openRepo.Text = 'Open GitHub repo'
+    $openRepo.Width = 135
+    $openRepo.Height = 32
+    $openRepo.Add_Click({ Open-GitHubRepositoryPage -RemoteName ([string]$script:Config.DefaultRemoteName) })
+    $buttons.Controls.Add($openRepo)
+
+    $openNew = New-Object System.Windows.Forms.Button
+    $openNew.Text = 'Open new repo'
+    $openNew.Width = 120
+    $openNew.Height = 32
+    $openNew.Add_Click({ Open-GitHubNewRepositoryPage })
+    $buttons.Controls.Add($openNew)
+
+    $refresh = New-Object System.Windows.Forms.Button
+    $refresh.Text = 'Refresh'
+    $refresh.Width = 90
+    $refresh.Height = 32
+    $refresh.Add_Click({ Refresh-GitHubDiagnosticsText })
+    $buttons.Controls.Add($refresh)
+
+    Refresh-GitHubDiagnosticsText
+    [void]$dialog.ShowDialog($form)
+    return $true
+}
+
 function Show-GitHubPublishDialog {
     if (-not (Test-GitRepository)) {
         [void](Ensure-RepositorySelected)
@@ -1924,7 +2138,8 @@ function Invoke-RemoteSetup {
         if (-not (Test-GitHasCommits)) {
             [System.Windows.Forms.MessageBox]::Show('Create the first commit before pushing to a remote.', 'No commits yet', 'OK', 'Information') | Out-Null
         } else {
-            [void](Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'push', '-u', $RemoteName, 'HEAD') -Caption ("git push -u $RemoteName HEAD") -ShowProgress)
+            $pushResult = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'push', '-u', $RemoteName, 'HEAD') -Caption ("git push -u $RemoteName HEAD") -AllowFailure -ShowProgress
+            if ($pushResult.ExitCode -ne 0) { Show-GitHubRemoteFailureGuidance -Result $pushResult -Operation 'push with upstream' -RemoteName $RemoteName }
         }
     }
 
@@ -2941,6 +3156,25 @@ function Build-UnstageSelectedPreview {
     }) -join "`r`n"
 }
 
+
+function Build-RemoveSelectedFromGitPreview {
+    $items = Get-SelectedStatusItems
+    if (Get-Command Get-GggRemoveFromGitCommandPlan -ErrorAction SilentlyContinue) {
+        return (ConvertTo-GggCommandPreview -Plans (Get-GggRemoveFromGitCommandPlan -Items $items))
+    }
+    if ($items.Count -le 1) { return ('git rm -- ' + (Quote-Arg (Get-SelectedStatusPath))) }
+    return ($items | ForEach-Object { 'git rm -- ' + (Quote-Arg $_.Path) }) -join "`r`n"
+}
+
+function Build-StopTrackingSelectedPreview {
+    $items = Get-SelectedStatusItems
+    if (Get-Command Get-GggStopTrackingCommandPlan -ErrorAction SilentlyContinue) {
+        return (ConvertTo-GggCommandPreview -Plans (Get-GggStopTrackingCommandPlan -Items $items))
+    }
+    if ($items.Count -le 1) { return ('git rm --cached -- ' + (Quote-Arg (Get-SelectedStatusPath))) }
+    return ($items | ForEach-Object { 'git rm --cached -- ' + (Quote-Arg $_.Path) }) -join "`r`n"
+}
+
 function Build-ShowDiffPreview {
     $item = Get-SelectedStatusItem
     if (Get-Command Get-GggShowDiffCommandPreview -ErrorAction SilentlyContinue) {
@@ -3581,7 +3815,7 @@ function Refresh-Status {
         try {
             foreach ($parsed in $items) {
                 if (-not $parsed) { continue }
-                $display = ('[{0}] {1}' -f $parsed.Status, $parsed.RawPath)
+                $display = if (Get-Command Get-GggStatusDisplayText -ErrorAction SilentlyContinue) { Get-GggStatusDisplayText -Item $parsed } else { ('[{0}] {1}' -f $parsed.Status, $parsed.RawPath) }
                 # Pure PowerShell row payload. DisplayMember shows Display, while
                 # StatusItem keeps the parsed git status available for diff/stage/unstage.
                 $listItem = [pscustomobject]@{
@@ -3745,6 +3979,55 @@ function Unstage-SelectedFile {
         Refresh-Status
     } catch {
         [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Unstage failed', 'OK', 'Error') | Out-Null
+    }
+}
+
+
+function Remove-SelectedFilesFromGitAndDisk {
+    $items = Get-SelectedStatusItems
+    if ($items.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show('Select one or more tracked files first.', 'No file selected', 'OK', 'Information') | Out-Null
+        return
+    }
+    $preview = Build-RemoveSelectedFromGitPreview
+    $ok = Confirm-GuiAction -Title 'Remove from Git and disk' -Message ("This deletes the selected file(s) from the working folder and stages the deletion.`r`n`r`n$preview`r`n`r`nUse Stop tracking instead if the file should stay on disk.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Warning)
+    if (-not $ok) { return }
+    try {
+        if (Get-Command Get-GggRemoveFromGitCommandPlan -ErrorAction SilentlyContinue) {
+            foreach ($plan in @(Get-GggRemoveFromGitCommandPlan -Items $items)) {
+                $result = Run-External -FileName 'git' -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) -Caption ([string]$plan.Display) -AllowFailure -ShowProgress
+                if ($result.ExitCode -ne 0) { Show-GitFailureGuidance -Result $result -Operation 'remove file from Git and disk' -ShowDialog }
+            }
+        } else {
+            foreach ($item in $items) { [void](Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'rm', '--', $item.Path) -Caption ('git rm -- ' + $item.Path) -AllowFailure -ShowProgress) }
+        }
+        Refresh-Status
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Remove from Git failed', 'OK', 'Error') | Out-Null
+    }
+}
+
+function Stop-TrackingSelectedFilesKeepLocal {
+    $items = Get-SelectedStatusItems
+    if ($items.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show('Select one or more tracked files first.', 'No file selected', 'OK', 'Information') | Out-Null
+        return
+    }
+    $preview = Build-StopTrackingSelectedPreview
+    $ok = Confirm-GuiAction -Title 'Stop tracking but keep local files' -Message ("This removes the selected file(s) from the Git index but keeps them on disk.`r`n`r`n$preview`r`n`r`nTypical use: accidentally committed config, logs, build output, or local settings. Add them to .gitignore if they should stay untracked.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+    if (-not $ok) { return }
+    try {
+        if (Get-Command Get-GggStopTrackingCommandPlan -ErrorAction SilentlyContinue) {
+            foreach ($plan in @(Get-GggStopTrackingCommandPlan -Items $items)) {
+                $result = Run-External -FileName 'git' -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) -Caption ([string]$plan.Display) -AllowFailure -ShowProgress
+                if ($result.ExitCode -ne 0) { Show-GitFailureGuidance -Result $result -Operation 'stop tracking file but keep local copy' -ShowDialog }
+            }
+        } else {
+            foreach ($item in $items) { [void](Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'rm', '--cached', '--', $item.Path) -Caption ('git rm --cached -- ' + $item.Path) -AllowFailure -ShowProgress) }
+        }
+        Refresh-Status
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Stop tracking failed', 'OK', 'Error') | Out-Null
     }
 }
 
@@ -5774,6 +6057,7 @@ $script:ModeToggleButton = New-ActionButton -ParentPanel $setupActionsPanel -Tex
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'Add .gitignore...' -Width 140 -Handler { Show-GitIgnoreTemplateDialog } -PreviewBuilder { Build-GitIgnorePreview } -PreviewTitle 'Create or update .gitignore' -Notes 'Adds a starter .gitignore template before committing generated files by accident.')
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'Add remote...' -Width 125 -Handler { Show-RemoteSetupDialog } -PreviewBuilder { Build-RemoteSetupPreview } -PreviewTitle 'Add or update remote' -Notes 'Adds or updates origin and can optionally push the current branch with upstream tracking.')
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'GitHub publish...' -Width 145 -Handler { Show-GitHubPublishDialog } -PreviewBuilder { Build-GitHubPublishPreview } -PreviewTitle 'GitHub publish workflow' -Notes 'Guides private GitHub repository creation, privacy/Copilot settings review, remote setup, and optional push.')
+[void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'GitHub diagnostics...' -Width 165 -Handler { Show-GitHubRemoteDiagnosticsDialog } -PreviewBuilder { Build-GitHubDiagnosticsPreview } -PreviewTitle 'GitHub remote diagnostics' -Notes 'Shows remotes, current branch, missing upstream, remote access checks, GitHub repository opening, and push-with-upstream guidance.')
 
 # Inspect/Build actions
 [void](New-ActionGuidance -ParentPanel $inspectActionsPanel -Text 'Inspect first when unsure: refresh status, read git status, preview diffs, or inspect the branch graph before committing, pushing, merging, or stashing.')
@@ -6193,6 +6477,8 @@ if ($script:ToolTip) {
 [void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Stage selected' -Width 125 -Handler { Stage-SelectedFile } -PreviewBuilder { Build-StageSelectedPreview } -PreviewTitle 'Stage selected file(s)' -Notes 'Adds the selected file(s) to the Git index so they will be included in the next commit.')
 [void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Unstage selected' -Width 135 -Handler { Unstage-SelectedFile } -PreviewBuilder { Build-UnstageSelectedPreview } -PreviewTitle 'Unstage selected file(s)' -Notes 'Removes the selected file(s) from the Git index while keeping your working-tree edits.')
 [void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Stage all' -Width 110 -Handler { Stage-AllChanges } -PreviewBuilder { if (Get-Command Get-GggStageAllCommandPlan -ErrorAction SilentlyContinue) { ConvertTo-GggCommandPreview -Plans (Get-GggStageAllCommandPlan) } else { 'git add -A' } } -PreviewTitle 'Stage all changes' -Notes 'Stages everything in the repository.')
+[void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Stop tracking' -Width 125 -Handler { Stop-TrackingSelectedFilesKeepLocal } -PreviewBuilder { Build-StopTrackingSelectedPreview } -PreviewTitle 'Stop tracking selected file(s)' -Notes 'Runs git rm --cached so the file stays on disk but is removed from Git tracking. Useful for accidental config/log/build output commits.')
+[void](New-ActionButton -ParentPanel $stageActionsPanel -Text 'Remove file' -Width 115 -Handler { Remove-SelectedFilesFromGitAndDisk } -PreviewBuilder { Build-RemoveSelectedFromGitPreview } -PreviewTitle 'Remove selected file(s) from Git and disk' -Notes 'Runs git rm. This deletes the selected file from disk and stages the deletion, after confirmation.')
 
 # Branch actions
 [void](New-ActionGuidance -ParentPanel $branchActionsPanel -Text 'Branches isolate work. Create feature branches for focused changes, switch only when your working tree is clean or safely stashed, and push when ready to share.')
@@ -7052,7 +7338,7 @@ $script:ChangedFilesList.Add_SelectedIndexChanged({
         if (Get-ConfigBool -Name 'AutoPreviewDiffOnSelection' -DefaultValue $true) {
             Show-SelectedDiff
         }
-        Set-CommandPreview -Title 'Selected file diff preview' -Commands (Build-ShowDiffPreview) -Notes 'Use Stage selected or Unstage selected to move this file between index and working tree.'
+        Set-CommandPreview -Title 'Selected file diff preview' -Commands (Build-ShowDiffPreview) -Notes 'Use Stage selected, Unstage selected, Stop tracking, or Remove file to move this file between index, working tree, and Git tracking.'
     }
 })
 $leftActionSplit.Panel1.Controls.Add($script:ChangedFilesList)
@@ -7098,6 +7384,22 @@ $unstageSelectedButton.Height = 32
 $unstageSelectedButton.Margin = New-Object System.Windows.Forms.Padding(4)
 $unstageSelectedButton.Add_Click({ Unstage-SelectedFile })
 $leftButtons.Controls.Add($unstageSelectedButton)
+
+$stopTrackingButton = New-Object System.Windows.Forms.Button
+$stopTrackingButton.Text = 'Stop tracking'
+$stopTrackingButton.Width = 115
+$stopTrackingButton.Height = 32
+$stopTrackingButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$stopTrackingButton.Add_Click({ Stop-TrackingSelectedFilesKeepLocal })
+$leftButtons.Controls.Add($stopTrackingButton)
+
+$removeFileButton = New-Object System.Windows.Forms.Button
+$removeFileButton.Text = 'Remove file'
+$removeFileButton.Width = 105
+$removeFileButton.Height = 32
+$removeFileButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$removeFileButton.Add_Click({ Remove-SelectedFilesFromGitAndDisk })
+$leftButtons.Controls.Add($removeFileButton)
 
 $refreshButton2 = New-Object System.Windows.Forms.Button
 $refreshButton2.Text = 'Refresh'
@@ -7275,6 +7577,8 @@ Set-ControlPreview -Control $switchBranchButton -Builder { Build-SwitchBranchPre
 Set-ControlPreview -Control $showDiffButton -Builder { Build-ShowDiffPreview } -Title 'Show diff for selected file' -Notes 'Reloads the preview for the first selected changed file. Handles staged, unstaged, renamed, deleted, conflicted, and untracked files.'
 Set-ControlPreview -Control $stageSelectedButton -Builder { Build-StageSelectedPreview } -Title 'Stage selected file' -Notes 'Adds the selected file(s) to the Git index so they will be included in the next commit.'
 Set-ControlPreview -Control $unstageSelectedButton -Builder { Build-UnstageSelectedPreview } -Title 'Unstage selected file' -Notes 'Removes the selected file(s) from the Git index while keeping your working-tree edits.'
+Set-ControlPreview -Control $stopTrackingButton -Builder { Build-StopTrackingSelectedPreview } -Title 'Stop tracking selected file(s)' -Notes 'Removes the selected file(s) from Git tracking but keeps local files on disk.'
+Set-ControlPreview -Control $removeFileButton -Builder { Build-RemoveSelectedFromGitPreview } -Title 'Remove selected file(s)' -Notes 'Deletes the selected tracked file(s) from disk and stages the deletion after confirmation.'
 Set-ControlPreview -Control $refreshButton2 -Builder { 'git status --porcelain=v1 --branch' } -Title 'Refresh repository status'
 Set-ControlPreview -Control $commitButton -Builder { Build-CommitPreview } -Title 'Commit staged changes' -Notes 'If Stage all is checked, the GUI stages everything first. Validates commit message before executing.'
 Set-ControlPreview -Control $commitPushButton -Builder { Build-CommitPreview } -Title 'Commit and push' -Notes 'If Amend is checked, push uses --force-with-lease.'
@@ -7439,7 +7743,7 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.6 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.7 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
 Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.6" -f $script:RepoRoot)
@@ -7452,7 +7756,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.6' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish guidance. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.7' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use History / Graph for read-only branch/merge inspection and command previews, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {

@@ -48,4 +48,18 @@ Describe 'GitStagingOperations module' {
         $preview = Get-GggShowDiffCommandPreview -Item $item
         $preview | Should -Be '# untracked file preview for README.md'
     }
+
+    It 'formats explicit staged and unstaged status badges' {
+        $unstaged = [pscustomobject]@{ Path = 'README.md'; RawPath = 'README.md'; Status = ' M'; IndexStatus = ' '; WorkTreeStatus = 'M'; OriginalPath = $null }
+        $staged = [pscustomobject]@{ Path = 'README.md'; RawPath = 'README.md'; Status = 'M '; IndexStatus = 'M'; WorkTreeStatus = ' '; OriginalPath = $null }
+        Get-GggStatusDisplayText -Item $unstaged | Should -Be '[index:- work:M] README.md'
+        Get-GggStatusDisplayText -Item $staged | Should -Be '[index:M work:-] README.md'
+    }
+
+    It 'builds safer git rm command plans for remove and stop-tracking workflows' {
+        $item = [pscustomobject]@{ Path = 'local.config.json'; RawPath = 'local.config.json'; Status = 'M '; IndexStatus = 'M'; WorkTreeStatus = ' '; OriginalPath = $null }
+        (Get-GggRemoveFromGitCommandPlan -Items @($item))[0].Arguments | Should -Be @('rm','--','local.config.json')
+        (Get-GggStopTrackingCommandPlan -Items @($item))[0].Arguments | Should -Be @('rm','--cached','--','local.config.json')
+    }
+
 }

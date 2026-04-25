@@ -64,3 +64,8 @@ run-quality-checks.bat
 ## GitHub publish guidance
 
 Use **Setup -> GitHub publish...** after you have local commits and want to connect the project to GitHub. The workflow recommends a private GitHub repository for proprietary, client, security-sensitive, or unfinished work, helps build the correct remote URL, and reminds you to review GitHub Copilot AI/data-training settings where your plan allows opt-out.
+
+
+## v3.6.7 GitHub diagnostics and file removal
+
+Use Setup -> GitHub diagnostics to inspect remotes, upstream tracking, repository access, and push-with-upstream. Use Stop tracking when a file should stay local but no longer be versioned, and Remove file only when it should be deleted from disk and staged as a deletion.
