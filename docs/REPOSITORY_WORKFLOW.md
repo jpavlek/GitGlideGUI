@@ -108,3 +108,10 @@ Git Glide GUI warns before committing directly on `main` or `develop`. The warni
 - Shows branch role and recommended next step above Changed Files.
 - Warns before staging or committing directly on protected branches.
 - Offers a create-branch-first path so current changes can move to a feature/fix branch before commit.
+
+## v3.6.12 UI organization and progressive disclosure
+
+- Adds Simple, Workflow, and Expert UI modes to reduce visual overload without removing functionality.
+- Keeps the primary workflow visible while moving advanced actions into mode-aware tabs and the command palette.
+- Improves the Changed Files context banner with mode, branch, branch role, upstream, state, changed count, and recommended next action.
+- Keeps v3.6.11 branch-context and protected-branch workflow guard behavior intact.

@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.11",
+  "version": "3.6.12",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.11.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.12.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.11 branch context and workflow guard reliability",
+  "iteration_focus": "v3.6.12 UI organization and progressive disclosure",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -26,6 +26,10 @@
     "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
+    "UI organization release focused on reducing overwhelm without removing features",
+    "Mode-aware changed-files context banner and calmer action grouping guidance",
+    "Command palette entry point for finding actions without overcrowding the visible UI",
+    "Three-mode progressive disclosure: Simple, Workflow, and Expert actions",
     "Branch switching now warns on dirty work but offers a switch anyway choice",
     "Switch anyway lets Git attempt the branch switch and rely on Git to block unsafe overwrites",
     "Pull, merge, and other higher-risk workflows keep stricter clean-working-tree protection"

@@ -304,6 +304,16 @@ function Get-GgbDirtyWorkingTreeGuidance {
     }
 }
 
+
+function Get-GgbUiModeTabNames {
+    param([ValidateSet('Simple','Workflow','Expert')][string]$Mode = 'Simple')
+    switch ($Mode) {
+        'Simple' { return @('Setup','Stage','Branch','Stash','Inspect / Build') }
+        'Workflow' { return @('Setup','Stage','Branch','Integrate','Recovery','History / Graph','Stash','Tags / Release','Learning') }
+        default { return @('Setup','Inspect / Build','History / Graph','Recovery','Learning','Stage','Branch','Integrate','Stash','Custom Git','Appearance','Tags / Release') }
+    }
+}
+
 Export-ModuleMember -Function `
     ConvertTo-GgbQuotedGitArgument, `
     New-GgbGitCommandPlan, `
@@ -320,6 +330,7 @@ Export-ModuleMember -Function `
     Get-GgbGitFlowMergeAndPublishGuide, `
     Get-GgbBranchRole, `
     Get-GgbMoveCurrentChangesToBranchCommandPlan, `
+    Get-GgbUiModeTabNames, `
     Test-GgbWorkflowProtectedBranch, `
     Get-GgbProtectedBranchCommitGuidance, `
     Get-GgbMergeFeatureIntoBaseCommandPlan, `
