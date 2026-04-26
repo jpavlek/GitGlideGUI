@@ -6579,7 +6579,7 @@ function Get-CommandPaletteItems {
         @{ Name='History graph'; Group='Inspect'; Tab=$script:HistoryTabPage; Preview=(Build-HistoryPreview); Notes='Inspect branch graph, merges, tags, and commits.' },
         @{ Name='Custom Git'; Group='Expert'; Tab=$script:CustomGitTabPage; Preview='git <allowlisted command>'; Notes='Run an allowlisted custom Git command with preview and safety checks.' }
         @{ Name='Workflow checklist'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-MergeWorkflowChecklistPreview); Notes='Review the feature -> develop -> quality checks -> main checklist before promoting work.' },
-        @{ Name='Clean merged branch'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-CleanupSelectedFeatureBranchPreview); Notes='Delete a merged feature/fix branch locally and remotely after confirmation.' },
+        @{ Name='Clean merged branch'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-CleanupSelectedFeatureBranchPreview); Notes='Delete a merged feature/fix branch locally and remotely after confirmation.' }
     )
     return @($items | ForEach-Object { [pscustomobject]$_ })
 }
