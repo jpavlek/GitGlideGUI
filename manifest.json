@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.10.1",
+  "version": "3.6.11",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.10.1.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.11.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.10.1 workflow guard and merge guide hotfix",
+  "iteration_focus": "v3.6.11 branch context and workflow guard reliability",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",

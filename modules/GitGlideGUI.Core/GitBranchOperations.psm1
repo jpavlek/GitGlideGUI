@@ -189,6 +189,28 @@ function Get-GgbGitFlowMergeAndPublishGuide {
         ('git push -u origin {0}' -f $MainBranch)
     ) -join "`r`n"
 }
+function Get-GgbBranchRole {
+    param(
+        [AllowNull()][string]$BranchName,
+        [string]$MainBranch = 'main',
+        [string]$BaseBranch = 'develop'
+    )
+    $branch = [string]$BranchName
+    if ([string]::IsNullOrWhiteSpace($branch)) { return [pscustomobject]@{ Role='unknown'; Protected=$false; Recommended='Select a branch.' } }
+    if ($branch -eq $MainBranch) { return [pscustomobject]@{ Role='protected release branch'; Protected=$true; Recommended='Create a feature/fix branch before committing normal work.' } }
+    if ($branch -eq $BaseBranch) { return [pscustomobject]@{ Role='integration branch'; Protected=$true; Recommended='Merge finished features here and run quality checks before promoting to main.' } }
+    if ($branch -like 'feature/*') { return [pscustomobject]@{ Role='feature branch'; Protected=$false; Recommended='Commit here, push upstream, then merge into develop.' } }
+    if ($branch -like 'fix/*') { return [pscustomobject]@{ Role='fix branch'; Protected=$false; Recommended='Commit here, push upstream, then merge into develop.' } }
+    if ($branch -like 'hotfix/*') { return [pscustomobject]@{ Role='hotfix branch'; Protected=$false; Recommended='Run checks, merge to main, then sync back into develop.' } }
+    if ($branch -like 'release/*') { return [pscustomobject]@{ Role='release branch'; Protected=$false; Recommended='Use for release stabilization and quality checks.' } }
+    return [pscustomobject]@{ Role='custom branch'; Protected=$false; Recommended='Confirm this branch fits the intended workflow.' }
+}
+
+function Get-GgbMoveCurrentChangesToBranchCommandPlan {
+    param([Parameter(Mandatory=$true)][string]$BranchName)
+    return @(New-GgbGitCommandPlan -Verb 'move-current-work-to-branch' -Arguments @('switch','-c',$BranchName) -Description 'Create a new branch while keeping the current working tree changes.')
+}
+
 
 function Test-GgbWorkflowProtectedBranch {
     param(
@@ -296,6 +318,8 @@ Export-ModuleMember -Function `
     Get-GgbSyncMainIntoBaseCommandPlan, `
     Get-GgbMergeNamedFeatureIntoBaseCommandPlan, `
     Get-GgbGitFlowMergeAndPublishGuide, `
+    Get-GgbBranchRole, `
+    Get-GgbMoveCurrentChangesToBranchCommandPlan, `
     Test-GgbWorkflowProtectedBranch, `
     Get-GgbProtectedBranchCommitGuidance, `
     Get-GgbMergeFeatureIntoBaseCommandPlan, `

@@ -1,7 +1,7 @@
 @echo off
 setlocal
 set "SCRIPT_DIR=%~dp0"
-set "GUI_SCRIPT=%SCRIPT_DIR%scripts\windows\GitGlideGUI-v3.6.10.1.ps1"
+set "GUI_SCRIPT=%SCRIPT_DIR%scripts\windows\GitGlideGUI-v3.6.11.ps1"
 
 if not exist "%GUI_SCRIPT%" (
   echo Git Glide GUI script not found: %GUI_SCRIPT%
