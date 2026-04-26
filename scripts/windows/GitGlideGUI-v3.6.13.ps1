@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.12
+# Git Glide GUI - Enhanced Version v3.6.13
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -38,6 +38,7 @@
 # - v3.6.10.1: protected-branch commit warning and merge guide formatting hotfix
 # - v3.6.11: branch context banner, protected-branch workflow guards, and package/version consistency
 # - v3.6.12: UI organization with Simple/Workflow/Expert modes, mode-aware tabs, command palette, and Changed Files context banner to reduce visual overload without removing functionality.
+# - v3.6.13: workflow checklist and branch cleanup guidance with release consistency smoke checks.
 
 param(
     [string]$RepositoryPath = '',
@@ -73,7 +74,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.12 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.13 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -1768,6 +1769,33 @@ function Build-MergeWorkflowGuidePreview {
         return (Get-GgbGitFlowMergeAndPublishGuide -MainBranch $script:Config.MainBranch -BaseBranch $script:Config.BaseBranch -FeatureBranch (Get-SelectedIntegrationFeatureBranch))
     }
     return "git branch -vv`r`ngit push -u origin HEAD`r`ngit switch $($script:Config.BaseBranch)`r`ngit merge --no-ff <feature-branch>`r`nscripts\windows\run-quality-checks.bat`r`ngit switch $($script:Config.MainBranch)`r`ngit merge --no-ff $($script:Config.BaseBranch)"
+}
+
+function Build-MergeWorkflowChecklistPreview {
+    $featureBranch = Get-SelectedIntegrationFeatureBranch
+    if (Get-Command Get-GgbWorkflowChecklist -ErrorAction SilentlyContinue) {
+        $items = @(Get-GgbWorkflowChecklist -CurrentBranch $script:CurrentBranch -FeatureBranch $featureBranch -MainBranch $script:Config.MainBranch -BaseBranch $script:Config.BaseBranch -Upstream $script:CurrentUpstream -BranchState $script:CurrentBranchState)
+        if (Get-Command Format-GgbWorkflowChecklist -ErrorAction SilentlyContinue) {
+            return (Format-GgbWorkflowChecklist -Items $items)
+        }
+    }
+    return @(
+        '[ ] Check branch tracking: git branch -vv',
+        '[ ] Push feature branch: git push -u origin HEAD',
+        ('[ ] Merge feature into {0}: git merge --no-ff {1}' -f $script:Config.BaseBranch, $featureBranch),
+        '[ ] Run quality checks: scripts\windows\run-quality-checks.bat',
+        ('[ ] Promote {0} into {1}: git merge --no-ff {0}' -f $script:Config.BaseBranch, $script:Config.MainBranch),
+        '[ ] Push and tag release if appropriate'
+    ) -join "`r`n"
+}
+
+function Build-CleanupSelectedFeatureBranchPreview {
+    $featureBranch = Get-SelectedIntegrationFeatureBranch
+    if ([string]::IsNullOrWhiteSpace($featureBranch) -or $featureBranch -eq '<feature-branch>') { return 'select a merged feature/fix branch first' }
+    if (Get-Command Get-GgbCleanupMergedBranchCommandPlan -ErrorAction SilentlyContinue) {
+        return (ConvertTo-GgbCommandPreview -Plans (Get-GgbCleanupMergedBranchCommandPlan -BranchName $featureBranch -DeleteRemote))
+    }
+    return "git branch -d $featureBranch`r`ngit push origin --delete $featureBranch"
 }
 
 function Get-GitHubRepositoryWebUrlFromRemote {
@@ -5113,6 +5141,33 @@ function Show-MergeWorkflowGuide {
     } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Merge workflow guide failed', 'OK', 'Error') | Out-Null }
 }
 
+function Show-MergeWorkflowChecklist {
+    try {
+        $text = Build-MergeWorkflowChecklistPreview
+        Set-CommandPreview -Title 'Git Flow merge and publish checklist' -Commands $text -Notes 'Checklist status is advisory. Use it to avoid skipping feature -> develop -> quality checks -> main promotion.'
+        Append-Log -Text 'Git Flow merge and publish checklist:' -Color ([System.Drawing.Color]::DarkBlue)
+        foreach ($line in @($text -split "`r?`n")) { if (-not [string]::IsNullOrWhiteSpace($line)) { Append-Log -Text $line -Color ([System.Drawing.Color]::Black) } }
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Merge workflow checklist failed', 'OK', 'Error') | Out-Null }
+}
+
+function Cleanup-SelectedFeatureBranch {
+    try {
+        $featureBranch = Get-SelectedIntegrationFeatureBranch
+        if ([string]::IsNullOrWhiteSpace($featureBranch) -or $featureBranch -eq '<feature-branch>') { [System.Windows.Forms.MessageBox]::Show('Select or type a merged feature/fix branch first.', 'No branch selected', 'OK', 'Information') | Out-Null; return }
+        if ($featureBranch -eq [string]$script:Config.BaseBranch -or $featureBranch -eq [string]$script:Config.MainBranch) { [System.Windows.Forms.MessageBox]::Show('Cleanup is intended for merged feature/fix branches, not main or develop.', 'Protected branch', 'OK', 'Warning') | Out-Null; return }
+        $preview = Build-CleanupSelectedFeatureBranchPreview
+        $msg = "This cleanup should be done only after the branch was merged and pushed.`r`n`r`nRun:`r`n`r`n$preview`r`n`r`nContinue?"
+        $answer = [System.Windows.Forms.MessageBox]::Show($msg, 'Confirm merged branch cleanup', 'YesNo', 'Warning')
+        if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+        $plans = if (Get-Command Get-GgbCleanupMergedBranchCommandPlan -ErrorAction SilentlyContinue) { @(Get-GgbCleanupMergedBranchCommandPlan -BranchName $featureBranch -DeleteRemote) } else { @(
+            [pscustomobject]@{ Arguments=@('branch','-d',$featureBranch); Display=('git branch -d ' + (Quote-Arg $featureBranch)) },
+            [pscustomobject]@{ Arguments=@('push','origin','--delete',$featureBranch); Display=('git push origin --delete ' + (Quote-Arg $featureBranch)) }
+        ) }
+        [void](Invoke-GitPlansSequentially -Plans $plans -Operation 'merged branch cleanup')
+        Refresh-Status
+    } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Branch cleanup failed', 'OK', 'Error') | Out-Null }
+}
+
 function Merge-CurrentFeatureIntoDevelop {
     try {
         if (-not $script:CurrentBranch) { Refresh-Status }
@@ -6078,7 +6133,7 @@ function Save-LayoutConfig {
 #region UI Setup
 
 $form = New-Object System.Windows.Forms.Form
-$script:AppVersion = '3.6.12'
+$script:AppVersion = '3.6.13'
 $form.Text = "Git Glide GUI v$script:AppVersion - safer visual Git workflows"
 $form.Size = New-Object System.Drawing.Size -ArgumentList @((Get-ConfigInt -Name 'WindowWidth' -DefaultValue 1580), (Get-ConfigInt -Name 'WindowHeight' -DefaultValue 1080))
 $form.StartPosition = 'CenterScreen'
@@ -6523,6 +6578,8 @@ function Get-CommandPaletteItems {
         @{ Name='Recovery'; Group='Recover'; Tab=$script:RecoveryTabPage; Preview=(Build-RecoveryStatusPreview); Notes='Inspect conflicts and continue/abort merge, rebase, cherry-pick, or revert operations.' },
         @{ Name='History graph'; Group='Inspect'; Tab=$script:HistoryTabPage; Preview=(Build-HistoryPreview); Notes='Inspect branch graph, merges, tags, and commits.' },
         @{ Name='Custom Git'; Group='Expert'; Tab=$script:CustomGitTabPage; Preview='git <allowlisted command>'; Notes='Run an allowlisted custom Git command with preview and safety checks.' }
+        @{ Name='Workflow checklist'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-MergeWorkflowChecklistPreview); Notes='Review the feature -> develop -> quality checks -> main checklist before promoting work.' },
+        @{ Name='Clean merged branch'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-CleanupSelectedFeatureBranchPreview); Notes='Delete a merged feature/fix branch locally and remotely after confirmation.' },
     )
     return @($items | ForEach-Object { [pscustomobject]$_ })
 }
@@ -7051,7 +7108,7 @@ if ($script:ToolTip) {
 [void](New-ActionButton -ParentPanel $branchActionsPanel -Text 'Pull current branch' -Width 145 -Handler { Pull-CurrentBranch -ConfirmBeforePull } -PreviewBuilder { Build-PullPreview } -PreviewTitle 'Pull current branch safely' -Notes 'Runs git pull --ff-only after a clean-working-tree check. This avoids surprise merge commits and gives clearer guidance when local changes are present.')
 
 # Integrate actions
-[void](New-ActionGuidance -ParentPanel $integrateActionsPanel -Text 'Merge & Publish restores the full Git Flow path: inspect branch tracking, push branches with upstream, sync main into develop, merge selected features into develop, run quality checks, then promote develop back to main.')
+[void](New-ActionGuidance -ParentPanel $integrateActionsPanel -Text 'Merge & Publish guides the full Git Flow path with checklist support: inspect branch tracking, push branches with upstream, sync main into develop, merge selected features into develop, run quality checks, promote develop back to main, then clean up merged feature branches.')
 $featureMergeLabel = New-Object System.Windows.Forms.Label
 $featureMergeLabel.Text = 'Feature branch to merge:'
 $featureMergeLabel.Width = 150
@@ -7074,6 +7131,8 @@ $integrateActionsPanel.Controls.Add($script:IntegrationFeatureBranchComboBox)
 [void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Run quality checks' -Width 150 -Handler { Run-QualityChecksForMergeGate } -PreviewBuilder { Build-RunQualityChecksPreview } -PreviewTitle 'Run quality checks before promoting to main' -Notes 'Runs the project quality gate before you merge develop into main.')
 [void](New-ActionButton -ParentPanel $integrateActionsPanel -Text "$($script:Config.BaseBranch) -> $($script:Config.MainBranch)" -Width 165 -Handler { Merge-DevelopIntoMain } -PreviewBuilder { Build-MergeDevelopPreview } -PreviewTitle "Merge $($script:Config.BaseBranch) into $($script:Config.MainBranch)" -Notes 'Requires a clean working tree. Recommended after quality checks pass.')
 [void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Workflow guide' -Width 130 -Handler { Show-MergeWorkflowGuide } -PreviewBuilder { Build-MergeWorkflowGuidePreview } -PreviewTitle 'Git Flow merge/publish workflow' -Notes 'Shows the full intended sequence: feature push, develop integration, quality gate, main promotion, push/tag.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Workflow checklist' -Width 155 -Handler { Show-MergeWorkflowChecklist } -PreviewBuilder { Build-MergeWorkflowChecklistPreview } -PreviewTitle 'Git Flow merge/publish checklist' -Notes 'Shows an advisory checklist for feature branch push, develop integration, quality checks, main promotion, and release readiness.')
+[void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Clean merged branch' -Width 160 -Handler { Cleanup-SelectedFeatureBranch } -PreviewBuilder { Build-CleanupSelectedFeatureBranchPreview } -PreviewTitle 'Clean up merged feature branch' -Notes 'Deletes a merged feature/fix branch locally and remotely after confirmation. Do this only after merge and push are complete.')
 [void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Open PR URL' -Width 120 -Handler { Open-LastPullRequestUrl } -PreviewBuilder { if ($script:Config.ContainsKey('LastPullRequestUrl') -and -not [string]::IsNullOrWhiteSpace([string]$script:Config.LastPullRequestUrl)) { [string]$script:Config.LastPullRequestUrl } else { 'push a feature branch to GitHub to detect a pull request URL' } } -PreviewTitle 'Open last detected pull request URL' -Notes 'When GitHub prints a pull/new URL after push, Git Glide stores it for quick opening.')
 
 # Stash panel
@@ -8346,10 +8405,10 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.12 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.13 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
-Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.12" -f $script:RepoRoot)
+Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.13" -f $script:RepoRoot)
 
 $repositoryReady = Ensure-RepositorySelected -InitialStartup
 
@@ -8359,7 +8418,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.12' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for repository setup, UI mode, command palette, and GitHub publish/diagnostics guidance. Simple mode keeps everyday actions visible, Workflow mode shows Git Flow steps, and Expert mode shows every tool. Use Integrate for Merge & Publish workflows, Recovery for conflicts, and History / Graph for branch inspection. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.13' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for repository setup, UI mode, command palette, and GitHub publish/diagnostics guidance. Simple mode keeps everyday actions visible, Workflow mode shows Git Flow steps, and Expert mode shows every tool. Use Integrate for Merge & Publish workflows, Recovery for conflicts, and History / Graph for branch inspection. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {

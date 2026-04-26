@@ -1,7 +1,9 @@
-# Git Glide GUI v3.6.12
+# Git Glide GUI v3.6.13
 
 Git Glide GUI is a lightweight, privacy-first Windows Git interface for safer human and AI-assisted software development. 
 It turns fast coding changes into clear versioning choices, helping developers stay in control and use their judgment with command previews, visual staging, recovery guidance, custom actions, and quality checks.
+
+v3.6.13 adds a Merge & Publish checklist, merged-branch cleanup guidance, and stronger version/package consistency checks. The goal is to help developers avoid skipped workflow steps while keeping every Git command visible before execution.
 
 v3.6.12 focuses on UI organization and progressive disclosure.
 It adds Simple, Workflow, and Expert modes so everyday Git work stays visible while advanced tools remain available through mode-aware tabs and the command palette.
@@ -201,6 +203,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File smoke-launch.ps1
 - **v3.6.10.1**: protected-branch workflow guard.
 - **v3.6.11**: branch context banner and workflow guard reliability.
 - **v3.6.12**: UI organization with Simple, Workflow, and Expert modes plus command palette entry point.
+- **v3.6.13**: workflow checklist, merged-branch cleanup guidance, and release consistency smoke checks.
 
 ## More documentation
 
@@ -208,7 +211,7 @@ See:
 
 ```text
 docs/REPOSITORY_WORKFLOW.md
-docs/RELEASE_NOTES_v3_6_12.md
-docs/ROADMAP_REVIEW_v3_6_12.md
-docs/SWOT_AND_ROADMAP_v3_6_12.md
+docs/RELEASE_NOTES_v3_6_13.md
+docs/ROADMAP_REVIEW_v3_6_13.md
+docs/SWOT_AND_ROADMAP_v3_6_13.md
 ```

@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.12",
+  "version": "3.6.13",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.12.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.6.13.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.12 UI organization and progressive disclosure",
+  "iteration_focus": "v3.6.13 workflow checklist, branch cleanup, and release consistency guard",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -43,5 +43,11 @@
     "Restores clearer merge support that had become hidden or too current-branch dependent",
     "Supports the real workflow: push feature upstream, merge selected feature into develop, run checks, merge develop into main",
     "Keeps every merge/push action previewable and confirmation-based"
+  ],
+  "iteration_highlights": [
+    "Merge & Publish checklist preview for feature -> develop -> main",
+    "Merged feature branch cleanup command plans",
+    "Static release consistency checks for version drift",
+    "Updated README and repository workflow guidance"
   ]
 }
