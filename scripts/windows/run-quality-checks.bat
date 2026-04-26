@@ -11,11 +11,13 @@ setlocal
 set "ROOT=%~dp0..\.."
 cd /d "%ROOT%"
 
-echo === Git Glide GUI v3.6.13 quality checks ===
+set PYTHONNOUSERSITE=1
+
+echo === Git Glide GUI v3.7.0 quality checks ===
 
 echo.
 echo [1/4] Static package smoke test
-python tests\static_smoke_test.py
+python -S tests\static_smoke_test.py
 if errorlevel 1 exit /b 1
 
 echo.

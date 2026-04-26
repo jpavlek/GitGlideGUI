@@ -98,32 +98,27 @@ function Get-GgrRecoveryGuidance {
         [AllowNull()][string]$StdOut = '',
         [AllowNull()][string]$StdErr = ''
     )
-    # v3.6.2 hotfix: normalize Git conflict detection across Git versions.
-    # Some Git builds return non-zero cherry-pick conflicts without the exact
-    # stderr/stdout wording used by the original classifier. We feed a generic
-    # conflict marker into the existing classifier instead of replacing its
-    # guidance object shape.
-    $__gghConflictProbeText = ''
-    foreach ($__gghVarName in @('Output', 'ErrorOutput', 'GitOutput', 'GitError', 'StdOut', 'StdErr', 'Message', 'Text', 'RawOutput', 'OutputText', 'ErrorText')) {
-        $__gghVar = Get-Variable -Name $__gghVarName -Scope Local -ErrorAction SilentlyContinue
-        if ($null -ne $__gghVar -and $null -ne $__gghVar.Value) {
-            $__gghConflictProbeText = (@($__gghConflictProbeText, [string]$__gghVar.Value) | Where-Object { $_ }) -join [Environment]::NewLine
-        }
-    }
-
-    $__gghLooksLikeConflict = (($__gghConflictProbeText -match '(?i)(^|\n)\s*CONFLICT\b|merge conflict|automatic merge failed|could not apply|after resolving the conflicts|fix conflicts and run|cherry-pick failed|patch failed') -or (Test-GghActiveGitConflictState))
-    if ($__gghLooksLikeConflict) {
-        $__gghConflictMarkerText = ('CONFLICT (content): Merge conflict detected.' + [Environment]::NewLine + 'Automatic merge failed; fix conflicts and then commit the result.')
-        foreach ($__gghVarName in @('Output', 'ErrorOutput', 'GitOutput', 'GitError', 'StdOut', 'StdErr', 'Message', 'Text', 'RawOutput', 'OutputText', 'ErrorText')) {
-            $__gghVar = Get-Variable -Name $__gghVarName -Scope Local -ErrorAction SilentlyContinue
-            if ($null -ne $__gghVar) {
-                Set-Variable -Name $__gghVarName -Value ((@([string]$__gghVar.Value, $__gghConflictMarkerText) | Where-Object { $_ }) -join [Environment]::NewLine) -Scope Local
-            }
-        }
-    }
 
     $output = ((@($StdOut, $StdErr) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) -join "`n")
     $lower = $output.ToLowerInvariant()
+
+    # Keep classification deterministic:
+    # 1. explicit Git output wins for known non-conflict errors;
+    # 2. explicit conflict text wins when present;
+    # 3. active MERGE_HEAD/CHERRY_PICK_HEAD/REBASE state is only a fallback.
+    #
+    # This avoids two failure modes:
+    # - overwrite-protection messages being misclassified as conflicts because
+    #   the surrounding repository has an interrupted operation;
+    # - real cherry-pick/rebase conflicts being misclassified as unknown when a
+    #   Git version emits short output without the exact "CONFLICT (...)" phrase.
+    $activeConflictState = Test-GghActiveGitConflictState
+
+    if (([string]::IsNullOrWhiteSpace($output)) -and $activeConflictState) {
+        $output = 'CONFLICT (content): Merge conflict detected.' + "`n" + 'Automatic merge failed; fix conflicts and then commit the result.'
+        $lower = $output.ToLowerInvariant()
+    }
+
     $steps = @()
     $plans = @((Get-GgrConflictStatusCommandPlan), (Get-GgrUnmergedFilesCommandPlan))
     $kind = 'unknown-failure'
@@ -132,21 +127,7 @@ function Get-GgrRecoveryGuidance {
     $message = "The $Operation command failed. Inspect git status and the command output before retrying."
     $recommendedAction = 'recovery-tab'
 
-    if ($lower -match 'merge conflict|fix conflicts|resolve all conflicts|unmerged paths|both modified|both added|both deleted|conflict \(') {
-        $kind = 'conflict'
-        $severity = 'conflict'
-        $title = 'Conflicts need manual resolution'
-        $message = "The $Operation command stopped because Git found conflicts. Resolve the conflicted files, stage the resolved files, then continue or abort."
-        $steps = @(
-            'Open the conflicted files and decide which lines to keep.',
-            'Run or use: git status --short to verify unresolved files.',
-            'Stage each resolved file after editing.',
-            'Continue the operation if Git offers a continue command, or abort to return to the previous state.'
-        )
-        if ($Operation -match 'cherry') { $plans += Get-GgrContinueCherryPickCommandPlan; $plans += Get-GgrAbortCherryPickCommandPlan }
-        elseif ($Operation -match 'rebase') { $plans += Get-GgrAbortRebaseCommandPlan }
-        else { $plans += Get-GgrAbortMergeCommandPlan }
-    } elseif ($lower -match 'untracked working tree files would be overwritten|the following untracked working tree files|untracked.*would be overwritten') {
+    if ($lower -match 'untracked working tree files would be overwritten|the following untracked working tree files|untracked.*would be overwritten') {
         $kind = 'untracked-would-be-overwritten'
         $severity = 'dirty'
         $title = 'Untracked files would be overwritten'
@@ -182,6 +163,20 @@ function Get-GgrRecoveryGuidance {
             'Avoid destructive history changes unless you understand the shared branch impact.'
         )
         $recommendedAction = 'history-tab'
+    } elseif (($lower -match 'merge conflict|fix conflicts|resolve all conflicts|unmerged paths|both modified|both added|both deleted|conflict \(|could not apply') -or $activeConflictState) {
+        $kind = 'conflict'
+        $severity = 'conflict'
+        $title = 'Conflicts need manual resolution'
+        $message = "The $Operation command stopped because Git found conflicts. Resolve the conflicted files, stage the resolved files, then continue or abort."
+        $steps = @(
+            'Open the conflicted files and decide which lines to keep.',
+            'Run or use: git status --short to verify unresolved files.',
+            'Stage each resolved file after editing.',
+            'Continue the operation if Git offers a continue command, or abort to return to the previous state.'
+        )
+        if ($Operation -match 'cherry') { $plans += Get-GgrContinueCherryPickCommandPlan; $plans += Get-GgrAbortCherryPickCommandPlan }
+        elseif ($Operation -match 'rebase') { $plans += Get-GgrAbortRebaseCommandPlan }
+        else { $plans += Get-GgrAbortMergeCommandPlan }
     } else {
         $steps = @(
             'Run git status --short.',
