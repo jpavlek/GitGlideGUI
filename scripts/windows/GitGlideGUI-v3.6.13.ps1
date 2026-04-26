@@ -1,4 +1,4 @@
-﻿# Git Glide GUI - Enhanced Version v3.6.13
+# Git Glide GUI - Enhanced Version v3.6.13
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -6577,7 +6577,7 @@ function Get-CommandPaletteItems {
         @{ Name='GitHub diagnostics'; Group='GitHub'; Tab=$script:SetupTabPage; Preview=(Build-GitHubDiagnosticsPreview); Notes='Inspect remotes, upstream, remote reachability, and GitHub repository access.' },
         @{ Name='Recovery'; Group='Recover'; Tab=$script:RecoveryTabPage; Preview=(Build-RecoveryStatusPreview); Notes='Inspect conflicts and continue/abort merge, rebase, cherry-pick, or revert operations.' },
         @{ Name='History graph'; Group='Inspect'; Tab=$script:HistoryTabPage; Preview=(Build-HistoryPreview); Notes='Inspect branch graph, merges, tags, and commits.' },
-        @{ Name='Custom Git'; Group='Expert'; Tab=$script:CustomGitTabPage; Preview='git <allowlisted command>'; Notes='Run an allowlisted custom Git command with preview and safety checks.' },
+        @{ Name='Custom Git'; Group='Expert'; Tab=$script:CustomGitTabPage; Preview='git <allowlisted command>'; Notes='Run an allowlisted custom Git command with preview and safety checks.' }
         @{ Name='Workflow checklist'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-MergeWorkflowChecklistPreview); Notes='Review the feature -> develop -> quality checks -> main checklist before promoting work.' },
         @{ Name='Clean merged branch'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-CleanupSelectedFeatureBranchPreview); Notes='Delete a merged feature/fix branch locally and remotely after confirmation.' }
     )
