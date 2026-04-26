@@ -1,4 +1,6 @@
-# Git Glide GUI v3.6.6
+# Git Glide GUI v3.6.11
+
+Git Glide GUI is a lightweight, privacy-first Windows Git interface for safer human and AI-assisted software development. v3.6.11 emphasizes branch context and workflow guardrails so developers can see whether they are on main, develop, or a feature/fix branch before staging or committing.
 
 Git Glide GUI is a Windows PowerShell/WinForms Git helper focused on safer visual Git workflows, onboarding, staging, branching, stash recovery, tags/releases, commit guidance, and guided next actions.
 
@@ -122,3 +124,9 @@ Use **Integrate -> Merge & Publish** to inspect branch tracking, push a new bran
 ## Workflow reminder
 
 If you are about to commit normal feature work on `main` or `develop`, Git Glide GUI will warn you. This is a workflow guard, not a hard block. Use a feature branch for normal work, then merge through develop and run quality checks before promoting to main.
+
+## v3.6.11 Branch context and workflow guard
+
+- Shows branch role and recommended next step above Changed Files.
+- Warns before staging or committing directly on protected branches.
+- Offers a create-branch-first path so current changes can move to a feature/fix branch before commit.

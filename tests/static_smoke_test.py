@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static smoke tests for the Git Glide GUI v3.6.10.1 package.
+"""Static smoke tests for the Git Glide GUI v3.6.11 package.
 
 This test intentionally checks explicit known paths only. It does not use
 recursive os.walk, which avoids symlink/network-share traversal problems.
@@ -13,7 +13,7 @@ required = [
     "git-flow-gui2.bat",
     "run-quality-checks.bat",
     "run-pester-tests.bat",
-    "scripts/windows/GitGlideGUI-v3.6.10.1.ps1",
+    "scripts/windows/GitGlideGUI-v3.6.11.ps1",
     "scripts/windows/smoke-launch.ps1",
     "scripts/windows/run-quality-checks.bat",
     "scripts/windows/run-pester-tests.ps1",
@@ -56,9 +56,9 @@ required = [
     "tests/GitLearningGuidance.Tests.ps1",
     "tests/GitHubOperations.Tests.ps1",
     "docs/START_HERE.md",
-    "docs/RELEASE_NOTES_v3_6_10_1.md",
-    "docs/SWOT_AND_ROADMAP_v3_6_10_1.md",
-    "docs/ROADMAP_REVIEW_v3_6_10_1.md",
+    "docs/RELEASE_NOTES_v3_6_11.md",
+    "docs/SWOT_AND_ROADMAP_v3_6_11.md",
+    "docs/ROADMAP_REVIEW_v3_6_11.md",
 ]
 missing = [p for p in required if not (ROOT / p).exists()]
 if missing:
@@ -67,9 +67,9 @@ if missing:
         print(" -", p)
     sys.exit(1)
 
-main = (ROOT / "scripts/windows/GitGlideGUI-v3.6.10.1.ps1").read_text(encoding="utf-8")
+main = (ROOT / "scripts/windows/GitGlideGUI-v3.6.11.ps1").read_text(encoding="utf-8")
 for marker in [
-    "Git Glide GUI v3.6.10.1",
+    "Git Glide GUI v3.6.11",
     "GitHubOperations.psm1",
     "GitHub publish...",
     "Get-GggStatusDisplayText",
@@ -125,8 +125,8 @@ for marker in [
         sys.exit(1)
 
 launcher = (ROOT / "git-glide-gui.bat").read_text(encoding="utf-8")
-if "GitGlideGUI-v3.6.10.1.ps1" not in launcher:
-    print("Launcher does not target v3.6.10.1 script.")
+if "GitGlideGUI-v3.6.11.ps1" not in launcher:
+    print("Launcher does not target v3.6.11 script.")
     sys.exit(1)
 
 history_module = (ROOT / "modules/GitGlideGUI.Core/GitHistoryOperations.psm1").read_text(encoding="utf-8")

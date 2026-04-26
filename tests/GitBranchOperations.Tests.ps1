@@ -66,3 +66,17 @@ Describe 'GitBranchOperations module' {
         $guidance.RecommendedAction | Should -Be 'show-diff'
     }
 }
+
+Describe 'Git Flow branch role helpers' {
+    It 'classifies branch roles for workflow guidance' {
+        (Get-GgbBranchRole -BranchName 'main').Role | Should Be 'protected release branch'
+        (Get-GgbBranchRole -BranchName 'develop').Role | Should Be 'integration branch'
+        (Get-GgbBranchRole -BranchName 'feature/x').Role | Should Be 'feature branch'
+        (Get-GgbBranchRole -BranchName 'fix/y').Role | Should Be 'fix branch'
+    }
+
+    It 'builds move-current-work branch plans' {
+        $plans = Get-GgbMoveCurrentChangesToBranchCommandPlan -BranchName 'fix/context-guard'
+        $plans[0].Display | Should Be 'git switch -c fix/context-guard'
+    }
+}

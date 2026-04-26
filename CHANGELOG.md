@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.6.11 - Branch context and workflow guard reliability
+
+- Added branch context banner above Changed Files.
+- Added branch role detection and protected branch workflow guard improvements.
+- Added create-branch-first path before committing/staging on protected branches.
+- Restored package-release.ps1 to match static smoke expectations.
+- Fixed visible title/audit version drift.
+
+
 ## v3.6.10.1 - Workflow guard and merge guide hotfix
 
 - Fixed Git Flow merge/publish guide formatting so branch names remain on the same command line in Windows PowerShell 5.1 / Pester 3.

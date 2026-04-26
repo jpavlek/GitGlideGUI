@@ -101,3 +101,10 @@ Git Glide GUI exposes this as a guided, previewable workflow in the Integrate ta
 ## v3.6.10.1 workflow guard
 
 Git Glide GUI warns before committing directly on `main` or `develop`. The warning is intentional but non-blocking: developers may continue when they are making a deliberate hotfix, release, or merge-resolution commit. For ordinary feature work, create a feature branch first, commit there, merge feature -> develop, run quality checks, and then merge develop -> main.
+
+
+## v3.6.11 Branch context and workflow guard
+
+- Shows branch role and recommended next step above Changed Files.
+- Warns before staging or committing directly on protected branches.
+- Offers a create-branch-first path so current changes can move to a feature/fix branch before commit.
