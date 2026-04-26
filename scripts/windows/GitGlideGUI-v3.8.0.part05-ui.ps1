@@ -1,10 +1,10 @@
-﻿# This file is part of Git Glide GUI v3.7.0 split-script architecture.
-# It is dot-sourced by GitGlideGUI-v3.7.0.ps1.
+# This file is part of Git Glide GUI v3.8.0 split-script architecture.
+# It is dot-sourced by GitGlideGUI-v3.8.0.ps1.
 
 #region UI Setup
 
 $form = New-Object System.Windows.Forms.Form
-$script:AppVersion = '3.7.0'
+$script:AppVersion = '3.8.0'
 $form.Text = "Git Glide GUI v$script:AppVersion - safer visual Git workflows"
 $form.Size = New-Object System.Drawing.Size -ArgumentList @((Get-ConfigInt -Name 'WindowWidth' -DefaultValue 1580), (Get-ConfigInt -Name 'WindowHeight' -DefaultValue 1080))
 $form.StartPosition = 'CenterScreen'
@@ -570,11 +570,12 @@ $script:HistoryTabPage.Padding = New-Object System.Windows.Forms.Padding(6)
 $historyLayout = New-Object System.Windows.Forms.TableLayoutPanel
 $historyLayout.Dock = 'Fill'
 $historyLayout.ColumnCount = 1
-$historyLayout.RowCount = 4
+$historyLayout.RowCount = 5
 [void]$historyLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
 [void]$historyLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
-[void]$historyLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 55)))
-[void]$historyLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 45)))
+[void]$historyLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 120)))
+[void]$historyLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 48)))
+[void]$historyLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 52)))
 $script:HistoryTabPage.Controls.Add($historyLayout)
 
 $historyGuidance = New-WrappingLabel -Text 'Read-only history view: inspect branch tips, remote tips, tags, and merges before pulling, merging, rebasing, deleting tags, cherry-picking, or undoing commits. This tab only runs git log/show commands.' -Height 42
@@ -602,6 +603,14 @@ $historySummaryButton.Height = 32
 $historySummaryButton.Margin = New-Object System.Windows.Forms.Padding(4)
 $historySummaryButton.Add_Click({ Refresh-HistoryModelSummary })
 $historyControls.Controls.Add($historySummaryButton)
+
+$historyRelationshipsButton = New-Object System.Windows.Forms.Button
+$historyRelationshipsButton.Text = 'Branch relationships'
+$historyRelationshipsButton.Width = 165
+$historyRelationshipsButton.Height = 32
+$historyRelationshipsButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$historyRelationshipsButton.Add_Click({ Show-BranchRelationshipOverview })
+$historyControls.Controls.Add($historyRelationshipsButton)
 $historyCherryPickButton = New-Object System.Windows.Forms.Button
 $historyCherryPickButton.Text = 'Use selected for cherry-pick'
 $historyCherryPickButton.Width = 185
@@ -639,6 +648,16 @@ $script:HistorySummaryLabel.AutoSize = $true
 $script:HistorySummaryLabel.Margin = New-Object System.Windows.Forms.Padding(12, 10, 4, 4)
 $historyControls.Controls.Add($script:HistorySummaryLabel)
 
+$script:HistoryRelationshipTextBox = New-Object System.Windows.Forms.RichTextBox
+$script:HistoryRelationshipTextBox.Dock = 'Fill'
+$script:HistoryRelationshipTextBox.ReadOnly = $true
+$script:HistoryRelationshipTextBox.Font = $script:FontMono
+$script:HistoryRelationshipTextBox.WordWrap = $false
+$script:HistoryRelationshipTextBox.ScrollBars = 'Both'
+$script:HistoryRelationshipTextBox.BackColor = [System.Drawing.Color]::White
+$script:HistoryRelationshipTextBox.Text = 'Click Branch relationships to compare current branch, upstream, develop, and main before syncing or merging.'
+$historyLayout.Controls.Add($script:HistoryRelationshipTextBox, 0, 2)
+
 $script:HistoryGraphTextBox = New-Object System.Windows.Forms.RichTextBox
 $script:HistoryGraphTextBox.Dock = 'Fill'
 $script:HistoryGraphTextBox.ReadOnly = $true
@@ -646,7 +665,7 @@ $script:HistoryGraphTextBox.Font = $script:FontMono
 $script:HistoryGraphTextBox.WordWrap = $false
 $script:HistoryGraphTextBox.ScrollBars = 'Both'
 $script:HistoryGraphTextBox.Text = 'Click Refresh graph to load a read-only git log --graph view.'
-$historyLayout.Controls.Add($script:HistoryGraphTextBox, 0, 2)
+$historyLayout.Controls.Add($script:HistoryGraphTextBox, 0, 3)
 $script:HistoryVisualListView = New-Object System.Windows.Forms.ListView
 $script:HistoryVisualListView.Dock = 'Fill'
 $script:HistoryVisualListView.View = 'Details'
@@ -665,11 +684,13 @@ $script:HistoryVisualListView.ShowItemToolTips = $true
 [void]$script:HistoryVisualListView.Columns.Add('Date', 170)
 $script:HistoryVisualListView.Add_SelectedIndexChanged({ Update-HistorySelectionPreview })
 $script:HistoryVisualListView.Add_DoubleClick({ Set-CherryPickCommitFromHistorySelection })
-$historyLayout.Controls.Add($script:HistoryVisualListView, 0, 3)
+$historyLayout.Controls.Add($script:HistoryVisualListView, 0, 4)
 
 if ($script:ToolTip) {
     $script:ToolTip.SetToolTip($historyRefreshButton, 'Run a read-only git log --graph command and display the branch/history graph.')
     $script:ToolTip.SetToolTip($historySummaryButton, 'Parse compact git log data and summarize commit count, merge count, and decorated commits.')
+    $script:ToolTip.SetToolTip($historyRelationshipsButton, 'Compare current branch, upstream, develop, and main using ahead/behind counts, merge base, and unique commit preview.')
+    $script:ToolTip.SetToolTip($script:HistoryRelationshipTextBox, 'Read-only branch relationship summary for safer pull, push, merge, release, and cleanup decisions.')
     $script:ToolTip.SetToolTip($historyCherryPickButton, 'Copies the selected visual/text history commit hash to the Recovery tab for cherry-pick preview.')
     $script:ToolTip.SetToolTip($historyShowCommitButton, 'Runs git show --stat for the selected commit without modifying the repository.')
     $script:ToolTip.SetToolTip($script:HistoryVisualListView, 'Visual history model: Graph column uses ASCII badges (H*=HEAD, B*=branch, R*=remote, T*=tag, M*=merge). Select a row to preview git show/cherry-pick commands; double-click to prepare cherry-pick.')
@@ -918,7 +939,7 @@ $recoveryLayout.Controls.Add($script:RecoveryTextBox, 0, 4)
 
 Set-ControlPreview -Control $stateDoctorButton -Builder { $snapshot = Get-RepositoryStateDoctorSnapshot; if ($snapshot) { [string]$snapshot.Preview } else { 'git status -sb' } } -Title 'Repository State Doctor' -Notes 'Explains detached HEAD, branch divergence, in-progress operations, conflict markers, and the next safe action.'
 Set-ControlPreview -Control $markerScanButton -Builder { "git status -sb`r`ngit diff --name-only --diff-filter=U" } -Title 'Find conflict markers' -Notes 'Scans changed and unmerged files for <<<<<<<, =======, and >>>>>>> marker lines.'
-Set-ControlPreview -Control $validateGuiScriptButton -Builder { "powershell -NoProfile -ExecutionPolicy Bypass -Command `"`$ErrorActionPreference='Stop'; [scriptblock]::Create((Get-Content -Raw 'scripts/windows/GitGlideGUI-v3.7.0.ps1')) > `$null; 'PowerShell parse OK'`"" } -Title 'Validate GUI script' -Notes 'Parses the current GUI PowerShell script without running a second GUI instance.'
+Set-ControlPreview -Control $validateGuiScriptButton -Builder { "powershell -NoProfile -ExecutionPolicy Bypass -Command `"`$ErrorActionPreference='Stop'; [scriptblock]::Create((Get-Content -Raw 'scripts/windows/GitGlideGUI-v3.8.0.ps1')) > `$null; 'PowerShell parse OK'`"" } -Title 'Validate GUI script' -Notes 'Parses the current GUI PowerShell script without running a second GUI instance.'
 Set-ControlPreview -Control $recoveryRefreshButton -Builder { Build-RecoveryStatusPreview } -Title 'Refresh recovery status' -Notes 'Runs a safe read-only status command and updates the Recovery panel.'
 Set-ControlPreview -Control $conflictRefreshButton -Builder { if (Get-Command Get-GgrUnmergedFilesCommandPlan -ErrorAction SilentlyContinue) { (Get-GgrUnmergedFilesCommandPlan).Display } else { 'git diff --name-only --diff-filter=U' } } -Title 'List conflicted files' -Notes 'Runs a read-only command that lists files with unresolved merge conflicts.'
 Set-ControlPreview -Control $stageResolvedConflictButton -Builder { $path = if ($script:ConflictFilesListBox -and $script:ConflictFilesListBox.SelectedItem) { [string]$script:ConflictFilesListBox.SelectedItem } else { '<resolved-file>' }; if (Get-Command Get-GgrStageResolvedFileCommandPlan -ErrorAction SilentlyContinue) { (Get-GgrStageResolvedFileCommandPlan -Path $path).Display } else { 'git add -- ' + (Quote-Arg $path) } } -Title 'Stage resolved conflict file' -Notes 'Use after editing a conflicted file and removing conflict markers.'

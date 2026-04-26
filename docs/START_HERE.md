@@ -1,10 +1,10 @@
-# Git Glide GUI v3.7.0 - Start Here
+# Git Glide GUI v3.8.0 - Start Here
 
-This guide helps you launch Git Glide GUI, choose the right first action, and find the main workflows.
+This guide helps you launch Git Glide GUI, choose the right first action, validate the package, and find the main workflows.
 
-For the product overview, positioning, and v3.7.0 release focus, see `README.md`.
+For the product overview, positioning, and v3.8.0 release focus, see `README.md`.
 
-v3.7.0 keeps behavior close to v3.6.13 while adding stronger repository-state guidance, conflict recovery support, dynamic context banner sizing, and a split-script layout for safer maintenance.
+v3.8.0 builds on v3.7.0 by adding visual history and branch-relationship understanding. It helps users inspect whether branches are ahead, behind, diverged, already merged, or need closer review before merge, pull, push, cleanup, or release actions.
 
 ## Requirements
 
@@ -148,8 +148,6 @@ Both actions require confirmation.
 
 ## Recovery and Repository State Doctor
 
-v3.7.0 adds stronger repository-state guidance in the Recovery area.
-
 Use Recovery when the repository is in a risky or confusing state, such as:
 
 - detached HEAD
@@ -175,7 +173,7 @@ Before staging a resolved conflict file, Git Glide GUI can scan for complete con
 
 If markers remain, staging is blocked and the UI shows the marker lines that still need attention.
 
-## History and graph inspection
+## History, graph inspection, and branch relationships
 
 Use **History / Graph** to inspect a read-only `git log --graph` view before merging, pulling, deleting tags, or undoing commits.
 
@@ -187,6 +185,32 @@ History inspection is useful before decisions such as:
 - cherry-picking a commit
 - undoing a local commit
 - publishing a release branch
+
+v3.8.0 adds **Branch relationships** to make branch state easier to understand before risky actions.
+
+Use **Branch relationships** to compare:
+
+- current branch vs upstream
+- current branch vs `develop`
+- `develop` vs `main`
+
+The relationship summary helps answer:
+
+- Is this branch ahead?
+- Is it behind?
+- Has it diverged?
+- Is it already merged?
+- What is the merge base?
+- Which commits are unique to each side?
+- Should I pull, push, merge, or stop and inspect more carefully?
+
+The relationship summary uses read-only Git commands:
+
+```bat
+git rev-list --left-right --count <left>...<right>
+git merge-base --short <left> <right>
+git log --oneline --left-right --cherry-pick -n12 <left>...<right>
+```
 
 ## GitHub workflows
 
@@ -246,26 +270,26 @@ git push
 
 ## Split-script layout
 
-v3.7.0 replaces the previous single large versioned GUI script with one small entrypoint and six ordered implementation files.
+v3.8.0 continues the split-script layout introduced in v3.7.0.
 
 The launcher calls:
 
 ```text
-scripts/windows/GitGlideGUI-v3.7.0.ps1
+scripts/windows/GitGlideGUI-v3.8.0.ps1
 ```
 
 That entrypoint dot-sources:
 
 ```text
-scripts/windows/GitGlideGUI-v3.7.0.part01-bootstrap-config.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part02-state-selection.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part03-previews-basic-ops.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part04-recovery-push-stash-tags.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part05-ui.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part06-run.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part01-bootstrap-config.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part02-state-selection.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part03-previews-basic-ops.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part04-recovery-push-stash-tags.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part05-ui.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part06-run.ps1
 ```
 
-The application still runs through one versioned entrypoint, while the implementation is separated into smaller files so future versions can evolve with less risk.
+The application still runs through one versioned entrypoint, while the implementation remains separated into smaller files so future versions can evolve with less risk.
 
 ## Development workflow for this package
 
@@ -274,7 +298,7 @@ For continued development, use a feature branch and run checks before committing
 ```bat
 git switch develop
 git pull
-git switch -c feature/v3-7-branch-sync-conflict-recovery
+git switch -c feature/v3-8-visual-history-branch-understanding
 run-quality-checks.bat
 git-glide-gui.bat
 ```
@@ -283,10 +307,9 @@ Commit only after local quality checks pass.
 
 ## Recent release highlights
 
-- **v3.6.11**: branch context banner and workflow guard reliability.
-- **v3.6.12**: UI organization with Simple, Workflow, and Expert modes plus command palette entry point.
 - **v3.6.13**: workflow checklist, merged-branch cleanup guidance, and release consistency smoke checks.
-- **v3.7.0**: repository state clarity, conflict recovery UX, split-script layout, dynamic context banner sizing, and technical-debt reduction.
+- **v3.7.0**: repository state clarity, conflict recovery UX, split-script layout, dynamic context banner sizing, color-coded diff rendering, and technical-debt reduction.
+- **v3.8.0**: visual history and branch relationship understanding for safer merge, pull, push, cleanup, and release decisions.
 
 ## More documentation
 
@@ -294,10 +317,10 @@ Start with:
 
 ```text
 README.md
-docs/ARCHITECTURE_v3_7.md
-docs/RELEASE_NOTES_v3_7.md
+docs/ARCHITECTURE_v3_8.md
+docs/RELEASE_NOTES_v3_8.md
 docs/REPOSITORY_WORKFLOW.md
-docs/ROADMAP_REVIEW_v3_7.md
-docs/SWOT_AND_ROADMAP_v3_7.md
-docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_7.md
+docs/ROADMAP_REVIEW_v3_8.md
+docs/SWOT_AND_ROADMAP_v3_8.md
+docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_8.md
 ```

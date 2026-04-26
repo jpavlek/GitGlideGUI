@@ -1,5 +1,5 @@
-﻿# This file is part of Git Glide GUI v3.7.0 split-script architecture.
-# It is dot-sourced by GitGlideGUI-v3.7.0.ps1.
+# This file is part of Git Glide GUI v3.8.0 split-script architecture.
+# It is dot-sourced by GitGlideGUI-v3.8.0.ps1.
 
 #region Recovery and Cherry-pick Operations
 
@@ -557,13 +557,13 @@ function Get-GitGlideGuiScriptValidationPaths {
     }
 
     $names = @(
-        'GitGlideGUI-v3.7.0.ps1',
-        'GitGlideGUI-v3.7.0.part01-bootstrap-config.ps1',
-        'GitGlideGUI-v3.7.0.part02-state-selection.ps1',
-        'GitGlideGUI-v3.7.0.part03-previews-basic-ops.ps1',
-        'GitGlideGUI-v3.7.0.part04-recovery-push-stash-tags.ps1',
-        'GitGlideGUI-v3.7.0.part05-ui.ps1',
-        'GitGlideGUI-v3.7.0.part06-run.ps1'
+        'GitGlideGUI-v3.8.0.ps1',
+        'GitGlideGUI-v3.8.0.part01-bootstrap-config.ps1',
+        'GitGlideGUI-v3.8.0.part02-state-selection.ps1',
+        'GitGlideGUI-v3.8.0.part03-previews-basic-ops.ps1',
+        'GitGlideGUI-v3.8.0.part04-recovery-push-stash-tags.ps1',
+        'GitGlideGUI-v3.8.0.part05-ui.ps1',
+        'GitGlideGUI-v3.8.0.part06-run.ps1'
     )
 
     foreach ($name in $names) {
@@ -581,7 +581,7 @@ function Test-GuiScriptSyntax {
             [scriptblock]::Create((Get-Content -Raw -LiteralPath $path)) > $null
         }
 
-        $message = "PowerShell parse OK for Git Glide GUI v3.7.0 split script set:`r`n" + ($paths -join "`r`n")
+        $message = "PowerShell parse OK for Git Glide GUI v3.8.0 split script set:`r`n" + ($paths -join "`r`n")
         if ($script:RecoveryTextBox) { $script:RecoveryTextBox.Text = $message }
         Set-CommandPreview -Title 'Validate GUI script' -Commands 'powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\smoke-launch.ps1' -Notes ('Validated {0} split script file(s).' -f $paths.Count)
         Append-Log -Text 'PowerShell parse OK for Git Glide GUI split script set.' -Color ([System.Drawing.Color]::DarkGreen)
@@ -1857,27 +1857,27 @@ Ctrl+P       - Push
 
 New features in this version
 -----------------------------
-âœ“ Input validation for branch names and commits
-âœ“ Configuration file support
-âœ“ Progress indicators for long operations
-âœ“ Cancel button for running operations
-âœ“ Stash management panel with show/apply/pop/drop/branch/clear buttons
-âœ“ Improved error messages
-âœ“ Fixed Quote-Arg escaping bug
-âœ“ Better git state verification
-âœ“ Configurable branch names
-âœ“ Commit subject length warnings
-âœ“ Robust diff preview for staged, unstaged, renamed, deleted, conflicted, and untracked files
-âœ“ Saved window size and splitter positions between sessions
-âœ“ Richer tooltips with explanation before command preview
-âœ“ Custom Git tab with visible create/update/remove controls and saved user-defined command buttons
-âœ“ Appearance tab with persistent per-section colors
-âœ“ Resizable repository/header, main work area, changed-file action, and log action sections
-âœ“ Adaptive repository status rows and proportional action footers
-âœ“ Functional Tags / Release tab for annotated tags, push, delete, checkout, and branch-from-tag
-âœ“ Undo last commit safely with git reset --soft HEAD~1
-âœ“ Audit log written to GitGlideGUI-Audit.log with command, exit code, and duration
-âœ“ Safer custom Git command validation and confirmation for potentially destructive commands
+✓ Input validation for branch names and commits
+✓ Configuration file support
+✓ Progress indicators for long operations
+✓ Cancel button for running operations
+✓ Stash management panel with show/apply/pop/drop/branch/clear buttons
+✓ Improved error messages
+✓ Fixed Quote-Arg escaping bug
+✓ Better git state verification
+✓ Configurable branch names
+✓ Commit subject length warnings
+✓ Robust diff preview for staged, unstaged, renamed, deleted, conflicted, and untracked files
+✓ Saved window size and splitter positions between sessions
+✓ Richer tooltips with explanation before command preview
+✓ Custom Git tab with visible create/update/remove controls and saved user-defined command buttons
+✓ Appearance tab with persistent per-section colors
+✓ Resizable repository/header, main work area, changed-file action, and log action sections
+✓ Adaptive repository status rows and proportional action footers
+✓ Functional Tags / Release tab for annotated tags, push, delete, checkout, and branch-from-tag
+✓ Undo last commit safely with git reset --soft HEAD~1
+✓ Audit log written to GitGlideGUI-Audit.log with command, exit code, and duration
+✓ Safer custom Git command validation and confirmation for potentially destructive commands
 
 Notes
 -----

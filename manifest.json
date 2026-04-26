@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.7.0",
+  "version": "3.8.0",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.7.0.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.8.0.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.7.0 split-script architecture, repository state doctor, conflict recovery UX, and quality-gate hardening",
+  "iteration_focus": "v3.8.0 visual history and branch understanding: branch relationship summaries, ahead/behind counts, merge-base inspection, and safer merge-preview context",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -26,17 +26,16 @@
     "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
-    "Split-script architecture that keeps each GUI implementation file below 4000 lines",
-    "Repository State Doctor for detached HEAD, divergence, recovery operations, unmerged files, and conflict markers",
-    "Conflict marker scanner for changed and unmerged files",
-    "GUI script validation updated for the split script set",
-    "Dynamic Changed Files context banner sizing",
-    "Static smoke test line-count guard to prevent another monolithic version file"
+    "Branch relationship overview for current branch vs upstream, develop, and main",
+    "Ahead/behind summary using git rev-list --left-right --count",
+    "Merge-base inspection for branch relationship decisions",
+    "Unique commit preview for selected branch pairs before merge or release promotion",
+    "History tab relationship panel for safer branch understanding before merge, pull, push, or tag decisions"
   ],
   "next_recommended": [
-    "v3.7.1: extract Repository State Doctor pure logic into a dedicated core module with Pester tests",
-    "v3.8: visual branch/history graph improvements",
-    "v3.9: guided conflict resolution assistant and safer merge workflow automation"
+    "v3.8.1: file history and commit details polish",
+    "v3.9.0: guided conflict resolution assistant and safer merge workflow automation",
+    "v3.10.0: interactive rebase and commit cleanup workflows"
   ],
   "highlights": [
     "Restores clearer merge support that had become hidden or too current-branch dependent",
@@ -50,11 +49,11 @@
     "Updated README and repository workflow guidance"
   ],
   "split_script_parts": [
-    "scripts/windows/GitGlideGUI-v3.7.0.part01-bootstrap-config.ps1",
-    "scripts/windows/GitGlideGUI-v3.7.0.part02-state-selection.ps1",
-    "scripts/windows/GitGlideGUI-v3.7.0.part03-previews-basic-ops.ps1",
-    "scripts/windows/GitGlideGUI-v3.7.0.part04-recovery-push-stash-tags.ps1",
-    "scripts/windows/GitGlideGUI-v3.7.0.part05-ui.ps1",
-    "scripts/windows/GitGlideGUI-v3.7.0.part06-run.ps1"
+    "scripts/windows/GitGlideGUI-v3.8.0.part01-bootstrap-config.ps1",
+    "scripts/windows/GitGlideGUI-v3.8.0.part02-state-selection.ps1",
+    "scripts/windows/GitGlideGUI-v3.8.0.part03-previews-basic-ops.ps1",
+    "scripts/windows/GitGlideGUI-v3.8.0.part04-recovery-push-stash-tags.ps1",
+    "scripts/windows/GitGlideGUI-v3.8.0.part05-ui.ps1",
+    "scripts/windows/GitGlideGUI-v3.8.0.part06-run.ps1"
   ]
 }

@@ -1,4 +1,4 @@
-﻿# Minimal Windows smoke-launch test for Git Glide GUI.
+# Minimal Windows smoke-launch test for Git Glide GUI.
 # Uses -SmokeTest so split script parts are parsed and imported, but the
 # WinForms window is not shown.
 

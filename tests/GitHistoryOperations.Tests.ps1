@@ -90,3 +90,38 @@ Describe 'History visual graph rows' {
     }
 
 }
+
+Describe 'Branch relationship helpers' {
+    It 'builds branch relationship command plans' {
+        $count = Get-GghAheadBehindCommandPlan -LeftRef 'feature/x' -RightRef 'develop'
+        $count.Display | Should -Be 'git rev-list --left-right --count feature/x...develop'
+        $count.Arguments | Should -Contain '--left-right'
+        $count.Arguments | Should -Contain '--count'
+
+        $base = Get-GghMergeBaseCommandPlan -LeftRef 'develop' -RightRef 'main' -Short
+        $base.Display | Should -Be 'git merge-base --short develop main'
+
+        $unique = Get-GghUniqueCommitsCommandPlan -LeftRef 'feature/x' -RightRef 'develop' -MaxCount 12
+        $unique.Display | Should -Match 'feature/x\.\.\.develop'
+        $unique.Arguments | Should -Contain '--cherry-pick'
+    }
+
+    It 'parses ahead and behind counts' {
+        $counts = ConvertFrom-GghAheadBehindCount -Line "3`t5"
+        $counts.LeftOnly | Should -Be 3
+        $counts.RightOnly | Should -Be 5
+        ConvertFrom-GghAheadBehindCount -Line 'not counts' | Should -Be $null
+    }
+
+    It 'summarizes diverged branch relationships' {
+        $relationship = Get-GghBranchRelationshipStatus -LeftRef 'feature/x' -RightRef 'develop' -LeftOnly 2 -RightOnly 1
+        $relationship.Kind | Should -Be 'diverged'
+        $relationship.Severity | Should -Be 'danger'
+        $summary = Format-GghBranchRelationshipSummary -Relationship $relationship -MergeBase 'abc1234' -UniqueCommitLines @('< abc111 feature work','> def222 develop work')
+        $summary | Should -Match 'feature/x'
+        $summary | Should -Match 'develop'
+        $summary | Should -Match 'Merge base: abc1234'
+        $summary | Should -Match 'Unique commits preview'
+    }
+}
+

@@ -66,7 +66,7 @@ def assert_line_count_guard(rel_paths, max_lines):
 
 version = read_text("VERSION").strip()
 if not re.fullmatch(r"\d+\.\d+\.\d+", version):
-    fail(f"VERSION is not a semantic version like 3.7.0: {version!r}")
+    fail(f"VERSION is not a semantic version like 3.8.0: {version!r}")
 
 manifest = json.loads(read_text("manifest.json"))
 
@@ -161,11 +161,11 @@ required = [
     "tests/GitStashOperations.Tests.ps1",
     "tests/GitTagOperations.Tests.ps1",
     "docs/START_HERE.md",
-    "docs/RELEASE_NOTES_v3_7.md",
-    "docs/SWOT_AND_ROADMAP_v3_7.md",
-    "docs/ROADMAP_REVIEW_v3_7.md",
-    "docs/ARCHITECTURE_v3_7.md",
-    "docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_7.md",
+    f"docs/RELEASE_NOTES_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
+    f"docs/SWOT_AND_ROADMAP_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
+    f"docs/ROADMAP_REVIEW_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
+    f"docs/ARCHITECTURE_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
+    f"docs/TECHNICAL_DEBT_REDUCTION_PLAN_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
 ]
 
 require_paths(required)
@@ -214,6 +214,9 @@ split_markers = [
     "Set-DiffPreviewText",
     "Get-DiffPreviewLineColor",
     "DiffAddedText",
+    "Branch relationships",
+    "Show-BranchRelationshipOverview",
+    "HistoryRelationshipTextBox",
 ]
 
 for marker in split_markers:
@@ -231,6 +234,12 @@ module_markers = {
         "Get-GghGraphCommandPlan",
         "ConvertFrom-GghCommitLogLine",
         "ConvertTo-GghVisualGraphRows",
+        "Get-GghAheadBehindCommandPlan",
+        "Get-GghMergeBaseCommandPlan",
+        "Get-GghUniqueCommitsCommandPlan",
+        "ConvertFrom-GghAheadBehindCount",
+        "Get-GghBranchRelationshipStatus",
+        "Format-GghBranchRelationshipSummary",
     ],
     "modules/GitGlideGUI.Core/GitConflictRecovery.psm1": [
         "Get-GgrRecoveryGuidance",
@@ -272,6 +281,20 @@ for rel_path, markers in module_markers.items():
 
 
 require_markers(
+    "tests/GitHistoryOperations.Tests.ps1",
+    [
+        "Branch relationship helpers",
+        "Get-GghAheadBehindCommandPlan",
+        "Get-GghMergeBaseCommandPlan",
+        "Get-GghUniqueCommitsCommandPlan",
+        "ConvertFrom-GghAheadBehindCount",
+        "Get-GghBranchRelationshipStatus",
+        "Format-GghBranchRelationshipSummary",
+    ],
+    "history branch relationship tests",
+)
+
+require_markers(
     "scripts/windows/run-pester-tests.ps1",
     [
         "Remove-InvalidPathEntriesFromEnvVar",
@@ -296,7 +319,7 @@ for rel_path in [main_script, *part_files, "git-glide-gui.bat", "scripts/windows
 assert_no_conflict_markers([main_script, *part_files])
 
 
-# v3.7 technical-debt guard: GUI implementation files should stay below 4000 lines.
+# Technical-debt guard: GUI implementation files should stay below 4000 lines.
 assert_line_count_guard([main_script, *part_files], MAX_GUI_SCRIPT_LINES)
 
 
