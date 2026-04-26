@@ -164,6 +164,11 @@ $script:DefaultConfig = @{
         ListText = '#111827'
         DiffBackground = '#FFFFFF'
         DiffText = '#111827'
+        DiffAddedText = '#166534'
+        DiffRemovedText = '#991B1B'
+        DiffHunkText = '#1D4ED8'
+        DiffMetadataText = '#4B5563'
+        DiffWarningText = '#B45309'
         LogBackground = '#FFFFFF'
         LogText = '#111827'
         PreviewBackground = '#FFFFFF'
@@ -648,6 +653,11 @@ function Get-ThemeColorCatalog {
         @{ Section = 'Lists'; Key = 'ListText'; Name = 'List text' },
         @{ Section = 'Diff preview'; Key = 'DiffBackground'; Name = 'Background' },
         @{ Section = 'Diff preview'; Key = 'DiffText'; Name = 'Text color' },
+        @{ Section = 'Diff preview'; Key = 'DiffAddedText'; Name = 'Added lines' },
+        @{ Section = 'Diff preview'; Key = 'DiffRemovedText'; Name = 'Removed lines' },
+        @{ Section = 'Diff preview'; Key = 'DiffHunkText'; Name = 'Hunk headers' },
+        @{ Section = 'Diff preview'; Key = 'DiffMetadataText'; Name = 'Metadata lines' },
+        @{ Section = 'Diff preview'; Key = 'DiffWarningText'; Name = 'Warnings and conflicts' },
         @{ Section = 'Live output'; Key = 'LogBackground'; Name = 'Background' },
         @{ Section = 'Live output'; Key = 'LogText'; Name = 'Text color' },
         @{ Section = 'Command preview'; Key = 'PreviewBackground'; Name = 'Background' },

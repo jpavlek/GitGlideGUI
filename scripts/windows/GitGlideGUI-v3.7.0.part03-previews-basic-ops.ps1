@@ -934,7 +934,7 @@ function Refresh-Status {
         }
 
         if ($script:StatusItems.Count -eq 0) {
-            $script:DiffTextBox.Text = ('Working tree is clean on branch {0}. No file diff to preview.`r`nLast refreshed: {1}`r`nIf this differs from git status, click Refresh.' -f $script:CurrentBranch, (Get-Date -Format 'HH:mm:ss'))
+            Set-DiffPreviewText -Text ('Working tree is clean on branch {0}. No file diff to preview.`r`nLast refreshed: {1}`r`nIf this differs from git status, click Refresh.' -f $script:CurrentBranch, (Get-Date -Format 'HH:mm:ss'))
         } else {
             if ($script:ChangedFilesList.SelectedIndex -lt 0) { $script:ChangedFilesList.SelectedIndex = 0 }
             if (Get-ConfigBool -Name 'AutoPreviewDiffOnSelection' -DefaultValue $true) { Show-SelectedDiff }
@@ -964,7 +964,7 @@ function Show-SelectedDiff {
         if ($script:ChangedFilesList) {
             $debug = "`r`n`r`nDebug: Items=$($script:ChangedFilesList.Items.Count), SelectedIndex=$($script:ChangedFilesList.SelectedIndex), StatusItems=$(@($script:StatusItems).Count). Click Refresh, then select a row."
         }
-        $script:DiffTextBox.Text = "(Select a changed file to preview its diff.)$debug"
+        Set-DiffPreviewText -Text "(Select a changed file to preview its diff.)$debug"
         return
     }
 
@@ -985,7 +985,7 @@ function Show-SelectedDiff {
 
         if ($item.Status -eq '??') {
             [void]$header.Add((Get-UntrackedFilePreview -RelativePath $path))
-            $script:DiffTextBox.Text = ($header -join "`r`n")
+            Set-DiffPreviewText -Text ($header -join "`r`n")
             Set-StatusBar('Ready. Untracked file preview loaded.')
             return
         }
@@ -1018,12 +1018,12 @@ function Show-SelectedDiff {
             [void]$sections.Add('(No textual diff output for selected file. This can happen for binary files, mode-only changes, or a clean path after refresh.)')
         }
 
-        $script:DiffTextBox.Text = (@($header.ToArray()) + @($sections.ToArray()) -join "`r`n")
+        Set-DiffPreviewText -Text (@($header.ToArray()) + @($sections.ToArray()) -join "`r`n")
         Set-CommandPreview -Title 'Selected file diff preview' -Commands (Build-ShowDiffPreview) -Notes 'The preview separates staged and unstaged changes so you can see exactly what will be committed.'
         Set-StatusBar('Ready. Diff preview loaded.')
     } catch {
         Append-Log -Text ('Diff failed: ' + $_.Exception.Message) -Color ([System.Drawing.Color]::Firebrick)
-        $script:DiffTextBox.Text = "Diff failed:`r`n$($_.Exception.Message)"
+        Set-DiffPreviewText -Text "Diff failed:`r`n$($_.Exception.Message)"
         [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Diff failed', 'OK', 'Error') | Out-Null
     } finally {
         $form.Cursor = $oldCursor
@@ -1235,11 +1235,12 @@ function Show-GitStatus {
         $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'status') -Caption 'git status' -AllowFailure
 
         if ($result.ExitCode -eq 0) {
-            $script:DiffTextBox.Text = if ([string]::IsNullOrWhiteSpace($result.StdOut)) {
+            $statusText = if ([string]::IsNullOrWhiteSpace($result.StdOut)) {
                 '(No status output.)'
             } else {
                 $result.StdOut
             }
+            Set-DiffPreviewText -Text $statusText
         }
         Refresh-Status
     } catch {
@@ -1264,7 +1265,7 @@ function Show-GitHistoryGraph {
 
         $text = if ($result.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($result.StdOut)) { $result.StdOut } else { '(No history output.)' }
         if ($script:HistoryGraphTextBox) { $script:HistoryGraphTextBox.Text = $text }
-        if ($script:DiffTextBox) { $script:DiffTextBox.Text = $text }
+        if ($script:DiffTextBox) { Set-DiffPreviewText -Text $text }
         if ($script:HistorySummaryLabel) { $script:HistorySummaryLabel.Text = "Read-only graph loaded: $max commits requested." }
         Refresh-HistoryVisualGraph
         Set-CommandPreview -Title 'History / Graph' -Commands (Build-HistoryPreview) -Notes 'Read-only command. It does not modify the repository.'

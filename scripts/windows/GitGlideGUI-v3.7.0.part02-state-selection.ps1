@@ -110,6 +110,72 @@ function Set-CommandPreview {
     $script:PreviewTextBox.Text = ($parts -join "`r`n")
 }
 
+function Get-DiffPreviewLineColor {
+    param([AllowNull()][string]$Line)
+
+    $value = if ($null -eq $Line) { '' } else { [string]$Line }
+    $baseColor = Get-ThemeColor -Key 'DiffText' -Fallback '#111827'
+
+    try {
+        if ($value -match '^(<<<<<<<|=======|>>>>>>>)') { return (Get-ThemeColor -Key 'DiffWarningText' -Fallback '#B45309') }
+        if ($value -match '^(CONFLICT|error:|fatal:)') { return (Get-ThemeColor -Key 'ErrorText' -Fallback '#991B1B') }
+        if ($value -match '^(warning:|hint:)') { return (Get-ThemeColor -Key 'DiffWarningText' -Fallback '#B45309') }
+        if ($value -match '^@@') { return (Get-ThemeColor -Key 'DiffHunkText' -Fallback '#1D4ED8') }
+        if ($value -match '^(diff --git|index |old mode |new mode |deleted file mode |new file mode |similarity index |rename from |rename to |--- |\+\+\+ )') { return (Get-ThemeColor -Key 'DiffMetadataText' -Fallback '#4B5563') }
+        if ($value.StartsWith('+') -and -not $value.StartsWith('+++')) { return (Get-ThemeColor -Key 'DiffAddedText' -Fallback '#166534') }
+        if ($value.StartsWith('-') -and -not $value.StartsWith('---')) { return (Get-ThemeColor -Key 'DiffRemovedText' -Fallback '#991B1B') }
+        if ($value -match '^\s*(modified:|new file:|deleted:|renamed:|both modified:|both added:|both deleted:|unmerged:)') { return (Get-ThemeColor -Key 'DiffWarningText' -Fallback '#B45309') }
+        if ($value -match '^(On branch|Your branch|Changes to be committed|Changes not staged|Untracked files|Unmerged paths|nothing to commit)') { return (Get-ThemeColor -Key 'DiffMetadataText' -Fallback '#4B5563') }
+    } catch {}
+
+    return $baseColor
+}
+
+function Set-DiffPreviewText {
+    param([AllowNull()][string]$Text)
+
+    if (-not $script:DiffTextBox) { return }
+
+    $resolvedText = if ($null -eq $Text) { '' } else { [string]$Text }
+
+    if ($script:DiffTextBox.InvokeRequired) {
+        $action = [System.Action[string]]{ param($value) Set-DiffPreviewText -Text $value }
+        [void]$script:DiffTextBox.BeginInvoke($action, $resolvedText)
+        return
+    }
+
+    try {
+        $box = $script:DiffTextBox
+        $box.SuspendLayout()
+        $box.Clear()
+        $box.SelectionStart = 0
+        $box.SelectionLength = 0
+
+        if ([string]::IsNullOrEmpty($resolvedText)) {
+            $box.SelectionColor = Get-ThemeColor -Key 'DiffText' -Fallback '#111827'
+            return
+        }
+
+        $normalized = $resolvedText -replace "`r?`n", "`n"
+        $lines = $normalized -split "`n", -1
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            $line = [string]$lines[$i]
+            $box.SelectionStart = $box.TextLength
+            $box.SelectionLength = 0
+            $box.SelectionColor = Get-DiffPreviewLineColor -Line $line
+            $box.AppendText($line)
+            if ($i -lt ($lines.Count - 1)) { $box.AppendText("`r`n") }
+        }
+
+        $box.SelectionColor = Get-ThemeColor -Key 'DiffText' -Fallback '#111827'
+        $box.SelectionStart = 0
+        $box.SelectionLength = 0
+        $box.ScrollToCaret()
+    } finally {
+        try { $script:DiffTextBox.ResumeLayout() } catch {}
+    }
+}
+
 #endregion
 
 #region Git State Verification

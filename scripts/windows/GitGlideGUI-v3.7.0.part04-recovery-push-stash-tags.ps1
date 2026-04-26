@@ -807,7 +807,7 @@ function Show-SelectedHistoryCommitDetails {
         $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'show', '--stat', '--decorate', '--no-renames', $commitish) -Caption ('git show --stat --decorate ' + (Quote-Arg $commitish)) -AllowFailure -QuietOutput
         $text = if ($result.StdOut) { [string]$result.StdOut } else { [string]$result.StdErr }
         if ($script:HistoryGraphTextBox) { $script:HistoryGraphTextBox.Text = $text }
-        if ($script:DiffTextBox) { $script:DiffTextBox.Text = $text }
+        if ($script:DiffTextBox) { Set-DiffPreviewText -Text $text }
         Set-CommandPreview -Title ('Show selected commit: ' + $commitish) -Commands ('git show --stat --decorate ' + (Quote-Arg $commitish)) -Notes 'Read-only inspection command.'
     } catch { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Show selected commit failed', 'OK', 'Error') | Out-Null }
 }
@@ -1223,7 +1223,7 @@ function Refresh-StashPanel {
     Load-StashList
     $count = @($script:StashList).Count
     if ($script:DiffTextBox) {
-        $script:DiffTextBox.Text = "Stash list refreshed.`r`n`r`n$count stash entr$(if ($count -eq 1) { 'y' } else { 'ies' }) found."
+        Set-DiffPreviewText -Text "Stash list refreshed.`r`n`r`n$count stash entr$(if ($count -eq 1) { 'y' } else { 'ies' }) found."
     }
     Set-StatusBar("Ready. Stashes: $count")
 }
@@ -1232,11 +1232,11 @@ function Show-SelectedStashDiff {
     try {
         $stashRef = Get-SelectedStashRef -DefaultLatest
         if (-not $stashRef) {
-            $script:DiffTextBox.Text = '(No stash entries found.)'
+            Set-DiffPreviewText -Text '(No stash entries found.)'
             return
         }
         $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'stash', 'show', '--stat', '--patch', $stashRef) -Caption "git stash show --stat --patch $stashRef" -AllowFailure -QuietOutput
-        $script:DiffTextBox.Text = if ([string]::IsNullOrWhiteSpace($result.StdOut)) { "(No stash diff output for $stashRef.)" } else { $result.StdOut }
+        Set-DiffPreviewText -Text $(if ([string]::IsNullOrWhiteSpace($result.StdOut)) { "(No stash diff output for $stashRef.)" } else { $result.StdOut })
         Set-CommandPreview -Title 'Show selected stash diff' -Commands (Build-StashShowPreview) -Notes 'Displays the selected stash patch without applying it.'
     } catch {
         [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Show stash diff failed', 'OK', 'Error') | Out-Null
@@ -1248,11 +1248,11 @@ function Show-SelectedStashNameStatus {
     try {
         $stashRef = Get-SelectedStashRef -DefaultLatest
         if (-not $stashRef) {
-            $script:DiffTextBox.Text = '(No stash entries found.)'
+            Set-DiffPreviewText -Text '(No stash entries found.)'
             return
         }
         $result = Run-External -FileName 'git' -Arguments @('-C', $script:RepoRoot, 'stash', 'show', '--name-status', $stashRef) -Caption "git stash show --name-status $stashRef" -AllowFailure -QuietOutput
-        $script:DiffTextBox.Text = if ([string]::IsNullOrWhiteSpace($result.StdOut)) { "(No changed-file list for $stashRef.)" } else { $result.StdOut }
+        Set-DiffPreviewText -Text $(if ([string]::IsNullOrWhiteSpace($result.StdOut)) { "(No changed-file list for $stashRef.)" } else { $result.StdOut })
         Set-CommandPreview -Title 'Show files in selected stash' -Commands (Build-StashNameStatusPreview) -Notes 'Lists files captured in the selected stash without applying it.'
     } catch {
         [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Show stash files failed', 'OK', 'Error') | Out-Null
@@ -1324,7 +1324,7 @@ function Run-CustomGitCommand {
         if (-not [string]::IsNullOrWhiteSpace($result.StdOut)) { $text += $result.StdOut.TrimEnd() }
         if (-not [string]::IsNullOrWhiteSpace($result.StdErr)) { $text += ''; $text += 'stderr:'; $text += $result.StdErr.TrimEnd() }
         if ($text.Count -eq 0) { $text += '(Command completed without output.)' }
-        $script:DiffTextBox.Text = ($text -join "`r`n")
+        Set-DiffPreviewText -Text ($text -join "`r`n")
         Set-CommandPreview -Title 'Custom git command' -Commands (Format-GitCommandArgs -Arguments $args) -Notes 'Custom commands run as git arguments in the current repository, without shell operators.'
         Refresh-Status
     } catch {

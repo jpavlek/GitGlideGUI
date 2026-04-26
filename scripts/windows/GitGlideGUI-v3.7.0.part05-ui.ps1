@@ -2073,7 +2073,7 @@ $script:DiffTextBox.ReadOnly = $true
 $script:DiffTextBox.WordWrap = $false
 $script:DiffTextBox.Font = $script:FontMono
 $script:DiffTextBox.BackColor = [System.Drawing.Color]::White
-$script:DiffTextBox.Text = '(Select a changed file to preview its diff, or click Git status / Show graph.)'
+Set-DiffPreviewText -Text '(Select a changed file to preview its diff, or click Git status / Show graph.)'
 $diffGroup.Controls.Add($script:DiffTextBox)
 
 # Log group
@@ -2179,7 +2179,7 @@ $script:ToolTip.SetToolTip($script:FeatureBranchTextBox, "Enter a new feature br
 $script:ToolTip.SetToolTip($script:BaseFromDevelopCheckBox, "When checked, the tool switches to $($script:Config.BaseBranch), pulls, then creates the new feature branch. Requires a clean working tree.")
 $script:ToolTip.SetToolTip($script:BranchSwitchComboBox, 'Choose an existing local branch or type one. If work is dirty, Git Glide warns but can let Git attempt the switch anyway.')
 $script:ToolTip.SetToolTip($script:ChangedFilesList, 'Changed files from git status --porcelain. Each row keeps its parsed Git status internally, so selecting a row should immediately load its diff. Multi-select is supported for stage/unstage; the diff preview uses the first selected file.')
-$script:ToolTip.SetToolTip($script:DiffTextBox, 'Shows selected file diff output. Staged and unstaged changes are separated when possible; untracked text files show a safe content preview.')
+$script:ToolTip.SetToolTip($script:DiffTextBox, 'Shows selected file diff output with color-coded added, removed, hunk, metadata, warning, and conflict lines. Staged and unstaged changes are separated when possible; untracked text files show a safe content preview.')
 $script:ToolTip.SetToolTip($script:LogTextBox, 'Shows live standard output and standard error from Git and build commands.')
 $script:ToolTip.SetToolTip($script:CommitSubjectTextBox, "Short commit subject (max $($script:Config.CommitSubjectMaxLength) chars recommended). Example: v34.3: add trust, observability, and local-first foundation")
 $script:ToolTip.SetToolTip($script:CommitBodyTextBox, 'Optional body. Use bullet-style lines for details and validation notes.')
