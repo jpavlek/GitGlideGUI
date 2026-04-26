@@ -314,6 +314,118 @@ function Get-GgbUiModeTabNames {
     }
 }
 
+
+function Get-GgbWorkflowChecklist {
+    param(
+        [string]$CurrentBranch = '',
+        [string]$FeatureBranch = '<feature-branch>',
+        [string]$MainBranch = 'main',
+        [string]$BaseBranch = 'develop',
+        [string]$Upstream = '',
+        [string]$BranchState = ''
+    )
+
+    if ([string]::IsNullOrWhiteSpace($FeatureBranch)) { $FeatureBranch = '<feature-branch>' }
+    $currentRole = Get-GgbBranchRole -BranchName $CurrentBranch -MainBranch $MainBranch -BaseBranch $BaseBranch
+    $hasUpstream = -not [string]::IsNullOrWhiteSpace($Upstream)
+    $isFeatureLike = (($FeatureBranch -like 'feature/*') -or ($FeatureBranch -like 'fix/*') -or ($FeatureBranch -like 'hotfix/*') -or ($FeatureBranch -like 'release/*'))
+
+    return @(
+        [pscustomobject]@{
+            Step = 1
+            Status = if ([string]::IsNullOrWhiteSpace($CurrentBranch)) { 'attention' } elseif ($currentRole.Protected) { 'attention' } else { 'ok' }
+            Title = 'Work on a feature/fix branch'
+            Command = if ($currentRole.Protected) { 'git switch -c feature/<name>' } else { ('current branch: {0}' -f $CurrentBranch) }
+            Guidance = 'Normal work should happen outside main/develop so workflow steps are not skipped.'
+        },
+        [pscustomobject]@{
+            Step = 2
+            Status = if ($hasUpstream) { 'ok' } else { 'todo' }
+            Title = 'Push branch with upstream'
+            Command = 'git push -u origin HEAD'
+            Guidance = 'Sets tracking so later git push works without extra arguments.'
+        },
+        [pscustomobject]@{
+            Step = 3
+            Status = if ($isFeatureLike) { 'todo' } else { 'attention' }
+            Title = ('Merge feature/fix into {0}' -f $BaseBranch)
+            Command = ('git switch {0}; git merge --no-ff {1}' -f $BaseBranch, $FeatureBranch)
+            Guidance = 'Integrate finished work into the integration branch with an explicit merge commit.'
+        },
+        [pscustomobject]@{
+            Step = 4
+            Status = 'todo'
+            Title = 'Run quality checks'
+            Command = 'scripts\windows\run-quality-checks.bat'
+            Guidance = 'Use the quality gate before promoting develop to main.'
+        },
+        [pscustomobject]@{
+            Step = 5
+            Status = 'todo'
+            Title = ('Promote {0} into {1}' -f $BaseBranch, $MainBranch)
+            Command = ('git switch {0}; git merge --no-ff {1}' -f $MainBranch, $BaseBranch)
+            Guidance = 'Move validated integration work into the release branch.'
+        },
+        [pscustomobject]@{
+            Step = 6
+            Status = 'todo'
+            Title = 'Push and tag release'
+            Command = ('git push origin {0} {1}; git push origin --tags' -f $MainBranch, $BaseBranch)
+            Guidance = 'Publish the release branches and tags after validation.'
+        },
+        [pscustomobject]@{
+            Step = 7
+            Status = 'optional'
+            Title = 'Clean up merged feature/fix branch'
+            Command = ('git branch -d {0}; git push origin --delete {0}' -f $FeatureBranch)
+            Guidance = 'Clean up only after the branch is merged and pushed.'
+        }
+    )
+}
+
+function Format-GgbWorkflowChecklist {
+    param([AllowNull()][object[]]$Items)
+
+    $rows = @()
+    foreach ($item in @($Items | Where-Object { $_ })) {
+        $status = [string]$item.Status
+        $mark = switch ($status) {
+            'ok' { '[x]' }
+            'attention' { '[!]' }
+            'optional' { '[-]' }
+            default { '[ ]' }
+        }
+        $rows += ('{0} {1}. {2}' -f $mark, [int]$item.Step, [string]$item.Title)
+        if (-not [string]::IsNullOrWhiteSpace([string]$item.Command)) { $rows += ('    command: {0}' -f [string]$item.Command) }
+        if (-not [string]::IsNullOrWhiteSpace([string]$item.Guidance)) { $rows += ('    why: {0}' -f [string]$item.Guidance) }
+    }
+    if (@($rows).Count -eq 0) { return 'No workflow checklist items available.' }
+    return ($rows -join "`r`n")
+}
+
+function Get-GgbCleanupMergedBranchCommandPlan {
+    param(
+        [Parameter(Mandatory=$true)][string]$BranchName,
+        [string]$RemoteName = 'origin',
+        [switch]$DeleteRemote,
+        [string]$MainBranch = 'main',
+        [string]$BaseBranch = 'develop'
+    )
+
+    $validation = Test-GgbBranchName -Name $BranchName
+    if (-not $validation.Valid) { throw $validation.Error }
+    if ($BranchName -eq $MainBranch -or $BranchName -eq $BaseBranch) { throw 'Refusing to delete protected workflow branches.' }
+    if ([string]::IsNullOrWhiteSpace($RemoteName)) { $RemoteName = 'origin' }
+
+    $plans = @()
+    $plans += New-GgbGitCommandPlan -Verb 'delete-merged-local-branch' -Arguments @('branch','-d',$BranchName) -Description 'Delete the local branch only if Git considers it merged.'
+    if ($DeleteRemote) {
+        $plans += New-GgbGitCommandPlan -Verb 'delete-merged-remote-branch' -Arguments @('push',$RemoteName,'--delete',$BranchName) -Description 'Delete the remote branch after the local branch was merged.'
+    }
+    return @($plans)
+}
+
+
 Export-ModuleMember -Function `
     ConvertTo-GgbQuotedGitArgument, `
     New-GgbGitCommandPlan, `
@@ -331,6 +443,9 @@ Export-ModuleMember -Function `
     Get-GgbBranchRole, `
     Get-GgbMoveCurrentChangesToBranchCommandPlan, `
     Get-GgbUiModeTabNames, `
+    Get-GgbCleanupMergedBranchCommandPlan, `
+    Format-GgbWorkflowChecklist, `
+    Get-GgbWorkflowChecklist, `
     Test-GgbWorkflowProtectedBranch, `
     Get-GgbProtectedBranchCommitGuidance, `
     Get-GgbMergeFeatureIntoBaseCommandPlan, `

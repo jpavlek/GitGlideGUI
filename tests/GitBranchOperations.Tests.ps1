@@ -94,3 +94,30 @@ Describe 'Git Glide UI mode helper' {
         $expert.Count -gt $simple.Count | Should Be $true
     }
 }
+
+
+
+Describe 'Git Flow workflow checklist and cleanup helpers' {
+    It 'builds a workflow checklist that keeps developer decision points explicit' {
+        $items = @(Get-GgbWorkflowChecklist -CurrentBranch 'main' -FeatureBranch 'feature/x' -MainBranch 'main' -BaseBranch 'develop' -Upstream '')
+        $items.Count | Should Be 7
+        $items[0].Status | Should Be 'attention'
+        $items[0].Title | Should Match 'feature/fix'
+        $text = Format-GgbWorkflowChecklist -Items $items
+        $text | Should Match 'git push -u origin HEAD'
+        $text | Should Match 'run-quality-checks.bat'
+        $text | Should Match 'git branch -d feature/x'
+    }
+
+    It 'builds safe cleanup plans for merged feature branches' {
+        $plans = @(Get-GgbCleanupMergedBranchCommandPlan -BranchName 'feature/x' -DeleteRemote)
+        $plans.Count | Should Be 2
+        $plans[0].Display | Should Be 'git branch -d feature/x'
+        $plans[1].Display | Should Be 'git push origin --delete feature/x'
+    }
+
+    It 'refuses cleanup plans for protected workflow branches' {
+        { Get-GgbCleanupMergedBranchCommandPlan -BranchName 'main' } | Should Throw
+        { Get-GgbCleanupMergedBranchCommandPlan -BranchName 'develop' } | Should Throw
+    }
+}
