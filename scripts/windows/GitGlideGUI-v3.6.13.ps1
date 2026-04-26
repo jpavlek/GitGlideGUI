@@ -3969,8 +3969,9 @@ function Update-ChangedFilesContextBanner {
     $upstreamText = if ([string]::IsNullOrWhiteSpace($upstream)) { '(no upstream)' } else { $upstream }
     $stateText = if ([string]::IsNullOrWhiteSpace($branchState)) { '-' } else { $branchState }
     $mode = Get-UiMode
-    $script:ChangedFilesContextLabel.Text = ('Mode: {0}  |  Branch: {1}  |  Role: {2}  |  Upstream: {3}  |  State: {4}  |  Changed: {5}`r`nNext: {6}' -f $mode, $branch, $role.Role, $upstreamText, $stateText, $changed, $role.Recommended)
-    try {
+	$bannerText = ('Mode: {0}  |  Branch: {1}  |  Role: {2}  |  Upstream: {3}  |  State: {4}  |  Changed: {5}  |  Next: {6}' -f $mode, $branch, $role.Role, $upstreamText, $stateText, $changed, $role.Recommended)
+    $script:ChangedFilesContextLabel.Text = $bannerText
+	try {
         if ($role.Severity -eq 'danger') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::MistyRose; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::DarkRed }
         elseif ($role.Severity -eq 'warning') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::LemonChiffon; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::SaddleBrown }
         elseif ($role.Severity -eq 'safe') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::Honeydew; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::DarkGreen }
@@ -7971,6 +7972,31 @@ $leftActionSplit.Panel1MinSize = 25
 $leftActionSplit.Panel2MinSize = 45
 $leftGroup.Controls.Add($leftActionSplit)
 
+function Resize-ChangedFilesContextBanner {
+    if (-not $script:ChangedFilesContextLabel) { return }
+
+    try {
+        $label = $script:ChangedFilesContextLabel
+        $availableWidth = [Math]::Max(100, $label.ClientSize.Width - $label.Padding.Left - $label.Padding.Right)
+
+        $proposedSize = New-Object System.Drawing.Size($availableWidth, 1000)
+
+        $flags =
+            [System.Windows.Forms.TextFormatFlags]::WordBreak -bor
+            [System.Windows.Forms.TextFormatFlags]::TextBoxControl
+
+        $measured = [System.Windows.Forms.TextRenderer]::MeasureText(
+            $label.Text,
+            $label.Font,
+            $proposedSize,
+            $flags
+        )
+
+        $newHeight = $measured.Height + $label.Padding.Top + $label.Padding.Bottom + 6
+        $label.Height = [Math]::Max(28, [Math]::Min($newHeight, 96))
+    } catch {}
+}
+
 $changedFilesListLayout = New-Object System.Windows.Forms.TableLayoutPanel
 $changedFilesListLayout.Dock = 'Fill'
 $changedFilesListLayout.ColumnCount = 1
@@ -7980,15 +8006,17 @@ $changedFilesListLayout.RowCount = 2
 $leftActionSplit.Panel1.Controls.Add($changedFilesListLayout)
 
 $script:ChangedFilesContextLabel = New-Object System.Windows.Forms.Label
-$script:ChangedFilesContextLabel.Dock = 'Top'
-$script:ChangedFilesContextLabel.AutoSize = $true
-$script:ChangedFilesContextLabel.MaximumSize = New-Object System.Drawing.Size(900, 0)
-$script:ChangedFilesContextLabel.Padding = New-Object System.Windows.Forms.Padding(6)
+$script:ChangedFilesContextLabel.AutoSize = $false
+$script:ChangedFilesContextLabel.AutoEllipsis = $false
+$script:ChangedFilesContextLabel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$script:ChangedFilesContextLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$script:ChangedFilesContextLabel.MaximumSize = New-Object System.Drawing.Size(0, 0)
+$script:ChangedFilesContextLabel.Padding = New-Object System.Windows.Forms.Padding(6, 4, 6, 4)
 $script:ChangedFilesContextLabel.Text = 'Branch context will appear here after Refresh.'
 $changedFilesListLayout.Controls.Add($script:ChangedFilesContextLabel, 0, 0)
 
 $script:ChangedFilesList = New-Object System.Windows.Forms.ListBox
-$script:ChangedFilesList.Dock = 'Fill'
+$script:ChangedFilesList.Dock = [System.Windows.Forms.DockStyle]::Fill
 $script:ChangedFilesList.Font = $script:FontMono
 $script:ChangedFilesList.HorizontalScrollbar = $true
 $script:ChangedFilesList.SelectionMode = 'MultiExtended'
