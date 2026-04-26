@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.10.1
+# Git Glide GUI - Enhanced Version v3.6.11
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -36,6 +36,7 @@
 # - v3.6.8: tracked-file browser for clean file replacement/remove workflows
 # - v3.6.9: restored and extended Git Flow merge/publish workflow guidance
 # - v3.6.10.1: protected-branch commit warning and merge guide formatting hotfix
+# - v3.6.11: branch context banner, workflow guard actions, and package consistency
 
 param(
     [string]$RepositoryPath = '',
@@ -71,7 +72,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.10.1 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.11 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -3900,6 +3901,130 @@ function Invoke-SuggestedNextAction {
     }
 }
 
+function Get-BranchRoleInfo {
+    param([AllowNull()][string]$BranchName)
+    $branch = [string]$BranchName
+    if ([string]::IsNullOrWhiteSpace($branch)) {
+        return [pscustomobject]@{ Role = 'unknown'; Severity = 'neutral'; Description = 'No branch detected.'; Recommended = 'Select or initialize a repository.' }
+    }
+    if ($branch -eq [string]$script:Config.MainBranch) {
+        return [pscustomobject]@{ Role = 'protected release branch'; Severity = 'danger'; Description = 'main is the protected release/shipping branch.'; Recommended = 'Create a feature/fix branch before committing normal work.' }
+    }
+    if ($branch -eq [string]$script:Config.BaseBranch) {
+        return [pscustomobject]@{ Role = 'integration branch'; Severity = 'warning'; Description = 'develop integrates finished feature/fix branches.'; Recommended = 'Merge feature branches here, run quality checks, then promote to main.' }
+    }
+    if ($branch -like 'feature/*') {
+        return [pscustomobject]@{ Role = 'feature branch'; Severity = 'safe'; Description = 'feature branches are the normal place for product work.'; Recommended = 'Commit, push with upstream, then merge into develop.' }
+    }
+    if ($branch -like 'fix/*') {
+        return [pscustomobject]@{ Role = 'fix branch'; Severity = 'safe'; Description = 'fix branches are the normal place for bug fixes and stabilization.'; Recommended = 'Commit, push with upstream, then merge into develop.' }
+    }
+    if ($branch -like 'hotfix/*') {
+        return [pscustomobject]@{ Role = 'hotfix branch'; Severity = 'warning'; Description = 'hotfix branches usually target urgent release fixes.'; Recommended = 'Review carefully, run quality checks, then merge to main and back into develop.' }
+    }
+    if ($branch -like 'release/*') {
+        return [pscustomobject]@{ Role = 'release branch'; Severity = 'warning'; Description = 'release branches prepare a tested version for main.'; Recommended = 'Run quality checks and keep changes focused on release stabilization.' }
+    }
+    return [pscustomobject]@{ Role = 'custom branch'; Severity = 'neutral'; Description = 'Custom branch naming is allowed.'; Recommended = 'Make sure this branch fits your intended workflow before committing.' }
+}
+
+function Update-ChangedFilesContextBanner {
+    param([AllowNull()][object]$Snapshot)
+    if (-not $script:ChangedFilesContextLabel) { return }
+    $branch = [string]$script:CurrentBranch
+    $upstream = [string]$script:CurrentUpstream
+    $branchState = [string]$script:CurrentBranchState
+    $changed = if ($Snapshot -and $Snapshot.Items) { @($Snapshot.Items).Count } else { @($script:StatusItems).Count }
+    $role = Get-BranchRoleInfo -BranchName $branch
+    $upstreamText = if ([string]::IsNullOrWhiteSpace($upstream)) { '(no upstream)' } else { $upstream }
+    $stateText = if ([string]::IsNullOrWhiteSpace($branchState)) { '-' } else { $branchState }
+    $script:ChangedFilesContextLabel.Text = ('Branch: {0}  |  Role: {1}  |  Upstream: {2}  |  State: {3}  |  Changed: {4}  |  Next: {5}' -f $branch, $role.Role, $upstreamText, $stateText, $changed, $role.Recommended)
+    try {
+        if ($role.Severity -eq 'danger') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::MistyRose; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::DarkRed }
+        elseif ($role.Severity -eq 'warning') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::LemonChiffon; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::SaddleBrown }
+        elseif ($role.Severity -eq 'safe') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::Honeydew; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::DarkGreen }
+        else { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::AliceBlue; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::MidnightBlue }
+    } catch {}
+}
+
+function New-SuggestedBranchName {
+    param([string]$Kind = 'fix')
+    $raw = [string]$script:CommitSubjectTextBox.Text
+    if ([string]::IsNullOrWhiteSpace($raw)) { $raw = 'work-in-progress' }
+    $slug = $raw.ToLowerInvariant() -replace '[^a-z0-9]+','-' -replace '(^-+|-+$)',''
+    if ([string]::IsNullOrWhiteSpace($slug)) { $slug = 'work-in-progress' }
+    if ($slug.Length -gt 48) { $slug = $slug.Substring(0,48).Trim('-') }
+    return ('{0}/{1}' -f $Kind, $slug)
+}
+
+function Invoke-CreateBranchBeforeProtectedCommit {
+    param([string]$SuggestedName)
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = 'Create branch before committing'
+    $dialog.Size = New-Object System.Drawing.Size(620, 240)
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.MinimizeBox = $false; $dialog.MaximizeBox = $false
+    $dialog.FormBorderStyle = 'FixedDialog'
+    $dialog.Font = $script:UiFont
+
+    $layout = New-Object System.Windows.Forms.TableLayoutPanel
+    $layout.Dock = 'Fill'; $layout.Padding = New-Object System.Windows.Forms.Padding(12); $layout.ColumnCount = 1; $layout.RowCount = 4
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent,100)))
+    $dialog.Controls.Add($layout)
+
+    $info = New-Object System.Windows.Forms.Label
+    $info.AutoSize = $true; $info.MaximumSize = New-Object System.Drawing.Size(570,0)
+    $info.Text = "You are on '$($script:CurrentBranch)'. Normal work should usually be committed on a feature/fix branch. Uncommitted changes will stay in your working tree when the new branch is created."
+    $layout.Controls.Add($info,0,0)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.AutoSize = $true; $label.Text = 'New branch name:'; $label.Margin = New-Object System.Windows.Forms.Padding(0,12,0,2)
+    $layout.Controls.Add($label,0,1)
+
+    $textBox = New-Object System.Windows.Forms.TextBox
+    $textBox.Dock = 'Top'; $textBox.Text = $SuggestedName
+    $layout.Controls.Add($textBox,0,2)
+
+    $buttons = New-Object System.Windows.Forms.FlowLayoutPanel
+    $buttons.Dock = 'Bottom'; $buttons.FlowDirection = 'RightToLeft'; $buttons.AutoSize = $true
+    $layout.Controls.Add($buttons,0,3)
+    $cancel = New-Object System.Windows.Forms.Button; $cancel.Text='Cancel'; $cancel.Width=90; $cancel.DialogResult=[System.Windows.Forms.DialogResult]::Cancel; $buttons.Controls.Add($cancel)
+    $create = New-Object System.Windows.Forms.Button; $create.Text='Create branch'; $create.Width=120; $create.DialogResult=[System.Windows.Forms.DialogResult]::OK; $buttons.Controls.Add($create)
+    $dialog.AcceptButton = $create; $dialog.CancelButton = $cancel
+
+    $result = $dialog.ShowDialog($form)
+    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return $false }
+    $name = $textBox.Text.Trim()
+    if (Get-Command Test-GgbBranchName -ErrorAction SilentlyContinue) {
+        $v = Test-GgbBranchName -Name $name
+        if (-not $v.Valid) { [System.Windows.Forms.MessageBox]::Show($v.Error, 'Invalid branch name', 'OK', 'Warning') | Out-Null; return $false }
+    }
+    $cmd = @('-C', $script:RepoRoot, 'switch', '-c', $name)
+    [void](Run-External -FileName 'git' -Arguments $cmd -Caption ('git switch -c ' + (Quote-Arg $name)))
+    Refresh-Status
+    return $true
+}
+
+function Confirm-ProtectedBranchWorkflowAction {
+    param([string]$ActionName = 'continue')
+    if (-not $script:CurrentBranch) { Refresh-Status }
+    $branch = [string]$script:CurrentBranch
+    if ([string]::IsNullOrWhiteSpace($branch)) { return $true }
+    $role = Get-BranchRoleInfo -BranchName $branch
+    if ($role.Severity -ne 'danger' -and $role.Severity -ne 'warning') { return $true }
+
+    $message = "You are on '$branch' ($($role.Role)).`r`n`r`n$($role.Description)`r`n`r`nRecommended: $($role.Recommended)`r`n`r`nFor normal feature/fix work, create a branch first, commit there, merge feature/fix -> $($script:Config.BaseBranch), run quality checks, then promote $($script:Config.BaseBranch) -> $($script:Config.MainBranch).`r`n`r`nChoose Yes to create a new branch first, No to $ActionName on '$branch' anyway, or Cancel."
+    $answer = [System.Windows.Forms.MessageBox]::Show($message, 'Protected branch workflow guard', [System.Windows.Forms.MessageBoxButtons]::YesNoCancel, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    if ($answer -eq [System.Windows.Forms.DialogResult]::Cancel) { return $false }
+    if ($answer -eq [System.Windows.Forms.DialogResult]::No) { return $true }
+    $suggested = New-SuggestedBranchName -Kind 'fix'
+    return (Invoke-CreateBranchBeforeProtectedCommit -SuggestedName $suggested)
+}
+
+
 function Refresh-Status {
     try {
         if (-not (Test-GitRepository)) {
@@ -3911,6 +4036,7 @@ function Refresh-Status {
             if ($script:ChangedCountValueLabel) { $script:ChangedCountValueLabel.Text = '0' }
             if ($script:ChangedFilesList) { $script:ChangedFilesList.Items.Clear() }
             $script:StatusItems = @()
+            Update-ChangedFilesContextBanner
             Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo'
             return
         }
@@ -3941,6 +4067,7 @@ function Refresh-Status {
         $script:RepoPathValueLabel.Text = $script:RepoRoot
         $script:ChangedCountValueLabel.Text = [string]$items.Count
         Set-SuggestedNextActionFromSnapshot -Snapshot $snapshot
+        Update-ChangedFilesContextBanner -Snapshot $snapshot
 
         Load-LocalBranches
         Load-StashList
@@ -3969,7 +4096,7 @@ function Refresh-Status {
         }
 
         if ($script:StatusItems.Count -eq 0) {
-            $script:DiffTextBox.Text = '(Working tree is clean. No file diff to preview.)'
+            $script:DiffTextBox.Text = ('Working tree is clean on branch {0}. No file diff to preview.`r`nLast refreshed: {1}`r`nIf this differs from git status, click Refresh.' -f $script:CurrentBranch, (Get-Date -Format 'HH:mm:ss'))
         } else {
             if ($script:ChangedFilesList.SelectedIndex -lt 0) { $script:ChangedFilesList.SelectedIndex = 0 }
             if (Get-ConfigBool -Name 'AutoPreviewDiffOnSelection' -DefaultValue $true) { Show-SelectedDiff }
@@ -4249,6 +4376,7 @@ function Show-TrackedFilesDialog {
 
 function Stage-AllChanges {
     try {
+        if (-not (Confirm-ProtectedBranchWorkflowAction -ActionName 'stage all changes here')) { return }
         if (Get-Command Get-GggStageAllCommandPlan -ErrorAction SilentlyContinue) {
             foreach ($plan in @(Get-GggStageAllCommandPlan)) {
                 $gitArgs = @('-C', $script:RepoRoot) + @($plan.Arguments)
@@ -5696,31 +5824,7 @@ function Insert-CommitTemplate {
 #region Commit Operations
 
 function Confirm-CommitOnWorkflowBranch {
-    if (-not $script:CurrentBranch) { Refresh-Status }
-    $branch = [string]$script:CurrentBranch
-    if ([string]::IsNullOrWhiteSpace($branch)) { return $true }
-
-    $guidance = $null
-    if (Get-Command Get-GgbProtectedBranchCommitGuidance -ErrorAction SilentlyContinue) {
-        $guidance = Get-GgbProtectedBranchCommitGuidance -BranchName $branch -MainBranch $script:Config.MainBranch -BaseBranch $script:Config.BaseBranch
-    } else {
-        $isProtected = (($branch -eq [string]$script:Config.MainBranch) -or ($branch -eq [string]$script:Config.BaseBranch))
-        $guidance = [pscustomobject]@{
-            ShouldWarn = $isProtected
-            Title = ('You are committing directly on {0}' -f $branch)
-            Message = "This can skip the intended Git Flow path. Prefer creating a feature branch, committing there, merging feature -> $($script:Config.BaseBranch), running quality checks, and then merging $($script:Config.BaseBranch) -> $($script:Config.MainBranch). Continue anyway?"
-        }
-    }
-
-    if (-not $guidance -or -not $guidance.ShouldWarn) { return $true }
-
-    $answer = [System.Windows.Forms.MessageBox]::Show(
-        [string]$guidance.Message,
-        [string]$guidance.Title,
-        [System.Windows.Forms.MessageBoxButtons]::YesNo,
-        [System.Windows.Forms.MessageBoxIcon]::Warning
-    )
-    return ($answer -eq [System.Windows.Forms.DialogResult]::Yes)
+    return (Confirm-ProtectedBranchWorkflowAction -ActionName 'commit here')
 }
 
 function Commit-Changes {
@@ -5971,7 +6075,8 @@ function Save-LayoutConfig {
 #region UI Setup
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Git Glide GUI v3.6.6 - safer visual Git workflows'
+$script:AppVersion = '3.6.11'
+$form.Text = "Git Glide GUI v$script:AppVersion - safer visual Git workflows"
 $form.Size = New-Object System.Drawing.Size -ArgumentList @((Get-ConfigInt -Name 'WindowWidth' -DefaultValue 1580), (Get-ConfigInt -Name 'WindowHeight' -DefaultValue 1080))
 $form.StartPosition = 'CenterScreen'
 $form.MinimumSize = New-Object System.Drawing.Size(1320, 860)
@@ -7666,6 +7771,22 @@ $leftActionSplit.Panel1MinSize = 25
 $leftActionSplit.Panel2MinSize = 45
 $leftGroup.Controls.Add($leftActionSplit)
 
+$changedFilesListLayout = New-Object System.Windows.Forms.TableLayoutPanel
+$changedFilesListLayout.Dock = 'Fill'
+$changedFilesListLayout.ColumnCount = 1
+$changedFilesListLayout.RowCount = 2
+[void]$changedFilesListLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+[void]$changedFilesListLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+$leftActionSplit.Panel1.Controls.Add($changedFilesListLayout)
+
+$script:ChangedFilesContextLabel = New-Object System.Windows.Forms.Label
+$script:ChangedFilesContextLabel.Dock = 'Top'
+$script:ChangedFilesContextLabel.AutoSize = $true
+$script:ChangedFilesContextLabel.MaximumSize = New-Object System.Drawing.Size(900, 0)
+$script:ChangedFilesContextLabel.Padding = New-Object System.Windows.Forms.Padding(6)
+$script:ChangedFilesContextLabel.Text = 'Branch context will appear here after Refresh.'
+$changedFilesListLayout.Controls.Add($script:ChangedFilesContextLabel, 0, 0)
+
 $script:ChangedFilesList = New-Object System.Windows.Forms.ListBox
 $script:ChangedFilesList.Dock = 'Fill'
 $script:ChangedFilesList.Font = $script:FontMono
@@ -7682,7 +7803,7 @@ $script:ChangedFilesList.Add_SelectedIndexChanged({
         Set-CommandPreview -Title 'Selected file diff preview' -Commands (Build-ShowDiffPreview) -Notes 'Use Stage selected, Unstage selected, Stop tracking, or Remove file to move this file between index, working tree, and Git tracking.'
     }
 })
-$leftActionSplit.Panel1.Controls.Add($script:ChangedFilesList)
+$changedFilesListLayout.Controls.Add($script:ChangedFilesList, 0, 1)
 
 $leftActionsLayout = New-Object System.Windows.Forms.TableLayoutPanel
 $leftActionsLayout.Dock = 'Fill'
@@ -8084,10 +8205,10 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.10.1 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.11 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
-Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.6" -f $script:RepoRoot)
+Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.11" -f $script:RepoRoot)
 
 $repositoryReady = Ensure-RepositorySelected -InitialStartup
 
@@ -8097,7 +8218,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.10.1' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use Integrate for Merge & Publish workflows, History / Graph for read-only branch/merge inspection, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.11' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use Integrate for Merge & Publish workflows, History / Graph for read-only branch/merge inspection, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {
