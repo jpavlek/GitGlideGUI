@@ -3958,6 +3958,49 @@ function Get-BranchRoleInfo {
     return [pscustomobject]@{ Role = 'custom branch'; Severity = 'neutral'; Description = 'Custom branch naming is allowed.'; Recommended = 'Make sure this branch fits your intended workflow before committing.' }
 }
 
+function Resize-ChangedFilesContextBanner {
+    if (-not $script:ChangedFilesContextLabel) { return }
+
+    try {
+        $label = $script:ChangedFilesContextLabel
+
+        # The label is dock-filled inside a one-column TableLayoutPanel. During
+        # construction ClientSize.Width can temporarily be 0, so prefer the
+        # parent width and fall back to the label width.
+        $parentWidth = if ($label.Parent) { [int]$label.Parent.ClientSize.Width } else { 0 }
+        $labelWidth = [int]$label.ClientSize.Width
+        $rawWidth = [Math]::Max($parentWidth, $labelWidth)
+        $availableWidth = [Math]::Max(120, $rawWidth - $label.Margin.Horizontal - $label.Padding.Horizontal)
+
+        $proposedSize = New-Object System.Drawing.Size($availableWidth, 1200)
+        $flags = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::TextBoxControl
+
+        $measured = [System.Windows.Forms.TextRenderer]::MeasureText(
+            [string]$label.Text,
+            $label.Font,
+            $proposedSize,
+            $flags
+        )
+
+        $minHeight = 30
+        $maxHeight = 112
+        $newHeight = [Math]::Max($minHeight, [Math]::Min(($measured.Height + $label.Padding.Vertical + 8), $maxHeight))
+
+        $label.Height = $newHeight
+        $label.MinimumSize = New-Object System.Drawing.Size(0, $minHeight)
+
+        # TableLayoutPanel AutoSize rows do not reliably track a non-AutoSize,
+        # dock-filled label after splitter/container resizing. Keep row 0 dynamic
+        # by updating its Absolute height explicitly.
+        if ($script:ChangedFilesContextRowStyle) {
+            $script:ChangedFilesContextRowStyle.SizeType = [System.Windows.Forms.SizeType]::Absolute
+            $script:ChangedFilesContextRowStyle.Height = [single]$newHeight
+        }
+
+        if ($label.Parent) { $label.Parent.PerformLayout() }
+    } catch {}
+}
+
 function Update-ChangedFilesContextBanner {
     param([AllowNull()][object]$Snapshot)
     if (-not $script:ChangedFilesContextLabel) { return }
@@ -3969,13 +4012,16 @@ function Update-ChangedFilesContextBanner {
     $upstreamText = if ([string]::IsNullOrWhiteSpace($upstream)) { '(no upstream)' } else { $upstream }
     $stateText = if ([string]::IsNullOrWhiteSpace($branchState)) { '-' } else { $branchState }
     $mode = Get-UiMode
-    $script:ChangedFilesContextLabel.Text = ('Mode: {0}  |  Branch: {1}  |  Role: {2}  |  Upstream: {3}  |  State: {4}  |  Changed: {5}`r`nNext: {6}' -f $mode, $branch, $role.Role, $upstreamText, $stateText, $changed, $role.Recommended)
-    try {
+	$bannerText = ('Mode: {0}  |  Branch: {1}  |  Role: {2}  |  Upstream: {3}  |  State: {4}  |  Changed: {5}  |  Next: {6}' -f $mode, $branch, $role.Role, $upstreamText, $stateText, $changed, $role.Recommended)
+    $script:ChangedFilesContextLabel.Text = $bannerText
+	try {
         if ($role.Severity -eq 'danger') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::MistyRose; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::DarkRed }
         elseif ($role.Severity -eq 'warning') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::LemonChiffon; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::SaddleBrown }
         elseif ($role.Severity -eq 'safe') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::Honeydew; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::DarkGreen }
         else { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::AliceBlue; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::MidnightBlue }
     } catch {}
+
+    Resize-ChangedFilesContextBanner
 }
 
 function New-SuggestedBranchName {
@@ -7975,20 +8021,34 @@ $changedFilesListLayout = New-Object System.Windows.Forms.TableLayoutPanel
 $changedFilesListLayout.Dock = 'Fill'
 $changedFilesListLayout.ColumnCount = 1
 $changedFilesListLayout.RowCount = 2
-[void]$changedFilesListLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+$changedFilesListLayout.ColumnStyles.Clear()
+[void]$changedFilesListLayout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+$changedFilesListLayout.RowStyles.Clear()
+$script:ChangedFilesContextRowStyle = New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 36)
+[void]$changedFilesListLayout.RowStyles.Add($script:ChangedFilesContextRowStyle)
 [void]$changedFilesListLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
 $leftActionSplit.Panel1.Controls.Add($changedFilesListLayout)
 
 $script:ChangedFilesContextLabel = New-Object System.Windows.Forms.Label
-$script:ChangedFilesContextLabel.Dock = 'Top'
-$script:ChangedFilesContextLabel.AutoSize = $true
-$script:ChangedFilesContextLabel.MaximumSize = New-Object System.Drawing.Size(900, 0)
-$script:ChangedFilesContextLabel.Padding = New-Object System.Windows.Forms.Padding(6)
+$script:ChangedFilesContextLabel.AutoSize = $false
+$script:ChangedFilesContextLabel.AutoEllipsis = $false
+$script:ChangedFilesContextLabel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$script:ChangedFilesContextLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$script:ChangedFilesContextLabel.MaximumSize = New-Object System.Drawing.Size(0, 0)
+$script:ChangedFilesContextLabel.MinimumSize = New-Object System.Drawing.Size(0, 30)
+$script:ChangedFilesContextLabel.Margin = New-Object System.Windows.Forms.Padding(0, 0, 0, 4)
+$script:ChangedFilesContextLabel.Padding = New-Object System.Windows.Forms.Padding(6, 4, 6, 4)
+$script:ChangedFilesContextLabel.UseCompatibleTextRendering = $false
 $script:ChangedFilesContextLabel.Text = 'Branch context will appear here after Refresh.'
 $changedFilesListLayout.Controls.Add($script:ChangedFilesContextLabel, 0, 0)
+$changedFilesListLayout.SetColumnSpan($script:ChangedFilesContextLabel, 1)
+$changedFilesListLayout.Add_SizeChanged({ Resize-ChangedFilesContextBanner })
+$script:ChangedFilesContextLabel.Add_TextChanged({ Resize-ChangedFilesContextBanner })
+$script:ChangedFilesContextLabel.Add_FontChanged({ Resize-ChangedFilesContextBanner })
+Resize-ChangedFilesContextBanner
 
 $script:ChangedFilesList = New-Object System.Windows.Forms.ListBox
-$script:ChangedFilesList.Dock = 'Fill'
+$script:ChangedFilesList.Dock = [System.Windows.Forms.DockStyle]::Fill
 $script:ChangedFilesList.Font = $script:FontMono
 $script:ChangedFilesList.HorizontalScrollbar = $true
 $script:ChangedFilesList.SelectionMode = 'MultiExtended'
