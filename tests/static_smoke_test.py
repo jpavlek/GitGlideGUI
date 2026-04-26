@@ -213,6 +213,7 @@ split_markers = [
     "Simple / Workflow / Expert mode",
     "Set-DiffPreviewText",
     "Get-DiffPreviewLineColor",
+    "DiffAddedText",
 ]
 
 for marker in split_markers:
@@ -308,5 +309,6 @@ for old_script in (ROOT / "scripts/windows").glob("GitGlideGUI-v*.ps1"):
     if name.startswith(f"GitGlideGUI-v{version}.part") and name.endswith(".ps1"):
         continue
     fail(f"Unexpected old versioned main script included: {name}")
+
 
 print("Static smoke test passed.")
