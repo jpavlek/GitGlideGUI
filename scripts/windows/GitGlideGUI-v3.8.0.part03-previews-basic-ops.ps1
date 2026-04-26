@@ -1,5 +1,5 @@
-﻿# This file is part of Git Glide GUI v3.7.0 split-script architecture.
-# It is dot-sourced by GitGlideGUI-v3.7.0.ps1.
+# This file is part of Git Glide GUI v3.8.0 split-script architecture.
+# It is dot-sourced by GitGlideGUI-v3.8.0.ps1.
 
 #region Command Preview Builders
 
@@ -1272,6 +1272,95 @@ function Show-GitHistoryGraph {
         Set-SuggestedNextAction -Text 'History graph loaded. Inspect branch tips, tags, and merges before risky operations.'
     } catch {
         [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'git log failed', 'OK', 'Error') | Out-Null
+    }
+}
+
+function Get-BranchRelationshipTextBlock {
+    param(
+        [Parameter(Mandatory=$true)][string]$Title,
+        [Parameter(Mandatory=$true)][string]$LeftRef,
+        [Parameter(Mandatory=$true)][string]$RightRef
+    )
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    [void]$lines.Add('=== ' + $Title + ' ===')
+
+    if ([string]::IsNullOrWhiteSpace($LeftRef) -or [string]::IsNullOrWhiteSpace($RightRef)) {
+        [void]$lines.Add('Skipped: one side is not available.')
+        return (@($lines) -join "`r`n")
+    }
+
+    if ($LeftRef -eq $RightRef) {
+        [void]$lines.Add(('Skipped: both sides are {0}.' -f $LeftRef))
+        return (@($lines) -join "`r`n")
+    }
+
+    try {
+        $countPlan = if (Get-Command Get-GghAheadBehindCommandPlan -ErrorAction SilentlyContinue) { Get-GghAheadBehindCommandPlan -LeftRef $LeftRef -RightRef $RightRef } else { $null }
+        $countArgs = if ($countPlan) { @('-C', $script:RepoRoot) + @($countPlan.Arguments) } else { @('-C', $script:RepoRoot, 'rev-list', '--left-right', '--count', ($LeftRef + '...' + $RightRef)) }
+        $countCaption = if ($countPlan) { [string]$countPlan.Display } else { 'git rev-list --left-right --count ' + $LeftRef + '...' + $RightRef }
+        $countResult = Run-External -FileName 'git' -Arguments $countArgs -Caption $countCaption -AllowFailure -QuietOutput
+        if ($countResult.ExitCode -ne 0) {
+            [void]$lines.Add('Unable to compare these refs. Fetch first or verify that both refs exist.')
+            if (-not [string]::IsNullOrWhiteSpace($countResult.StdErr)) { [void]$lines.Add($countResult.StdErr.Trim()) }
+            return (@($lines) -join "`r`n")
+        }
+
+        $counts = if (Get-Command ConvertFrom-GghAheadBehindCount -ErrorAction SilentlyContinue) { ConvertFrom-GghAheadBehindCount -Line $countResult.StdOut } else { $null }
+        if (-not $counts) {
+            [void]$lines.Add('Unable to parse ahead/behind output: ' + [string]$countResult.StdOut)
+            return (@($lines) -join "`r`n")
+        }
+
+        $basePlan = if (Get-Command Get-GghMergeBaseCommandPlan -ErrorAction SilentlyContinue) { Get-GghMergeBaseCommandPlan -LeftRef $LeftRef -RightRef $RightRef -Short } else { $null }
+        $baseArgs = if ($basePlan) { @('-C', $script:RepoRoot) + @($basePlan.Arguments) } else { @('-C', $script:RepoRoot, 'merge-base', '--short', $LeftRef, $RightRef) }
+        $baseCaption = if ($basePlan) { [string]$basePlan.Display } else { 'git merge-base --short ' + $LeftRef + ' ' + $RightRef }
+        $baseResult = Run-External -FileName 'git' -Arguments $baseArgs -Caption $baseCaption -AllowFailure -QuietOutput
+        $mergeBase = if ($baseResult.ExitCode -eq 0) { [string]$baseResult.StdOut } else { '' }
+
+        $uniquePlan = if (Get-Command Get-GghUniqueCommitsCommandPlan -ErrorAction SilentlyContinue) { Get-GghUniqueCommitsCommandPlan -LeftRef $LeftRef -RightRef $RightRef -MaxCount 12 } else { $null }
+        $uniqueArgs = if ($uniquePlan) { @('-C', $script:RepoRoot) + @($uniquePlan.Arguments) } else { @('-C', $script:RepoRoot, 'log', '--oneline', '--left-right', '--cherry-pick', '-n12', ($LeftRef + '...' + $RightRef)) }
+        $uniqueCaption = if ($uniquePlan) { [string]$uniquePlan.Display } else { 'git log --oneline --left-right --cherry-pick -n12 ' + $LeftRef + '...' + $RightRef }
+        $uniqueResult = Run-External -FileName 'git' -Arguments $uniqueArgs -Caption $uniqueCaption -AllowFailure -QuietOutput
+        $uniqueLines = if ($uniqueResult.ExitCode -eq 0) { @($uniqueResult.StdOut -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } else { @() }
+
+        $relationship = Get-GghBranchRelationshipStatus -LeftRef $LeftRef -RightRef $RightRef -LeftOnly ([int]$counts.LeftOnly) -RightOnly ([int]$counts.RightOnly)
+        [void]$lines.Add((Format-GghBranchRelationshipSummary -Relationship $relationship -MergeBase $mergeBase -UniqueCommitLines $uniqueLines))
+    } catch {
+        [void]$lines.Add('Branch relationship check failed: ' + $_.Exception.Message)
+    }
+
+    return (@($lines) -join "`r`n")
+}
+
+function Show-BranchRelationshipOverview {
+    try {
+        if (-not (Test-GitRepository)) {
+            Set-SuggestedNextAction -Text 'Open or initialize a repository before loading branch relationships.' -Action 'choose-repo'
+            return
+        }
+
+        Refresh-Status
+        $current = [string]$script:CurrentBranch
+        $upstream = [string]$script:CurrentUpstream
+        $base = [string]$script:Config.BaseBranch
+        $main = [string]$script:Config.MainBranch
+
+        $blocks = New-Object System.Collections.Generic.List[string]
+        [void]$blocks.Add('Branch relationships are read-only checks. Left/right counts come from git rev-list --left-right --count <left>...<right>.')
+        [void]$blocks.Add('Use this before pull, push, merge, release promotion, branch cleanup, or tag decisions.')
+        [void]$blocks.Add('')
+        if (-not [string]::IsNullOrWhiteSpace($upstream)) { [void]$blocks.Add((Get-BranchRelationshipTextBlock -Title 'Current branch vs upstream' -LeftRef $current -RightRef $upstream)) }
+        [void]$blocks.Add((Get-BranchRelationshipTextBlock -Title ('Current branch vs ' + $base) -LeftRef $current -RightRef $base))
+        [void]$blocks.Add((Get-BranchRelationshipTextBlock -Title ($base + ' vs ' + $main) -LeftRef $base -RightRef $main))
+
+        $text = (@($blocks) -join "`r`n`r`n")
+        if ($script:HistoryRelationshipTextBox) { $script:HistoryRelationshipTextBox.Text = $text }
+        if ($script:DiffTextBox) { Set-DiffPreviewText -Text $text }
+        Set-CommandPreview -Title 'Branch relationships' -Commands ("git rev-list --left-right --count <left>...<right>`r`ngit merge-base --short <left> <right>`r`ngit log --oneline --left-right --cherry-pick -n12 <left>...<right>") -Notes 'Read-only branch relationship checks. They help decide whether to pull, push, merge, stop, or inspect history first.'
+        Set-SuggestedNextAction -Text 'Branch relationships loaded. Inspect ahead/behind and merge-base data before syncing or merging.'
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Branch relationship overview failed', 'OK', 'Error') | Out-Null
     }
 }
 

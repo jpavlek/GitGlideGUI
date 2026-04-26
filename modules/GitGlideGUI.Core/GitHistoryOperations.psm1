@@ -292,6 +292,113 @@ function ConvertTo-GghVisualGraphRows {
     return @($rows)
 }
 
+
+function Get-GghAheadBehindCommandPlan {
+    param(
+        [Parameter(Mandatory=$true)][string]$LeftRef,
+        [Parameter(Mandatory=$true)][string]$RightRef
+    )
+    return New-GghGitCommandPlan -Verb 'branch-ahead-behind' -Arguments @('rev-list','--left-right','--count',($LeftRef + '...' + $RightRef)) -Description 'Count commits unique to each side of a branch relationship.'
+}
+
+function Get-GghMergeBaseCommandPlan {
+    param(
+        [Parameter(Mandatory=$true)][string]$LeftRef,
+        [Parameter(Mandatory=$true)][string]$RightRef,
+        [switch]$Short
+    )
+    $args = @('merge-base')
+    if ($Short) { $args += '--short' }
+    $args += @($LeftRef, $RightRef)
+    return New-GghGitCommandPlan -Verb 'branch-merge-base' -Arguments $args -Description 'Find the common ancestor used to reason about branch relationships.'
+}
+
+function Get-GghUniqueCommitsCommandPlan {
+    param(
+        [Parameter(Mandatory=$true)][string]$LeftRef,
+        [Parameter(Mandatory=$true)][string]$RightRef,
+        [int]$MaxCount = 20
+    )
+    if ($MaxCount -lt 1) { $MaxCount = 1 }
+    if ($MaxCount -gt 200) { $MaxCount = 200 }
+    return New-GghGitCommandPlan -Verb 'branch-unique-commits' -Arguments @('log','--oneline','--left-right','--cherry-pick',('-n' + [string]$MaxCount),($LeftRef + '...' + $RightRef)) -Description 'Preview unique commits on either side before merging or publishing.'
+}
+
+function ConvertFrom-GghAheadBehindCount {
+    param([AllowNull()][string]$Line)
+    $text = ([string]$Line).Trim()
+    if ($text -notmatch '^\s*(\d+)\s+(\d+)\s*$') { return $null }
+    return [pscustomobject]@{
+        LeftOnly = [int]$Matches[1]
+        RightOnly = [int]$Matches[2]
+    }
+}
+
+function Get-GghBranchRelationshipStatus {
+    param(
+        [Parameter(Mandatory=$true)][string]$LeftRef,
+        [Parameter(Mandatory=$true)][string]$RightRef,
+        [int]$LeftOnly = 0,
+        [int]$RightOnly = 0
+    )
+
+    $kind = 'same'
+    $severity = 'safe'
+    $summary = ('{0} and {1} point to equivalent history.' -f $LeftRef, $RightRef)
+    $recommendation = 'No sync action is required for this pair.'
+
+    if ($LeftOnly -gt 0 -and $RightOnly -eq 0) {
+        $kind = 'left-ahead'
+        $severity = 'info'
+        $summary = ('{0} is ahead of {1} by {2} commit(s).' -f $LeftRef, $RightRef, $LeftOnly)
+        $recommendation = ('Review the unique commit list, then push or merge {0} when appropriate.' -f $LeftRef)
+    } elseif ($LeftOnly -eq 0 -and $RightOnly -gt 0) {
+        $kind = 'left-behind'
+        $severity = 'warning'
+        $summary = ('{0} is behind {1} by {2} commit(s).' -f $LeftRef, $RightRef, $RightOnly)
+        $recommendation = ('Pull, fast-forward, or merge from {0} before building on stale history.' -f $RightRef)
+    } elseif ($LeftOnly -gt 0 -and $RightOnly -gt 0) {
+        $kind = 'diverged'
+        $severity = 'danger'
+        $summary = ('{0} and {1} have diverged: {2} left-only and {3} right-only commit(s).' -f $LeftRef, $RightRef, $LeftOnly, $RightOnly)
+        $recommendation = 'Inspect both sides and the merge base before pulling, merging, rebasing, or publishing.'
+    }
+
+    return [pscustomobject]@{
+        LeftRef = $LeftRef
+        RightRef = $RightRef
+        LeftOnly = [int]$LeftOnly
+        RightOnly = [int]$RightOnly
+        Kind = $kind
+        Severity = $severity
+        Summary = $summary
+        Recommendation = $recommendation
+    }
+}
+
+function Format-GghBranchRelationshipSummary {
+    param(
+        [Parameter(Mandatory=$true)][object]$Relationship,
+        [AllowNull()][string]$MergeBase = '',
+        [AllowNull()][string[]]$UniqueCommitLines = @()
+    )
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    [void]$lines.Add(('Pair: {0} ... {1}' -f [string]$Relationship.LeftRef, [string]$Relationship.RightRef))
+    [void]$lines.Add(('Ahead/behind: {0} left-only, {1} right-only' -f [int]$Relationship.LeftOnly, [int]$Relationship.RightOnly))
+    if (-not [string]::IsNullOrWhiteSpace($MergeBase)) { [void]$lines.Add(('Merge base: {0}' -f $MergeBase.Trim())) }
+    [void]$lines.Add(('Status: {0}' -f [string]$Relationship.Summary))
+    [void]$lines.Add(('Recommended: {0}' -f [string]$Relationship.Recommendation))
+
+    $unique = @($UniqueCommitLines | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    if (@($unique).Count -gt 0) {
+        [void]$lines.Add('Unique commits preview:')
+        foreach ($line in $unique) { [void]$lines.Add('  ' + [string]$line) }
+    }
+
+    return (@($lines) -join "`r`n")
+}
+
 Export-ModuleMember -Function `
     ConvertTo-GghQuotedGitArgument, `
     New-GghGitCommandPlan, `
@@ -304,4 +411,10 @@ Export-ModuleMember -Function `
     Get-GghDecorationModel, `
     Format-GghRefSummary, `
     Format-GghVisualGraphRow, `
+    Get-GghAheadBehindCommandPlan, `
+    Get-GghMergeBaseCommandPlan, `
+    Get-GghUniqueCommitsCommandPlan, `
+    ConvertFrom-GghAheadBehindCount, `
+    Get-GghBranchRelationshipStatus, `
+    Format-GghBranchRelationshipSummary, `
     ConvertTo-GghVisualGraphRows

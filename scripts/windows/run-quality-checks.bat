@@ -13,7 +13,7 @@ cd /d "%ROOT%"
 
 set PYTHONNOUSERSITE=1
 
-echo === Git Glide GUI v3.7.0 quality checks ===
+echo === Git Glide GUI v3.8.0 quality checks ===
 
 echo.
 echo [1/4] Static package smoke test

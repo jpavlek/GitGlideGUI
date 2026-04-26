@@ -1,4 +1,4 @@
-# Git Glide GUI v3.7.0
+# Git Glide GUI v3.8.0
 
 Git Glide GUI is a lightweight, privacy-first Windows Git interface built with PowerShell/WinForms and designed for both manual and AI-assisted software development.
 
@@ -20,33 +20,33 @@ It is not trying to be the most complete Git GUI. It is designed to be a transpa
 
 Many Git tools focus on helping developers perform Git operations faster. Git Glide GUI focuses on the moments before execution: choosing what to stage, when to commit, which branch to use, whether a sync is safe, how to recover from a risky state, and when quality checks should run.
 
-This makes it especially useful in fast manual and AI-assisted development workflows, where many code changes can appear quickly and the main risk is not typing Git commands, but rushing versioning decisions. It combines visual staging, command previews, branch-role guidance, recovery workflows, custom actions, history inspection, and quality checks into a lightweight Windows tool that keeps Git transparent and developer-controlled.
+This makes it especially useful in fast manual and AI-assisted development workflows, where many code changes can appear quickly and the main risk is not typing Git commands, but rushing versioning decisions. It combines visual staging, command previews, branch-role guidance, recovery workflows, custom actions, history inspection, branch-relationship summaries, and quality checks into a lightweight Windows tool that keeps Git transparent and developer-controlled.
 
 ## Core Features
 
 - ***Complete Git Toolset***: Supports everyday Git workflows, Git Flow-style branch management, visual staging, commits, stash operations, tags, history inspection, GitHub publishing, and custom actions.
 
-- ***Safety First***: Preview commands before execution, run quality checks, and rely on built-in recovery guidance for risky repository states.
+- ***Safety First***: Preview commands before execution, run quality checks, inspect branch relationships, and rely on built-in recovery guidance for risky repository states.
 
 - ***For Every Skill Level***: Onboarding learning sections help beginners understand the "why" behind actions, while reminders and custom actions help experienced users move quickly without losing transparency or control.
 
-## Current focus: v3.7.0 branch sync, conflict recovery, and technical-debt reduction
+## Current focus: v3.8.0 visual history and branch understanding
 
-v3.7.0 improves Git Glide GUI as a safer workflow assistant for fast-moving manual and AI-assisted development.
+v3.8.0 builds on the v3.7 recovery, diff-visibility, and split-script foundation by making branch relationships easier to inspect before merge, pull, push, cleanup, or release decisions.
 
 The release focuses on three areas:
 
-1. **Repository state clarity** — better guidance for branch sync states, detached HEAD situations, merge/cherry-pick conflicts, untracked files, and other risky repository states.
-2. **Conflict recovery UX** — clearer recovery guidance, conflict marker scanning, script validation, and safer next-action suggestions.
-3. **Technical-debt reduction** — the previous large monolithic GUI script is split into smaller script parts so future versions can evolve with less risk.
+1. **Branch relationship clarity** — current branch vs upstream, current branch vs `develop`, and `develop` vs `main`.
+2. **Safer history inspection** — ahead/behind counts, merge-base inspection, and unique commit previews before risky operations.
+3. **Decision support before execution** — clearer answers to whether a branch is ahead, behind, diverged, already merged, or needs closer inspection.
 
-The goal is to keep behavior close to v3.6.13 while making the solution easier to maintain, test, and extend.
+The goal is to help users understand what will be merged, pulled, pushed, cleaned up, or released before they run the operation.
 
-## Previous focus: v3.6.13 workflow checklist and release consistency
+## Previous focus: v3.7.0 branch sync, conflict recovery, and technical-debt reduction
 
-v3.6.13 added a Merge & Publish checklist so the feature → develop → quality checks → main path is easier to follow without skipping steps.
+v3.7.0 improved Git Glide GUI as a safer workflow assistant for fast-moving manual and AI-assisted development.
 
-It also added merged-branch cleanup guidance and stronger static smoke checks for version and package consistency.
+It added repository state clarity, stronger conflict recovery UX, color-coded diff rendering, dynamic context banner sizing, and a split-script architecture that reduced the risk of maintaining one very large GUI script.
 
 ## Quick Start
 
@@ -80,21 +80,21 @@ run-quality-checks.bat
 The launcher calls:
 
 ```text
-scripts/windows/GitGlideGUI-v3.7.0.ps1
+scripts/windows/GitGlideGUI-v3.8.0.ps1
 ```
 
 That entrypoint dot-sources:
 
 ```text
-scripts/windows/GitGlideGUI-v3.7.0.part01-bootstrap-config.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part02-state-selection.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part03-previews-basic-ops.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part04-recovery-push-stash-tags.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part05-ui.ps1
-scripts/windows/GitGlideGUI-v3.7.0.part06-run.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part01-bootstrap-config.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part02-state-selection.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part03-previews-basic-ops.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part04-recovery-push-stash-tags.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part05-ui.ps1
+scripts/windows/GitGlideGUI-v3.8.0.part06-run.ps1
 ```
 
-This is a low-risk modularity step. The application still runs through one versioned entrypoint, while the implementation is separated into smaller files so future changes can be reviewed, tested, and maintained more safely.
+The application still runs through one versioned entrypoint, while the implementation remains separated into smaller files so future changes can be reviewed, tested, and maintained more safely.
 
 ## Repository tracking
 
@@ -113,9 +113,9 @@ Start with:
 ```text
 docs/START_HERE.md
 docs/REPOSITORY_WORKFLOW.md
-docs/RELEASE_NOTES_v3_7.md
-docs/ARCHITECTURE_v3_7.md
-docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_7.md
-docs/SWOT_AND_ROADMAP_v3_7.md
-docs/ROADMAP_REVIEW_v3_7.md
+docs/RELEASE_NOTES_v3_8.md
+docs/ARCHITECTURE_v3_8.md
+docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_8.md
+docs/SWOT_AND_ROADMAP_v3_8.md
+docs/ROADMAP_REVIEW_v3_8.md
 ```
