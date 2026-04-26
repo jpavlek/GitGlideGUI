@@ -1,0 +1,15 @@
+.gitignore
+README.md
+VERSION
+docs/CHANGELOG_V3_7_0.md
+docs/FILES_CHANGED_V3_7_0.md
+docs/INSTALL_AND_RUN_V3_7_0.md
+docs/MANIFEST_V3_7_0.txt
+docs/RELEASE_CHECKLIST_V3_7_0.md
+docs/ROADMAP_AFTER_V3_7.md
+git-glide-gui-v3.7.0.bat
+git-glide-gui.bat
+run-quality-checks.bat
+scripts/windows/GitGlideGUI-v3.7.0.ps1
+scripts/windows/run-git-glide-v3.7-quality-checks.ps1
+scripts/windows/run-quality-checks.bat

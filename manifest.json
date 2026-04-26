@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.6.13",
+  "version": "3.7.0",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.6.13.ps1",
+  "main_script": "scripts/windows/GitGlideGUI-v3.7.0.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.6.13 workflow checklist, branch cleanup, and release consistency guard",
+  "iteration_focus": "v3.7.0 split-script architecture, repository state doctor, conflict recovery UX, and quality-gate hardening",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -26,18 +26,17 @@
     "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
-    "UI organization release focused on reducing overwhelm without removing features",
-    "Mode-aware changed-files context banner and calmer action grouping guidance",
-    "Command palette entry point for finding actions without overcrowding the visible UI",
-    "Three-mode progressive disclosure: Simple, Workflow, and Expert actions",
-    "Branch switching now warns on dirty work but offers a switch anyway choice",
-    "Switch anyway lets Git attempt the branch switch and rely on Git to block unsafe overwrites",
-    "Pull, merge, and other higher-risk workflows keep stricter clean-working-tree protection"
+    "Split-script architecture that keeps each GUI implementation file below 4000 lines",
+    "Repository State Doctor for detached HEAD, divergence, recovery operations, unmerged files, and conflict markers",
+    "Conflict marker scanner for changed and unmerged files",
+    "GUI script validation updated for the split script set",
+    "Dynamic Changed Files context banner sizing",
+    "Static smoke test line-count guard to prevent another monolithic version file"
   ],
   "next_recommended": [
-    "Add a branch-switch preflight that predicts whether dirty files overlap with the target branch",
-    "Add optional auto-stash before branch switch with clear recovery guidance",
-    "Add branch cleanup guidance after merged feature branches"
+    "v3.7.1: extract Repository State Doctor pure logic into a dedicated core module with Pester tests",
+    "v3.8: visual branch/history graph improvements",
+    "v3.9: guided conflict resolution assistant and safer merge workflow automation"
   ],
   "highlights": [
     "Restores clearer merge support that had become hidden or too current-branch dependent",
@@ -49,5 +48,13 @@
     "Merged feature branch cleanup command plans",
     "Static release consistency checks for version drift",
     "Updated README and repository workflow guidance"
+  ],
+  "split_script_parts": [
+    "scripts/windows/GitGlideGUI-v3.7.0.part01-bootstrap-config.ps1",
+    "scripts/windows/GitGlideGUI-v3.7.0.part02-state-selection.ps1",
+    "scripts/windows/GitGlideGUI-v3.7.0.part03-previews-basic-ops.ps1",
+    "scripts/windows/GitGlideGUI-v3.7.0.part04-recovery-push-stash-tags.ps1",
+    "scripts/windows/GitGlideGUI-v3.7.0.part05-ui.ps1",
+    "scripts/windows/GitGlideGUI-v3.7.0.part06-run.ps1"
   ]
 }

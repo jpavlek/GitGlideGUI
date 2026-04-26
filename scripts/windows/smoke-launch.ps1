@@ -1,9 +1,18 @@
-# Minimal Windows smoke-launch test for Git Glide GUI.
-# This intentionally uses -SmokeTest so it parses the full GUI script and imports modules,
-# but exits before opening the WinForms window.
+﻿# Minimal Windows smoke-launch test for Git Glide GUI.
+# Uses -SmokeTest so split script parts are parsed and imported, but the
+# WinForms window is not shown.
 
 $ErrorActionPreference = 'Stop'
-$scriptPath = Join-Path $PSScriptRoot 'GitGlideGUI-v3.6.13.ps1'
+
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
+$versionPath = Join-Path $repoRoot 'VERSION'
+if (-not (Test-Path -LiteralPath $versionPath)) {
+    throw "VERSION file not found: $versionPath"
+}
+
+$version = (Get-Content -LiteralPath $versionPath -Raw).Trim()
+$scriptPath = Join-Path $PSScriptRoot "GitGlideGUI-v$version.ps1"
+
 if (-not (Test-Path -LiteralPath $scriptPath)) {
     throw "Main GUI script not found: $scriptPath"
 }

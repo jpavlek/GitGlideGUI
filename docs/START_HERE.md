@@ -1,16 +1,31 @@
-# Git Glide GUI v3.6.13
+# Git Glide GUI v3.7.0 - Start Here
 
-Git Glide GUI is a lightweight, privacy-first Windows Git interface for safer human and AI-assisted software development. 
-It turns fast coding changes into clear versioning choices, helping developers stay in control and use their judgment with command previews, visual staging, recovery guidance, custom actions, and quality checks.
+This guide helps you launch Git Glide GUI, choose the right first action, and find the main workflows.
 
-v3.6.13 adds a Merge & Publish checklist, merged-branch cleanup guidance, and stronger version/package consistency checks. The goal is to help developers avoid skipped workflow steps while keeping every Git command visible before execution.
+For the product overview, positioning, and v3.7.0 release focus, see `README.md`.
 
-v3.6.12 focuses on UI organization and progressive disclosure.
-It adds Simple, Workflow, and Expert modes so everyday Git work stays visible while advanced tools remain available through mode-aware tabs and the command palette.
+v3.7.0 keeps behavior close to v3.6.13 while adding stronger repository-state guidance, conflict recovery support, dynamic context banner sizing, and a split-script layout for safer maintenance.
+
+## Requirements
+
+- Windows 10 or 11.
+- Git installed and available from the command line.
+- Windows PowerShell.
+
+## Shortest path
+
+From the package root:
+
+```bat
+run-quality-checks.bat
+git-glide-gui.bat
+```
+
+Then either open an existing repository, initialize a new one, or continue without selecting a repository.
 
 ## Start the app
 
-From the extracted package root:
+Preferred launcher:
 
 ```bat
 git-glide-gui.bat
@@ -19,20 +34,64 @@ git-glide-gui.bat
 To open a specific repository:
 
 ```bat
-git-glide-gui.bat -RepositoryPath "D:\Projects\PersonalCloud\PersonalCloud_v33_3_9"
+git-glide-gui.bat -RepositoryPath "D:\Projects\YourRepo"
 ```
 
-The old compatibility launcher is still included:
+Compatibility launcher:
 
 ```bat
 git-flow-gui2.bat
 ```
+
+Use `git-flow-gui2.bat` only when you need the older compatibility entry point.
 
 ## First startup choices
 
 - **Open existing repo**: choose a folder that already has `.git`.
 - **Init new repo**: choose a normal folder and create a new Git repository there.
 - **Continue without repo**: open the app without selecting a repository yet.
+
+## Validate the package
+
+Before using a new package or after integrating changes, run:
+
+```bat
+run-quality-checks.bat
+```
+
+The quality gate runs:
+
+1. Static package/version/line-count smoke test.
+2. Windows smoke launch with `-SmokeTest`.
+3. Pester tests when Pester is installed.
+4. PSScriptAnalyzer checks when PSScriptAnalyzer is installed.
+
+For Pester-only test runs, use:
+
+```bat
+run-pester-tests.bat
+```
+
+This is useful when you want to rerun only the PowerShell module and workflow tests without repeating the full static smoke, launch, and analyzer checks.
+
+## If something looks wrong
+
+Start with:
+
+```bat
+git status
+run-quality-checks.bat
+```
+
+Use the **Recovery** area when Git Glide GUI reports a risky repository state, such as a merge in progress, unresolved files, detached HEAD, or a branch that is ahead/behind its upstream.
+
+If the GUI script itself fails to start, run:
+
+```bat
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\windows\smoke-launch.ps1
+```
+
+If a conflict was resolved manually, use the conflict marker scanner before staging resolved files.
 
 ## UI modes
 
@@ -87,11 +146,26 @@ Available file-removal workflows:
 
 Both actions require confirmation.
 
-## History, recovery, and conflict safety
+## Recovery and Repository State Doctor
 
-Use **History / Graph** to inspect a read-only `git log --graph` view before merging, pulling, deleting tags, or undoing commits.
+v3.7.0 adds stronger repository-state guidance in the Recovery area.
 
-Recovery tools include merge/cherry-pick guidance, abort/continue previews, conflict file listing, and conflict marker verification. Before staging a resolved conflict file, Git Glide GUI scans for complete conflict marker blocks:
+Use Recovery when the repository is in a risky or confusing state, such as:
+
+- detached HEAD
+- branch ahead/behind origin
+- merge in progress
+- cherry-pick in progress
+- unresolved files
+- conflict markers still present
+- local changes that would be overwritten
+- untracked files that would be overwritten
+
+The Recovery area explains what happened, why it matters, and which next actions are safer.
+
+## Conflict marker scanner
+
+Before staging a resolved conflict file, Git Glide GUI can scan for complete conflict marker blocks:
 
 ```text
 <<<<<<<
@@ -100,6 +174,19 @@ Recovery tools include merge/cherry-pick guidance, abort/continue previews, conf
 ```
 
 If markers remain, staging is blocked and the UI shows the marker lines that still need attention.
+
+## History and graph inspection
+
+Use **History / Graph** to inspect a read-only `git log --graph` view before merging, pulling, deleting tags, or undoing commits.
+
+History inspection is useful before decisions such as:
+
+- merging a feature branch
+- syncing `develop` and `main`
+- deleting a merged branch
+- cherry-picking a commit
+- undoing a local commit
+- publishing a release branch
 
 ## GitHub workflows
 
@@ -150,68 +237,67 @@ git switch develop
 git merge --no-ff feature/my-work
 git push
 
-scripts\windows\run-quality-checks.bat
+run-quality-checks.bat
 
 git switch main
 git merge --no-ff develop
 git push
 ```
 
-## Quality checks
+## Split-script layout
 
-From the extracted package root:
+v3.7.0 replaces the previous single large versioned GUI script with one small entrypoint and six ordered implementation files.
+
+The launcher calls:
+
+```text
+scripts/windows/GitGlideGUI-v3.7.0.ps1
+```
+
+That entrypoint dot-sources:
+
+```text
+scripts/windows/GitGlideGUI-v3.7.0.part01-bootstrap-config.ps1
+scripts/windows/GitGlideGUI-v3.7.0.part02-state-selection.ps1
+scripts/windows/GitGlideGUI-v3.7.0.part03-previews-basic-ops.ps1
+scripts/windows/GitGlideGUI-v3.7.0.part04-recovery-push-stash-tags.ps1
+scripts/windows/GitGlideGUI-v3.7.0.part05-ui.ps1
+scripts/windows/GitGlideGUI-v3.7.0.part06-run.ps1
+```
+
+The application still runs through one versioned entrypoint, while the implementation is separated into smaller files so future versions can evolve with less risk.
+
+## Development workflow for this package
+
+For continued development, use a feature branch and run checks before committing:
 
 ```bat
+git switch develop
+git pull
+git switch -c feature/v3-7-branch-sync-conflict-recovery
 run-quality-checks.bat
+git-glide-gui.bat
 ```
 
-or directly:
-
-```bat
-scripts\windows\run-quality-checks.bat
-```
-
-For Pester only:
-
-```bat
-run-pester-tests.bat
-```
-
-For the parser/import smoke check only:
-
-```bat
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\windows\smoke-launch.ps1
-```
-
-If you are already inside `scripts\windows`, use:
-
-```bat
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File smoke-launch.ps1
-```
+Commit only after local quality checks pass.
 
 ## Recent release highlights
 
-- **v3.6.3**: history/graph polish with ASCII-safe graph badges and branch/tag/remote indicators.
-- **v3.6.4**: splitter shutdown stability and first-commit unstage fix using `git rm --cached`.
-- **v3.6.5**: conflict marker verification before staging resolved files.
-- **v3.6.6**: GitHub publish guidance and privacy reminders.
-- **v3.6.7**: GitHub diagnostics, upstream guidance, safer remove/stop-tracking workflows, and clearer file status badges.
-- **v3.6.7.1**: GitHub remote parser compatibility fix for Windows PowerShell 5.1 / Pester 3.
-- **v3.6.8**: tracked-file browser for clean-file removal/replacement workflows.
-- **v3.6.9**: Merge & Publish workflow restoration.
-- **v3.6.10**: dirty-work branch switching now warns but allows the user to continue when Git itself allows it.
-- **v3.6.10.1**: protected-branch workflow guard.
 - **v3.6.11**: branch context banner and workflow guard reliability.
 - **v3.6.12**: UI organization with Simple, Workflow, and Expert modes plus command palette entry point.
 - **v3.6.13**: workflow checklist, merged-branch cleanup guidance, and release consistency smoke checks.
+- **v3.7.0**: repository state clarity, conflict recovery UX, split-script layout, dynamic context banner sizing, and technical-debt reduction.
 
 ## More documentation
 
-See:
+Start with:
 
 ```text
+README.md
+docs/ARCHITECTURE_v3_7.md
+docs/RELEASE_NOTES_v3_7.md
 docs/REPOSITORY_WORKFLOW.md
-docs/RELEASE_NOTES_v3_6_13.md
-docs/ROADMAP_REVIEW_v3_6_13.md
-docs/SWOT_AND_ROADMAP_v3_6_13.md
+docs/ROADMAP_REVIEW_v3_7.md
+docs/SWOT_AND_ROADMAP_v3_7.md
+docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_7.md
 ```
