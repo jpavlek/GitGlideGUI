@@ -80,3 +80,17 @@ Describe 'Git Flow branch role helpers' {
         $plans[0].Display | Should Be 'git switch -c fix/context-guard'
     }
 }
+
+
+Describe 'Git Glide UI mode helper' {
+    It 'keeps simple mode focused while workflow and expert preserve access to advanced tools' {
+        $simple = @(Get-GgbUiModeTabNames -Mode Simple)
+        $workflow = @(Get-GgbUiModeTabNames -Mode Workflow)
+        $expert = @(Get-GgbUiModeTabNames -Mode Expert)
+        $simple -contains 'Custom Git' | Should Be $false
+        $workflow -contains 'Integrate' | Should Be $true
+        $workflow -contains 'Recovery' | Should Be $true
+        $expert -contains 'Custom Git' | Should Be $true
+        $expert.Count -gt $simple.Count | Should Be $true
+    }
+}

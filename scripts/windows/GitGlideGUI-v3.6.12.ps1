@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.6.11
+# Git Glide GUI - Enhanced Version v3.6.12
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -36,7 +36,8 @@
 # - v3.6.8: tracked-file browser for clean file replacement/remove workflows
 # - v3.6.9: restored and extended Git Flow merge/publish workflow guidance
 # - v3.6.10.1: protected-branch commit warning and merge guide formatting hotfix
-# - v3.6.11: branch context banner, workflow guard actions, and package consistency
+# - v3.6.11: branch context banner, protected-branch workflow guards, and package/version consistency
+# - v3.6.12: UI organization with Simple/Workflow/Expert modes, mode-aware tabs, command palette, and Changed Files context banner to reduce visual overload without removing functionality.
 
 param(
     [string]$RepositoryPath = '',
@@ -72,7 +73,7 @@ foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $scr
 }
 
 if ($SmokeTest) {
-    Write-Host 'Git Glide GUI v3.6.11 smoke launch OK. Script parsed and modules were importable when present.'
+    Write-Host 'Git Glide GUI v3.6.12 smoke launch OK. Script parsed and modules were importable when present.'
     exit 0
 }
 
@@ -125,6 +126,7 @@ $script:DefaultConfig = @{
     GitHubRepositoryDescription = 'Git Glide GUI is a lightweight, privacy-first Windows Git interface for safer human and AI-assisted software development. It turns fast coding changes into clear versioning choices, helping developers stay in control and use their judgment with command previews, visual staging, recovery guidance, custom actions, and code & documentation checks.'
     ExternalMergeToolCommand = 'git mergetool'
     BeginnerMode = $true
+    UiMode = 'Simple'
     BeginnerGuidanceVisible = $true
     EnableAuditLog = $true
     ConfirmDestructiveActions = $true
@@ -3938,7 +3940,8 @@ function Update-ChangedFilesContextBanner {
     $role = Get-BranchRoleInfo -BranchName $branch
     $upstreamText = if ([string]::IsNullOrWhiteSpace($upstream)) { '(no upstream)' } else { $upstream }
     $stateText = if ([string]::IsNullOrWhiteSpace($branchState)) { '-' } else { $branchState }
-    $script:ChangedFilesContextLabel.Text = ('Branch: {0}  |  Role: {1}  |  Upstream: {2}  |  State: {3}  |  Changed: {4}  |  Next: {5}' -f $branch, $role.Role, $upstreamText, $stateText, $changed, $role.Recommended)
+    $mode = Get-UiMode
+    $script:ChangedFilesContextLabel.Text = ('Mode: {0}  |  Branch: {1}  |  Role: {2}  |  Upstream: {3}  |  State: {4}  |  Changed: {5}`r`nNext: {6}' -f $mode, $branch, $role.Role, $upstreamText, $stateText, $changed, $role.Recommended)
     try {
         if ($role.Severity -eq 'danger') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::MistyRose; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::DarkRed }
         elseif ($role.Severity -eq 'warning') { $script:ChangedFilesContextLabel.BackColor = [System.Drawing.Color]::LemonChiffon; $script:ChangedFilesContextLabel.ForeColor = [System.Drawing.Color]::SaddleBrown }
@@ -6075,7 +6078,7 @@ function Save-LayoutConfig {
 #region UI Setup
 
 $form = New-Object System.Windows.Forms.Form
-$script:AppVersion = '3.6.11'
+$script:AppVersion = '3.6.12'
 $form.Text = "Git Glide GUI v$script:AppVersion - safer visual Git workflows"
 $form.Size = New-Object System.Drawing.Size -ArgumentList @((Get-ConfigInt -Name 'WindowWidth' -DefaultValue 1580), (Get-ConfigInt -Name 'WindowHeight' -DefaultValue 1080))
 $form.StartPosition = 'CenterScreen'
@@ -6379,18 +6382,50 @@ $script:TagsTabPage = $tagsActionsPanel.Parent
 $script:AllActionTabs = @($script:SetupTabPage, $script:InspectTabPage, $script:HistoryTabPage, $script:RecoveryTabPage, $script:LearningTabPage, $script:StageTabPage, $script:BranchTabPage, $script:IntegrateTabPage, $script:StashTabPage, $script:CustomGitTabPage, $script:AppearanceTabPage, $script:TagsTabPage)
 $script:AdvancedActionTabs = @($script:IntegrateTabPage, $script:CustomGitTabPage, $script:AppearanceTabPage, $script:TagsTabPage)
 
+function Get-UiMode {
+    try {
+        if ($script:Config.ContainsKey('UiMode') -and -not [string]::IsNullOrWhiteSpace([string]$script:Config.UiMode)) {
+            $mode = [string]$script:Config.UiMode
+            if ($mode -in @('Simple','Workflow','Expert')) { return $mode }
+        }
+    } catch {}
+    if (Get-ConfigBool -Name 'BeginnerMode' -DefaultValue $true) { return 'Simple' }
+    return 'Expert'
+}
+
+function Set-UiMode {
+    param([ValidateSet('Simple','Workflow','Expert')][string]$Mode)
+    Set-ConfigValue -Name 'UiMode' -Value $Mode
+    Set-ConfigValue -Name 'BeginnerMode' -Value ($Mode -eq 'Simple')
+    Save-Config -Config $script:Config
+}
+
+function Get-UiModeTabPages {
+    param([ValidateSet('Simple','Workflow','Expert')][string]$Mode)
+    switch ($Mode) {
+        'Simple' {
+            return @($script:SetupTabPage, $script:StageTabPage, $script:BranchTabPage, $script:StashTabPage, $script:InspectTabPage)
+        }
+        'Workflow' {
+            return @($script:SetupTabPage, $script:StageTabPage, $script:BranchTabPage, $script:IntegrateTabPage, $script:RecoveryTabPage, $script:HistoryTabPage, $script:StashTabPage, $script:TagsTabPage, $script:LearningTabPage)
+        }
+        default {
+            return @($script:AllActionTabs)
+        }
+    }
+}
+
 function Apply-UiMode {
-    $beginner = Get-ConfigBool -Name 'BeginnerMode' -DefaultValue $true
+    $mode = Get-UiMode
     if (-not $script:ActionsTabs -or -not $script:AllActionTabs) { return }
 
     $script:ActionsTabs.SuspendLayout()
     try {
         $current = $script:ActionsTabs.SelectedTab
         $script:ActionsTabs.TabPages.Clear()
-        foreach ($tab in $script:AllActionTabs) {
+        foreach ($tab in @(Get-UiModeTabPages -Mode $mode)) {
             if ($null -eq $tab) { continue }
-            if ($beginner -and ($script:AdvancedActionTabs -contains $tab)) { continue }
-            [void]$script:ActionsTabs.TabPages.Add($tab)
+            if (-not $script:ActionsTabs.TabPages.Contains($tab)) { [void]$script:ActionsTabs.TabPages.Add($tab) }
         }
         if ($current -and $script:ActionsTabs.TabPages.Contains($current)) {
             $script:ActionsTabs.SelectedTab = $current
@@ -6401,33 +6436,34 @@ function Apply-UiMode {
         $script:ActionsTabs.ResumeLayout()
     }
 
+    if ($script:ActionsGroup) {
+        $script:ActionsGroup.Text = ('Actions - {0} mode' -f $mode)
+    }
     if ($script:ModeToggleButton) {
-        if ($beginner) {
-            $script:ModeToggleButton.Text = 'Switch to Advanced mode'
-        } else {
-            $script:ModeToggleButton.Text = 'Switch to Beginner mode'
-        }
+        $next = if ($mode -eq 'Simple') { 'Workflow' } elseif ($mode -eq 'Workflow') { 'Expert' } else { 'Simple' }
+        $script:ModeToggleButton.Text = ('Switch to {0} mode' -f $next)
     }
-
-    if ($script:ModeValueLabel) {
-        $script:ModeValueLabel.Text = if ($beginner) { 'Beginner' } else { 'Advanced' }
-    }
+    if ($script:ModeValueLabel) { $script:ModeValueLabel.Text = $mode }
+    Update-ChangedFilesContextBanner
 }
 
 function Toggle-UiMode {
-    $beginner = Get-ConfigBool -Name 'BeginnerMode' -DefaultValue $true
-    Set-ConfigValue -Name 'BeginnerMode' -Value (-not $beginner)
-    Save-Config -Config $script:Config
+    $mode = Get-UiMode
+    $next = if ($mode -eq 'Simple') { 'Workflow' } elseif ($mode -eq 'Workflow') { 'Expert' } else { 'Simple' }
+    Set-UiMode -Mode $next
     Apply-UiMode
-    $mode = if (Get-ConfigBool -Name 'BeginnerMode' -DefaultValue $true) { 'Beginner' } else { 'Advanced' }
-    Set-SuggestedNextAction -Text ("$mode mode enabled. Use Setup to switch modes again.")
+    Set-SuggestedNextAction -Text ("$next mode enabled. Simple reduces visible choices, Workflow shows guided Git Flow, Expert shows every tab.")
 }
 
 function Build-ModeTogglePreview {
-    if (Get-ConfigBool -Name 'BeginnerMode' -DefaultValue $true) {
-        return 'show advanced tabs: Integrate, Custom Git, Appearance, Tags / Release'
+    $mode = Get-UiMode
+    if ($mode -eq 'Simple') {
+        return 'switch UI mode to Workflow; show guided Git Flow, Recovery, History, Tags, and Learning while keeping everyday actions visible'
     }
-    return 'hide advanced tabs and keep Setup, Inspect / Build, History / Graph, Recovery, Learning, Stage, Branch, and Stash visible'
+    if ($mode -eq 'Workflow') {
+        return 'switch UI mode to Expert; show every tab including Custom Git and Appearance without changing repository state'
+    }
+    return 'switch UI mode to Simple; keep everyday work actions visible and hide advanced tabs behind the mode switch and command palette'
 }
 
 function New-ActionButton {
@@ -6471,9 +6507,114 @@ function New-ActionGuidance {
     return $label
 }
 
+
+function Get-CommandPaletteItems {
+    $items = @(
+        @{ Name='Refresh status'; Group='Inspect'; Tab=$script:InspectTabPage; Preview='git status --porcelain=v1 --branch'; Notes='Refresh branch, upstream, changed files, and suggestions.' },
+        @{ Name='Stage selected'; Group='Work'; Tab=$script:StageTabPage; Preview=(Build-StageSelectedPreview); Notes='Add selected changes to the next commit.' },
+        @{ Name='Unstage selected'; Group='Work'; Tab=$script:StageTabPage; Preview=(Build-UnstageSelectedPreview); Notes='Remove selected changes from the next commit without losing them.' },
+        @{ Name='Stop tracking selected'; Group='Work'; Tab=$script:StageTabPage; Preview=(Build-StopTrackingPreviewForItems -Items (Get-SelectedStatusItems)); Notes='Use git rm --cached to keep a local file but stop versioning it.' },
+        @{ Name='Commit'; Group='Commit'; Tab=$script:SetupTabPage; Preview=(Build-CommitPreview); Notes='Review staged changes and commit on the current branch.' },
+        @{ Name='Push current branch'; Group='Sync'; Tab=$script:IntegrateTabPage; Preview='git push -u origin HEAD'; Notes='Share the current branch and set upstream if needed.' },
+        @{ Name='Merge feature into develop'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-MergeSelectedFeatureIntoDevelopPreview); Notes='Integrate selected feature/fix work into develop.' },
+        @{ Name='Run quality checks'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview='scripts\windows\run-quality-checks.bat'; Notes='Run smoke, launch, Pester, and optional ScriptAnalyzer checks before shipping.' },
+        @{ Name='Merge develop into main'; Group='Workflow'; Tab=$script:IntegrateTabPage; Preview=(Build-MergeDevelopPreview); Notes='Promote tested develop work back to the release branch.' },
+        @{ Name='GitHub diagnostics'; Group='GitHub'; Tab=$script:SetupTabPage; Preview=(Build-GitHubDiagnosticsPreview); Notes='Inspect remotes, upstream, remote reachability, and GitHub repository access.' },
+        @{ Name='Recovery'; Group='Recover'; Tab=$script:RecoveryTabPage; Preview=(Build-RecoveryStatusPreview); Notes='Inspect conflicts and continue/abort merge, rebase, cherry-pick, or revert operations.' },
+        @{ Name='History graph'; Group='Inspect'; Tab=$script:HistoryTabPage; Preview=(Build-HistoryPreview); Notes='Inspect branch graph, merges, tags, and commits.' },
+        @{ Name='Custom Git'; Group='Expert'; Tab=$script:CustomGitTabPage; Preview='git <allowlisted command>'; Notes='Run an allowlisted custom Git command with preview and safety checks.' }
+    )
+    return @($items | ForEach-Object { [pscustomobject]$_ })
+}
+
+function Show-CommandPalette {
+    $dialog = New-Object System.Windows.Forms.Form
+    $dialog.Text = 'Command palette - find Git Glide actions'
+    $dialog.Size = New-Object System.Drawing.Size(820, 560)
+    $dialog.StartPosition = 'CenterParent'
+    $dialog.MinimizeBox = $false
+    $dialog.MaximizeBox = $false
+    $dialog.Font = $script:UiFont
+
+    $layout = New-Object System.Windows.Forms.TableLayoutPanel
+    $layout.Dock = 'Fill'
+    $layout.Padding = New-Object System.Windows.Forms.Padding(12)
+    $layout.ColumnCount = 1
+    $layout.RowCount = 4
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 55)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 45)))
+    [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
+    $dialog.Controls.Add($layout)
+
+    $search = New-Object System.Windows.Forms.TextBox
+    $search.Dock = 'Top'
+    $search.Margin = New-Object System.Windows.Forms.Padding(0,0,0,8)
+    $search.Text = ''
+    $layout.Controls.Add($search,0,0)
+
+    $list = New-Object System.Windows.Forms.ListBox
+    $list.Dock = 'Fill'
+    $list.DisplayMember = 'Display'
+    $layout.Controls.Add($list,0,1)
+
+    $details = New-Object System.Windows.Forms.TextBox
+    $details.Dock = 'Fill'
+    $details.Multiline = $true
+    $details.ReadOnly = $true
+    $details.ScrollBars = 'Vertical'
+    $details.Font = $script:FontMono
+    $layout.Controls.Add($details,0,2)
+
+    $buttons = New-Object System.Windows.Forms.FlowLayoutPanel
+    $buttons.Dock = 'Bottom'
+    $buttons.FlowDirection = 'RightToLeft'
+    $buttons.AutoSize = $true
+    $layout.Controls.Add($buttons,0,3)
+    $close = New-Object System.Windows.Forms.Button; $close.Text='Close'; $close.Width=90; $close.DialogResult=[System.Windows.Forms.DialogResult]::Cancel; $buttons.Controls.Add($close)
+    $focus = New-Object System.Windows.Forms.Button; $focus.Text='Show action area'; $focus.Width=130; $buttons.Controls.Add($focus)
+    $copy = New-Object System.Windows.Forms.Button; $copy.Text='Copy preview'; $copy.Width=110; $buttons.Controls.Add($copy)
+
+    $all = @(Get-CommandPaletteItems | ForEach-Object {
+        $_ | Add-Member -NotePropertyName Display -NotePropertyValue ('[{0}] {1}' -f $_.Group, $_.Name) -Force
+        $_
+    })
+    function Update-PaletteList {
+        $needle = $search.Text.Trim().ToLowerInvariant()
+        $list.Items.Clear()
+        foreach ($item in $all) {
+            $hay = (($item.Name + ' ' + $item.Group + ' ' + $item.Notes) -as [string]).ToLowerInvariant()
+            if ([string]::IsNullOrWhiteSpace($needle) -or $hay.Contains($needle)) { [void]$list.Items.Add($item) }
+        }
+        if ($list.Items.Count -gt 0) { $list.SelectedIndex = 0 }
+    }
+    $search.Add_TextChanged({ Update-PaletteList })
+    $list.Add_SelectedIndexChanged({
+        $item = $list.SelectedItem
+        if (-not $item) { $details.Text = ''; return }
+        $details.Text = ("{0}`r`n`r`n{1}`r`n`r`nPreview:`r`n{2}" -f $item.Display, $item.Notes, $item.Preview)
+    })
+    $copy.Add_Click({ if ($list.SelectedItem) { [System.Windows.Forms.Clipboard]::SetText([string]$list.SelectedItem.Preview) } })
+    $focus.Add_Click({
+        $item = $list.SelectedItem
+        if ($item -and $item.Tab -and $script:ActionsTabs) {
+            if (-not $script:ActionsTabs.TabPages.Contains($item.Tab)) {
+                Set-UiMode -Mode 'Expert'
+                Apply-UiMode
+            }
+            if ($script:ActionsTabs.TabPages.Contains($item.Tab)) { $script:ActionsTabs.SelectedTab = $item.Tab }
+            Set-CommandPreview -Title $item.Name -Commands ([string]$item.Preview) -Notes ([string]$item.Notes)
+            $dialog.Close()
+        }
+    })
+    Update-PaletteList
+    [void]$dialog.ShowDialog($form)
+}
+
 # Setup actions
-[void](New-ActionGuidance -ParentPanel $setupActionsPanel -Text 'Start here: open an existing repository, initialize a new project folder, create the first commit, or add a remote. Hover buttons to see what will happen before anything runs.')
-$script:ModeToggleButton = New-ActionButton -ParentPanel $setupActionsPanel -Text 'Switch to Advanced mode' -Width 190 -Handler { Toggle-UiMode } -PreviewBuilder { Build-ModeTogglePreview } -PreviewTitle 'Beginner / Advanced mode' -Notes 'Beginner mode hides less common tabs. Advanced mode shows every workflow tab without changing repository state.'
+[void](New-ActionGuidance -ParentPanel $setupActionsPanel -Title 'Progressive disclosure' -Text 'Start here. Simple mode keeps everyday work visible, Workflow mode shows Git Flow steps, and Expert mode exposes every tool. Use Command palette to find hidden actions without crowding the screen.')
+$script:ModeToggleButton = New-ActionButton -ParentPanel $setupActionsPanel -Text 'Switch to Workflow mode' -Width 190 -Handler { Toggle-UiMode } -PreviewBuilder { Build-ModeTogglePreview } -PreviewTitle 'Simple / Workflow / Expert mode' -Notes 'Progressive disclosure reduces overwhelm without removing features. Simple shows everyday actions, Workflow shows guided Git Flow, Expert shows everything.'
+[void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'Command palette...' -Width 165 -Handler { Show-CommandPalette } -PreviewBuilder { 'open searchable action palette; no Git command runs until you choose an action area and review the preview' } -PreviewTitle 'Command palette' -Notes 'Find actions that are hidden in the current mode without crowding the main screen. Useful when Simple mode hides advanced tabs.')
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'Open existing repo' -Width 160 -Handler { Show-RepositoryPicker } -PreviewBuilder { 'select an existing Git repository folder and refresh status' } -PreviewTitle 'Open existing repository' -Notes 'Use this when the project already has a .git folder.')
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'Init new repo' -Width 130 -Handler { Show-NewRepositoryPicker } -PreviewBuilder { 'git init -b <main-branch>' } -PreviewTitle 'Initialize new repository' -Notes 'Use this when the selected project folder intentionally does not have a Git repository yet.')
 [void](New-ActionButton -ParentPanel $setupActionsPanel -Text 'First commit...' -Width 135 -Handler { Invoke-FirstCommitWizard } -PreviewBuilder { Build-FirstCommitPreview } -PreviewTitle 'First commit wizard' -Notes 'Creates or updates .gitignore, stages files, creates the first commit, and optionally configures/pushes to a remote.')
@@ -7756,7 +7897,7 @@ $mainWorkSplit.Panel2.Controls.Add($contentSplit)
 
 # Changed files group
 $leftGroup = New-Object System.Windows.Forms.GroupBox
-$leftGroup.Text = 'Changed files'
+$leftGroup.Text = 'Work area / Changed files'
 $leftGroup.Dock = 'Fill'
 $leftGroup.Padding = New-Object System.Windows.Forms.Padding(10)
 $contentSplit.Panel1.Controls.Add($leftGroup)
@@ -8205,10 +8346,10 @@ $form.Add_FormClosing({
 
 # Initialize and show
 Set-HelpExamples
-Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.11 ready.' -Color ([System.Drawing.Color]::DarkGreen)
+Append-Log -Text 'Git Glide GUI - Enhanced Version v3.6.12 ready.' -Color ([System.Drawing.Color]::DarkGreen)
 Append-Log -Text "Config: $script:ConfigPath" -Color ([System.Drawing.Color]::DarkGray)
 Append-Log -Text "Audit log: $script:AuditLogPath" -Color ([System.Drawing.Color]::DarkGray)
-Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.11" -f $script:RepoRoot)
+Write-AuditLog -Message ("STARTUP | RepoRoot='{0}' | Version=v3.6.12" -f $script:RepoRoot)
 
 $repositoryReady = Ensure-RepositorySelected -InitialStartup
 
@@ -8218,7 +8359,7 @@ if ($script:StartupAborted) {
 }
 
 Apply-UiMode
-Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.11' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for Open existing repo, Init new repo, First commit, .gitignore, Remote setup, and GitHub publish and diagnostics guidance. Use Integrate for Merge & Publish workflows, History / Graph for read-only branch/merge inspection, Recovery for resolved/unresolved conflicts, conflict-marker verification before staging resolved files, continue/abort operations, merge tools, and cherry-pick workflows. Use Learning for workflow explanations. Press ESC to cancel running operations.'
+Set-CommandPreview -Title 'Welcome to Git Glide GUI v3.6.12' -Commands 'Hover a button to preview its commands.' -Notes 'Use Setup for repository setup, UI mode, command palette, and GitHub publish/diagnostics guidance. Simple mode keeps everyday actions visible, Workflow mode shows Git Flow steps, and Expert mode shows every tool. Use Integrate for Merge & Publish workflows, Recovery for conflicts, and History / Graph for branch inspection. Press ESC to cancel running operations.'
 if ($repositoryReady) { Refresh-Status } else { Set-SuggestedNextAction -Text 'Open existing repo or init new repo before running Git operations.' -Action 'choose-repo' }
 
 try {
