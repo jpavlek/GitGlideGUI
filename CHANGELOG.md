@@ -1,5 +1,12 @@
 # Changelog
 
+# v3.6.13 - Workflow checklist and release consistency guard
+
+- Added Merge & Publish workflow checklist preview for feature/fix -> develop -> quality checks -> main.
+- Added merged feature/fix branch cleanup command plans and UI entry point.
+- Added static smoke release consistency checks for VERSION, manifest, launcher, smoke launch, quality-check title, README, START_HERE, and old main script drift.
+- Updated README and repository workflow guidance around branch cleanup and release flow.
+
 # v3.6.12 - UI organization and progressive disclosure
 
 - Added Simple / Workflow / Expert modes.
