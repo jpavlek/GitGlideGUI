@@ -1,12 +1,25 @@
 param(
     [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
-    [string]$Version = '3.8.0',
+    [string]$Version = '',
     [string]$RemoteUrl = '',
     [switch]$SkipQualityChecks
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $versionPath = Join-Path $RepositoryRoot 'VERSION'
+    if (Test-Path -LiteralPath $versionPath) {
+        $Version = (Get-Content -LiteralPath $versionPath -Raw).Trim()
+    }
+    if ([string]::IsNullOrWhiteSpace($Version)) {
+        $Version = '0.0.0-dev'
+    }
+}
+
+if ($Version -notmatch '^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$' -and $Version -ne '0.0.0-dev') {
+    throw "Invalid VERSION value: $Version"
+}
 
 function Invoke-GitGlideGit {
     param([string[]]$Arguments, [switch]$AllowFailure)

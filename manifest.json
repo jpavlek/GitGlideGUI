@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.8.0",
+  "version": "3.8.1",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
-  "main_script": "scripts/windows/GitGlideGUI-v3.8.0.ps1",
+  "main_script": "scripts/windows/GitGlideGUI.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.8.0 visual history and branch understanding: branch relationship summaries, ahead/behind counts, merge-base inspection, and safer merge-preview context",
+  "iteration_focus": "v3.8.1 stabilization: central version source-of-truth, stable runtime script names, and reduced release churn",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -26,16 +26,16 @@
     "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
-    "Branch relationship overview for current branch vs upstream, develop, and main",
-    "Ahead/behind summary using git rev-list --left-right --count",
-    "Merge-base inspection for branch relationship decisions",
-    "Unique commit preview for selected branch pairs before merge or release promotion",
-    "History tab relationship panel for safer branch understanding before merge, pull, push, or tag decisions"
+    "Stable runtime entrypoint scripts/windows/GitGlideGUI.ps1",
+    "Stable split script part filenames that no longer change each release",
+    "Runtime version lookup from VERSION through Get-GitGlideVersion",
+    "Version-independent launcher and smoke-launch behavior",
+    "Static smoke checks updated to validate stable runtime script names"
   ],
   "next_recommended": [
-    "v3.8.1: file history and commit details polish",
     "v3.9.0: guided conflict resolution assistant and safer merge workflow automation",
-    "v3.10.0: interactive rebase and commit cleanup workflows"
+    "v3.10.0: interactive rebase and commit cleanup workflows",
+    "v3.11.0: CI/CD and pull-request workflow integration"
   ],
   "highlights": [
     "Restores clearer merge support that had become hidden or too current-branch dependent",
@@ -49,11 +49,11 @@
     "Updated README and repository workflow guidance"
   ],
   "split_script_parts": [
-    "scripts/windows/GitGlideGUI-v3.8.0.part01-bootstrap-config.ps1",
-    "scripts/windows/GitGlideGUI-v3.8.0.part02-state-selection.ps1",
-    "scripts/windows/GitGlideGUI-v3.8.0.part03-previews-basic-ops.ps1",
-    "scripts/windows/GitGlideGUI-v3.8.0.part04-recovery-push-stash-tags.ps1",
-    "scripts/windows/GitGlideGUI-v3.8.0.part05-ui.ps1",
-    "scripts/windows/GitGlideGUI-v3.8.0.part06-run.ps1"
+    "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",
+    "scripts/windows/GitGlideGUI.part02-state-selection.ps1",
+    "scripts/windows/GitGlideGUI.part03-previews-basic-ops.ps1",
+    "scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1",
+    "scripts/windows/GitGlideGUI.part05-ui.ps1",
+    "scripts/windows/GitGlideGUI.part06-run.ps1"
   ]
 }

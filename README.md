@@ -1,4 +1,4 @@
-# Git Glide GUI v3.8.0
+# Git Glide GUI v3.8.1
 
 Git Glide GUI is a lightweight, privacy-first Windows Git interface built with PowerShell/WinForms and designed for both manual and AI-assisted software development.
 
@@ -30,17 +30,23 @@ This makes it especially useful in fast manual and AI-assisted development workf
 
 - ***For Every Skill Level***: Onboarding learning sections help beginners understand the "why" behind actions, while reminders and custom actions help experienced users move quickly without losing transparency or control.
 
-## Current focus: v3.8.0 visual history and branch understanding
+## Current focus: v3.8.1 version source-of-truth and release-churn reduction
 
-v3.8.0 builds on the v3.7 recovery, diff-visibility, and split-script foundation by making branch relationships easier to inspect before merge, pull, push, cleanup, or release decisions.
+v3.8.1 is a stabilization release. It reduces release churn by moving runtime launch paths from versioned script filenames to stable script filenames and treating the version as data.
 
 The release focuses on three areas:
 
-1. **Branch relationship clarity** — current branch vs upstream, current branch vs `develop`, and `develop` vs `main`.
-2. **Safer history inspection** — ahead/behind counts, merge-base inspection, and unique commit previews before risky operations.
-3. **Decision support before execution** — clearer answers to whether a branch is ahead, behind, diverged, already merged, or needs closer inspection.
+1. **Stable runtime entrypoint** — `git-glide-gui.bat` launches the stable PowerShell entrypoint instead of a versioned script filename.
+2. **Version source-of-truth** — `VERSION` and `manifest.json` define the current product version, while runtime file names remain stable across releases.
+3. **Lower release noise** — future versions should no longer need to rename the main GUI script and all six split-script parts only because the version number changed.
 
-The goal is to help users understand what will be merged, pulled, pushed, cleaned up, or released before they run the operation.
+The goal is to make future releases easier to review, test, package, and merge by reducing version-only file churn.
+
+## Previous focus: v3.8.0 visual history and branch understanding
+
+v3.8.0 built on the v3.7 recovery, diff-visibility, and split-script foundation by making branch relationships easier to inspect before merge, pull, push, cleanup, or release decisions.
+
+It added current branch vs upstream, current branch vs `develop`, and `develop` vs `main` relationship summaries with ahead/behind counts, merge-base inspection, and unique commit previews.
 
 ## Previous focus: v3.7.0 branch sync, conflict recovery, and technical-debt reduction
 
@@ -77,24 +83,24 @@ run-quality-checks.bat
 
 ## Split-script layout
 
-The launcher calls:
+The launcher calls the stable entrypoint:
 
 ```text
-scripts/windows/GitGlideGUI-v3.8.0.ps1
+scripts/windows/GitGlideGUI.ps1
 ```
 
-That entrypoint dot-sources:
+That entrypoint dot-sources the stable implementation parts:
 
 ```text
-scripts/windows/GitGlideGUI-v3.8.0.part01-bootstrap-config.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part02-state-selection.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part03-previews-basic-ops.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part04-recovery-push-stash-tags.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part05-ui.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part06-run.ps1
+scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1
+scripts/windows/GitGlideGUI.part02-state-selection.ps1
+scripts/windows/GitGlideGUI.part03-previews-basic-ops.ps1
+scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1
+scripts/windows/GitGlideGUI.part05-ui.ps1
+scripts/windows/GitGlideGUI.part06-run.ps1
 ```
 
-The application still runs through one versioned entrypoint, while the implementation remains separated into smaller files so future changes can be reviewed, tested, and maintained more safely.
+The product version is read from `VERSION` and `manifest.json`. Runtime script filenames no longer need to change for every release.
 
 ## Repository tracking
 
@@ -113,7 +119,18 @@ Start with:
 ```text
 docs/START_HERE.md
 docs/REPOSITORY_WORKFLOW.md
+```
+
+Release notes:
+
+```text
+docs/RELEASE_NOTES_v3_8_1.md
 docs/RELEASE_NOTES_v3_8.md
+```
+
+v3.8 line architecture and planning:
+
+```text
 docs/ARCHITECTURE_v3_8.md
 docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_8.md
 docs/SWOT_AND_ROADMAP_v3_8.md

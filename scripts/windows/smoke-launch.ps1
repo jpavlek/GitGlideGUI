@@ -4,15 +4,7 @@
 
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$versionPath = Join-Path $repoRoot 'VERSION'
-if (-not (Test-Path -LiteralPath $versionPath)) {
-    throw "VERSION file not found: $versionPath"
-}
-
-$version = (Get-Content -LiteralPath $versionPath -Raw).Trim()
-$scriptPath = Join-Path $PSScriptRoot "GitGlideGUI-v$version.ps1"
-
+$scriptPath = Join-Path $PSScriptRoot 'GitGlideGUI.ps1'
 if (-not (Test-Path -LiteralPath $scriptPath)) {
     throw "Main GUI script not found: $scriptPath"
 }
