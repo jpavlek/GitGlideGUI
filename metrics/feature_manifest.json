@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.0",
+  "product": "Git Glide GUI",
+  "scoring_notes": {
+    "feature_value_weight": "1 small polish, 2 useful improvement, 3 meaningful workflow feature, 4 high-value safety/productivity feature, 5 major product capability",
+    "problem_fields": "frequency, severity, time_cost, risk_cost, and strategic_fit are scored 1..5 and summed into problem_value_points"
+  },
+  "problems": [
+    {
+      "id": "git.decision_safety",
+      "name": "Users need to understand Git actions before executing them",
+      "frequency": 5,
+      "severity": 4,
+      "time_cost": 4,
+      "risk_cost": 5,
+      "strategic_fit": 5
+    },
+    {
+      "id": "branch.merge_safety",
+      "name": "Users are unsure whether a branch is safe to merge, pull, push, clean up, or release",
+      "frequency": 4,
+      "severity": 5,
+      "time_cost": 4,
+      "risk_cost": 5,
+      "strategic_fit": 5
+    },
+    {
+      "id": "conflict.recovery",
+      "name": "Users need safer guidance during merge, cherry-pick, and conflict recovery",
+      "frequency": 3,
+      "severity": 5,
+      "time_cost": 5,
+      "risk_cost": 5,
+      "strategic_fit": 5
+    },
+    {
+      "id": "release.churn",
+      "name": "Release/version changes should not create avoidable runtime file churn",
+      "frequency": 4,
+      "severity": 3,
+      "time_cost": 4,
+      "risk_cost": 3,
+      "strategic_fit": 5
+    },
+    {
+      "id": "quality.observability",
+      "name": "Project health, value, technical debt, and release quality need measurable local metrics",
+      "frequency": 5,
+      "severity": 4,
+      "time_cost": 4,
+      "risk_cost": 4,
+      "strategic_fit": 5
+    }
+  ],
+  "features": [
+    {
+      "id": "staging.visual_status",
+      "name": "Visual changed-file staging and status badges",
+      "introduced": "3.6.0",
+      "problem_ids": ["git.decision_safety"],
+      "value_weight": 5,
+      "risk_reduction_weight": 4,
+      "status": "active"
+    },
+    {
+      "id": "safety.command_previews",
+      "name": "Command previews before Git actions",
+      "introduced": "3.6.0",
+      "problem_ids": ["git.decision_safety"],
+      "value_weight": 5,
+      "risk_reduction_weight": 5,
+      "status": "active"
+    },
+    {
+      "id": "conflict.marker_scan",
+      "name": "Conflict marker verification before staging resolved files",
+      "introduced": "3.6.5",
+      "problem_ids": ["conflict.recovery"],
+      "value_weight": 4,
+      "risk_reduction_weight": 5,
+      "status": "active"
+    },
+    {
+      "id": "github.publish_guidance",
+      "name": "GitHub publish guidance and diagnostics",
+      "introduced": "3.6.6",
+      "problem_ids": ["git.decision_safety"],
+      "value_weight": 3,
+      "risk_reduction_weight": 3,
+      "status": "active"
+    },
+    {
+      "id": "workflow.merge_publish",
+      "name": "Guided Merge & Publish workflow",
+      "introduced": "3.6.9",
+      "problem_ids": ["git.decision_safety", "branch.merge_safety"],
+      "value_weight": 5,
+      "risk_reduction_weight": 4,
+      "status": "active"
+    },
+    {
+      "id": "workflow.protected_branch_guard",
+      "name": "Protected branch workflow guard",
+      "introduced": "3.6.10.1",
+      "problem_ids": ["git.decision_safety", "branch.merge_safety"],
+      "value_weight": 4,
+      "risk_reduction_weight": 5,
+      "status": "active"
+    },
+    {
+      "id": "workflow.ui_modes",
+      "name": "Simple, Workflow, and Expert UI modes",
+      "introduced": "3.6.12",
+      "problem_ids": ["git.decision_safety"],
+      "value_weight": 5,
+      "risk_reduction_weight": 3,
+      "status": "active"
+    },
+    {
+      "id": "recovery.repository_state_doctor",
+      "name": "Repository State Doctor",
+      "introduced": "3.7.0",
+      "problem_ids": ["conflict.recovery", "branch.merge_safety"],
+      "value_weight": 5,
+      "risk_reduction_weight": 5,
+      "status": "active"
+    },
+    {
+      "id": "architecture.split_runtime",
+      "name": "Split-script GUI architecture",
+      "introduced": "3.7.0",
+      "problem_ids": ["release.churn"],
+      "value_weight": 3,
+      "risk_reduction_weight": 5,
+      "status": "active"
+    },
+    {
+      "id": "diff.color_renderer",
+      "name": "Color-coded RichTextBox diff preview renderer",
+      "introduced": "3.7.0",
+      "problem_ids": ["git.decision_safety"],
+      "value_weight": 4,
+      "risk_reduction_weight": 3,
+      "status": "active"
+    },
+    {
+      "id": "history.branch_relationships",
+      "name": "Branch relationship overview",
+      "introduced": "3.8.0",
+      "problem_ids": ["branch.merge_safety"],
+      "value_weight": 5,
+      "risk_reduction_weight": 5,
+      "status": "active"
+    },
+    {
+      "id": "history.unique_commits",
+      "name": "Unique commit preview with left/right cherry-pick filtering",
+      "introduced": "3.8.0",
+      "problem_ids": ["branch.merge_safety"],
+      "value_weight": 5,
+      "risk_reduction_weight": 4,
+      "status": "active"
+    },
+    {
+      "id": "release.stable_runtime_names",
+      "name": "Stable runtime script filenames",
+      "introduced": "3.8.1",
+      "problem_ids": ["release.churn"],
+      "value_weight": 2,
+      "risk_reduction_weight": 5,
+      "status": "active"
+    },
+    {
+      "id": "release.shared_version_resolver",
+      "name": "Shared version resolver",
+      "introduced": "3.8.1",
+      "problem_ids": ["release.churn"],
+      "value_weight": 2,
+      "risk_reduction_weight": 4,
+      "status": "active"
+    },
+    {
+      "id": "quality.metrics_observability",
+      "name": "Metrics, value, and technical-debt observability",
+      "introduced": "3.8.2",
+      "problem_ids": ["quality.observability", "release.churn"],
+      "value_weight": 4,
+      "risk_reduction_weight": 4,
+      "status": "active"
+    }
+  ]
+}

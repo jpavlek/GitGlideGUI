@@ -93,6 +93,21 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\windows\smoke-la
 
 If a conflict was resolved manually, use the conflict marker scanner before staging resolved files.
 
+## Collect metrics
+
+To generate a local metrics snapshot and Markdown report, run:
+
+```bat
+scripts\windows\collect-metrics.bat
+```
+
+Outputs:
+
+```text
+metrics/snapshots/gitglide_metrics_latest.json
+metrics/METRICS_REPORT.md
+```
+
 ## UI modes
 
 Use the mode selector to reduce visual overload without losing functionality.

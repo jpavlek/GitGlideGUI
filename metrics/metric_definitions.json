@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "product": "Git Glide GUI",
+  "purpose": "Define measurable product, quality, technical-debt, release, and value metrics for Git Glide GUI.",
+  "units": {
+    "kib": "1024 bytes",
+    "points": "model-scored relative value"
+  },
+  "metrics": {
+    "package_change_surface_kib": {
+      "description": "Approximate changed package surface since the baseline Git tag.",
+      "formula": "added_kib + changed_kib + deleted_kib"
+    },
+    "net_package_growth_kib": {
+      "description": "Approximate net size growth of changed files since the baseline Git tag.",
+      "formula": "new_changed_file_kib - old_changed_file_kib"
+    },
+    "release_churn_ratio": {
+      "description": "Share of changed files that look like version/package/release churn.",
+      "formula": "release_churn_candidate_file_count / changed_file_count_since_baseline",
+      "target": "<= 0.20 for normal feature releases"
+    },
+    "feature_points_total": {
+      "description": "Total cumulative active feature value from metrics/feature_manifest.json.",
+      "formula": "sum(active feature value_weight)"
+    },
+    "technical_debt_points_total": {
+      "description": "Current technical-debt estimate from observable local signals.",
+      "formula": "modularity_pressure + runtime_version_churn + docs_regression_risk + todo_debt + marker_test_brittleness + manual_release_debt + gui_test_gap"
+    },
+    "net_maturity_score": {
+      "description": "Feature value minus current technical debt.",
+      "formula": "feature_points_total - technical_debt_points_total"
+    }
+  }
+}
