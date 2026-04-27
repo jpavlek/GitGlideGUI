@@ -81,7 +81,7 @@ Run it from the repository root:
 run-quality-checks.bat
 ```
 
-## Split-script layout
+## Stable split-script layout
 
 The launcher calls the stable entrypoint:
 
