@@ -239,6 +239,7 @@ split_markers = [
     "Branch relationships",
     "Show-BranchRelationshipOverview",
     "HistoryRelationshipTextBox",
+    "SHUTDOWN_CLEANUP_WARNING",
 ]
 
 for marker in split_markers:
