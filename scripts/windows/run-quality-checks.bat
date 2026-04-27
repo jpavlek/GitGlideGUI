@@ -20,25 +20,30 @@ if exist "%ROOT%\VERSION" (
 echo === Git Glide GUI v%GITGLIDE_VERSION% quality checks ===
 
 echo.
-echo [1/4] Static package smoke test
+echo [1/5] Static package smoke test
 python -S tests\static_smoke_test.py
 if errorlevel 1 exit /b 1
 
 echo.
-echo [2/4] Windows smoke launch test
+echo [2/5] Windows smoke launch test
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\windows\smoke-launch.ps1
 if errorlevel 1 exit /b 1
 
 echo.
-echo [3/4] Pester tests, if Pester is installed
+echo [3/5] Pester tests, if Pester is installed
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\windows\run-pester-tests.ps1
 if errorlevel 1 exit /b 1
 
 echo.
-echo [4/4] ScriptAnalyzer checks, if PSScriptAnalyzer is installed
+echo [4/5] ScriptAnalyzer checks, if PSScriptAnalyzer is installed
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\windows\run-scriptanalyzer.ps1
 if errorlevel 1 exit /b 1
 
 echo.
+echo [5/5] Metrics collection
+call scripts\windows\collect-metrics.bat
+if errorlevel 1 exit /b 1
+
+echo.
 echo Quality checks completed.
-endlocal
+endlocal & exit /b 0

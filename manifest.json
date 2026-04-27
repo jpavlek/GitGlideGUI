@@ -1,7 +1,7 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.8.1",
+  "version": "3.8.2",
   "created_utc": "2026-04-25T18:20:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
@@ -9,7 +9,7 @@
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.8.1 stabilization: central version source-of-truth, stable runtime script names, and reduced release churn",
+  "iteration_focus": "v3.8.2 metrics, value, technical-debt, and release-quality observability",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -26,27 +26,34 @@
     "modules/GitGlideGUI.Core/GitHubOperations.psm1"
   ],
   "added": [
-    "Stable runtime entrypoint scripts/windows/GitGlideGUI.ps1",
-    "Stable split script part filenames that no longer change each release",
-    "Runtime version lookup from VERSION through Get-GitGlideVersion",
-    "Version-independent launcher and smoke-launch behavior",
-    "Static smoke checks updated to validate stable runtime script names"
+    "Local metrics collector for product, quality, technical-debt, release, and value metrics",
+    "Markdown metrics report generator",
+    "Feature/problem manifest with value and risk-reduction point scoring",
+    "Metric definitions for package change surface, release churn, net maturity, feature points, and technical debt",
+    "Metrics collection launcher scripts/windows/collect-metrics.bat",
+    "Metrics and value model documentation"
   ],
   "next_recommended": [
+    "v3.8.3: generated release scorecards and previous-tag duration metrics",
     "v3.9.0: guided conflict resolution assistant and safer merge workflow automation",
     "v3.10.0: interactive rebase and commit cleanup workflows",
     "v3.11.0: CI/CD and pull-request workflow integration"
   ],
   "highlights": [
-    "Restores clearer merge support that had become hidden or too current-branch dependent",
-    "Supports the real workflow: push feature upstream, merge selected feature into develop, run checks, merge develop into main",
-    "Keeps every merge/push action previewable and confirmation-based"
+    "Makes release value, technical debt, release churn, package change surface, and net maturity measurable locally",
+    "Separates observable metrics from scored estimates",
+    "Supports better decisions between feature work and stabilization work",
+    "Keeps metrics local-only and dependency-free"
   ],
   "iteration_highlights": [
-    "Merge & Publish checklist preview for feature -> develop -> main",
-    "Merged feature branch cleanup command plans",
-    "Static release consistency checks for version drift",
-    "Updated README and repository workflow guidance"
+    "Added metrics/metric_definitions.json",
+    "Added metrics/feature_manifest.json",
+    "Added scripts/metrics/collect_gitglide_metrics.py",
+    "Added scripts/metrics/generate_metrics_report.py",
+    "Added scripts/windows/collect-metrics.bat",
+    "Added docs/METRICS_AND_VALUE_MODEL.md",
+    "Added docs/RELEASE_NOTES_v3_8_2.md",
+    "Extended quality checks with metrics collection"
   ],
   "split_script_parts": [
     "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",

@@ -101,6 +101,11 @@ required = [
     "PSScriptAnalyzerSettings.psd1",
     MAIN_SCRIPT,
     *PARTS,
+    "metrics/feature_manifest.json",
+    "metrics/metric_definitions.json",
+    "metrics/snapshots/.gitkeep",
+    "scripts/metrics/collect_gitglide_metrics.py",
+    "scripts/metrics/generate_metrics_report.py",
     "scripts/windows/smoke-launch.ps1",
     "scripts/windows/run-quality-checks.bat",
     "scripts/windows/run-pester-tests.ps1",
@@ -108,6 +113,7 @@ required = [
     "scripts/windows/init-gitglide-repo.ps1",
     "scripts/windows/package-release.ps1",
     "scripts/windows/GitGlideVersion.ps1",
+    "scripts/windows/collect-metrics.bat",
     "modules/GitGlideGUI.Core/GitBranchOperations.psm1",
     "modules/GitGlideGUI.Core/GitCherryPickOperations.psm1",
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
@@ -144,12 +150,14 @@ required = [
     "tests/GitStashOperations.Tests.ps1",
     "tests/GitTagOperations.Tests.ps1",
     "docs/START_HERE.md",
+    "docs/METRICS_AND_VALUE_MODEL.md",
     f"docs/RELEASE_NOTES_v{version.replace('.', '_')}.md",
     f"docs/RELEASE_NOTES_v{minor}.md",
     f"docs/SWOT_AND_ROADMAP_v{minor}.md",
     f"docs/ROADMAP_REVIEW_v{minor}.md",
     f"docs/ARCHITECTURE_v{minor}.md",
     f"docs/TECHNICAL_DEBT_REDUCTION_PLAN_v{minor}.md",
+    f"docs/RELEASE_NOTES_v{version.replace('.', '_')}.md",
 ]
 
 require_paths(required)
@@ -202,6 +210,59 @@ require_markers(
         "Invalid Git Glide GUI version value",
     ],
     "version helper",
+)
+
+require_markers(
+    "metrics/metric_definitions.json",
+    [
+        "package_change_surface_kib",
+        "technical_debt_points_total",
+        "net_maturity_score",
+        "release_churn_ratio",
+    ],
+    "metric definitions",
+)
+
+require_markers(
+    "metrics/feature_manifest.json",
+    [
+        "git.decision_safety",
+        "branch.merge_safety",
+        "quality.observability",
+        "quality.metrics_observability",
+    ],
+    "feature manifest",
+)
+
+require_markers(
+    "scripts/metrics/collect_gitglide_metrics.py",
+    [
+        "technical_debt_score",
+        "change_surface_metrics",
+        "feature_metrics",
+        "git_release_window_metrics",
+    ],
+    "metrics collector",
+)
+
+require_markers(
+    "scripts/windows/collect-metrics.bat",
+    [
+        "collect_gitglide_metrics.py",
+        "generate_metrics_report.py",
+    ],
+    "metrics launcher",
+)
+
+require_markers(
+    "docs/METRICS_AND_VALUE_MODEL.md",
+    [
+        "Package Change Surface",
+        "Feature points",
+        "Technical debt points",
+        "Net maturity",
+    ],
+    "metrics documentation",
 )
 
 require_markers(
