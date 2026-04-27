@@ -13,7 +13,11 @@ cd /d "%ROOT%"
 
 set PYTHONNOUSERSITE=1
 
-echo === Git Glide GUI v3.8.0 quality checks ===
+set "GITGLIDE_VERSION=0.0.0-dev"
+if exist "%ROOT%\VERSION" (
+    for /f "usebackq delims=" %%V in ("%ROOT%\VERSION") do set "GITGLIDE_VERSION=%%V"
+)
+echo === Git Glide GUI v%GITGLIDE_VERSION% quality checks ===
 
 echo.
 echo [1/4] Static package smoke test

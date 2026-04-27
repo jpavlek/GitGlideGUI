@@ -1,4 +1,4 @@
-# Git Glide GUI - Enhanced Version v3.8.0
+# Git Glide GUI - Enhanced Version
 # Improvements:
 # - Fixed Quote-Arg escaping bug
 # - Added input validation
@@ -39,7 +39,7 @@
 # - v3.6.11: branch context banner, protected-branch workflow guards, and package/version consistency
 # - v3.6.12: UI organization with Simple/Workflow/Expert modes, mode-aware tabs, command palette, and Changed Files context banner to reduce visual overload without removing functionality.
 # - v3.6.13: workflow checklist and branch cleanup guidance with release consistency smoke checks.
-# - v3.8.0: repository state doctor, conflict marker scanner, dynamic banner sizing, and local quality checks.
+# - v3.8: repository state doctor, conflict marker scanner, dynamic banner sizing, branch relationships, and local quality checks.
 
 param(
     [string]$RepositoryPath = '',

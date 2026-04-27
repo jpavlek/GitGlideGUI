@@ -4,7 +4,8 @@
 This test intentionally checks explicit known paths and release consistency.
 It avoids recursive os.walk, which prevents symlink/network-share traversal
 problems, while still guarding against incomplete packages, stale launchers,
-unresolved merge markers, and oversized GUI implementation files.
+unresolved merge markers, stale versioned runtime scripts, and oversized GUI
+implementation files.
 """
 
 from pathlib import Path
@@ -15,6 +16,15 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_GUI_SCRIPT_LINES = 4000
+MAIN_SCRIPT = "scripts/windows/GitGlideGUI.ps1"
+PARTS = [
+    "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",
+    "scripts/windows/GitGlideGUI.part02-state-selection.ps1",
+    "scripts/windows/GitGlideGUI.part03-previews-basic-ops.ps1",
+    "scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1",
+    "scripts/windows/GitGlideGUI.part05-ui.ps1",
+    "scripts/windows/GitGlideGUI.part06-run.ps1",
+]
 
 
 def fail(message):
@@ -66,48 +76,20 @@ def assert_line_count_guard(rel_paths, max_lines):
 
 version = read_text("VERSION").strip()
 if not re.fullmatch(r"\d+\.\d+\.\d+", version):
-    fail(f"VERSION is not a semantic version like 3.8.0: {version!r}")
+    fail(f"VERSION is not a semantic version like 3.8.1: {version!r}")
 
 manifest = json.loads(read_text("manifest.json"))
-
-main_script = manifest.get("main_script")
-expected_main_script = f"scripts/windows/GitGlideGUI-v{version}.ps1"
-
 if manifest.get("version") != version:
     fail(f"manifest.json version mismatch: VERSION={version!r}, manifest={manifest.get('version')!r}")
 
-if main_script != expected_main_script:
-    fail(f"manifest main_script mismatch: expected {expected_main_script}, got {main_script!r}")
+if manifest.get("main_script") != MAIN_SCRIPT:
+    fail(f"manifest main_script mismatch: expected {MAIN_SCRIPT}, got {manifest.get('main_script')!r}")
 
-if not (ROOT / main_script).exists():
-    fail(f"Expected versioned main script missing: {main_script}")
+expected_parts = PARTS
+if manifest.get("split_script_parts") != expected_parts:
+    fail("manifest split_script_parts does not match stable split script layout.")
 
-
-# v3.7+ split script layout.
-versioned_prefix = f"GitGlideGUI-v{version}."
-part_files = sorted(
-    p.relative_to(ROOT).as_posix()
-    for p in (ROOT / "scripts/windows").glob(f"GitGlideGUI-v{version}.part*.ps1")
-)
-
-if len(part_files) != 6:
-    fail(f"Expected 6 split script part files for v{version}, found {len(part_files)}: {part_files}")
-
-expected_part_suffixes = [
-    "part01-bootstrap-config.ps1",
-    "part02-state-selection.ps1",
-    "part03-previews-basic-ops.ps1",
-    "part04-recovery-push-stash-tags.ps1",
-    "part05-ui.ps1",
-    "part06-run.ps1",
-]
-
-for suffix in expected_part_suffixes:
-    expected = f"scripts/windows/{versioned_prefix}{suffix}"
-    if expected not in part_files:
-        fail(f"Missing split script part: {expected}")
-
-
+minor = version.rsplit('.', 1)[0].replace('.', '_')
 required = [
     "README.md",
     "VERSION",
@@ -117,14 +99,15 @@ required = [
     "run-quality-checks.bat",
     "run-pester-tests.bat",
     "PSScriptAnalyzerSettings.psd1",
-    main_script,
-    *part_files,
+    MAIN_SCRIPT,
+    *PARTS,
     "scripts/windows/smoke-launch.ps1",
     "scripts/windows/run-quality-checks.bat",
     "scripts/windows/run-pester-tests.ps1",
     "scripts/windows/run-scriptanalyzer.ps1",
     "scripts/windows/init-gitglide-repo.ps1",
     "scripts/windows/package-release.ps1",
+    "scripts/windows/GitGlideVersion.ps1",
     "modules/GitGlideGUI.Core/GitBranchOperations.psm1",
     "modules/GitGlideGUI.Core/GitCherryPickOperations.psm1",
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
@@ -161,43 +144,82 @@ required = [
     "tests/GitStashOperations.Tests.ps1",
     "tests/GitTagOperations.Tests.ps1",
     "docs/START_HERE.md",
-    f"docs/RELEASE_NOTES_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
-    f"docs/SWOT_AND_ROADMAP_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
-    f"docs/ROADMAP_REVIEW_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
-    f"docs/ARCHITECTURE_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
-    f"docs/TECHNICAL_DEBT_REDUCTION_PLAN_v{version.rsplit('.', 1)[0].replace('.', '_')}.md",
+    f"docs/RELEASE_NOTES_v{version.replace('.', '_')}.md",
+    f"docs/RELEASE_NOTES_v{minor}.md",
+    f"docs/SWOT_AND_ROADMAP_v{minor}.md",
+    f"docs/ROADMAP_REVIEW_v{minor}.md",
+    f"docs/ARCHITECTURE_v{minor}.md",
+    f"docs/TECHNICAL_DEBT_REDUCTION_PLAN_v{minor}.md",
 ]
 
 require_paths(required)
 
+require_markers(
+    "README.md",
+    [
+        "Why this exists",
+        "What makes it different?",
+        "Core Features",
+        "Current focus: v3.8.1",
+        "Stable split-script layout",
+    ],
+    "README product positioning",
+)
 
-launcher = read_text("git-glide-gui.bat")
-if f"GitGlideGUI-v{version}.ps1" not in launcher:
-    fail(f"Launcher does not target v{version} script.")
+require_markers(
+    "docs/START_HERE.md",
+    [
+        "Requirements",
+        "Validate the package",
+        "If something looks wrong",
+        "UI modes",
+        "Recovery and Repository State Doctor",
+        "History, graph inspection, and branch relationships",
+        "Stable split-script layout",
+    ],
+    "START_HERE onboarding",
+)
+
+require_markers(
+    "git-glide-gui.bat",
+    ["GitGlideGUI.ps1"],
+    "stable launcher"
+)
 
 require_markers(
     "scripts/windows/smoke-launch.ps1",
     [
-        "VERSION",
-        "GitGlideGUI-v$version.ps1",
-        "-SmokeTest",
+        "GitGlideGUI.ps1",
+        "-SmokeTest"
     ],
-    "smoke-launch version-driven launcher",
+    "stable smoke-launch"
 )
 
-wrapper_markers = [
-    "Split entrypoint",
-    f"GitGlideGUI-v{version}.part01-bootstrap-config.ps1",
-    f"GitGlideGUI-v{version}.part06-run.ps1",
-    "Split script parts parsed and initialized",
-]
-require_markers(main_script, wrapper_markers, "wrapper")
+require_markers(
+    "scripts/windows/GitGlideVersion.ps1",
+    [
+        "Resolve-GitGlideVersion",
+        "Invalid Git Glide GUI version value",
+    ],
+    "version helper",
+)
 
+require_markers(
+    MAIN_SCRIPT,
+    [
+        "stable split entrypoint",
+        "GitGlideVersion.ps1",
+        "Resolve-GitGlideVersion",
+        "GitGlideGUI.part01-bootstrap-config.ps1",
+        "GitGlideGUI.part06-run.ps1",
+        "Split script parts parsed and initialized",
+    ],
+    "stable wrapper",
+)
 
-combined_split_script = "\n".join(read_text(p) for p in [main_script, *part_files])
+combined_split_script = "\n".join(read_text(p) for p in [MAIN_SCRIPT, *PARTS])
 
 split_markers = [
-    f"Git Glide GUI v{version}",
     "Repository State Doctor",
     "Get-RepositoryStateDoctorSnapshot",
     "Show-RepositoryStateDoctor",
@@ -222,7 +244,6 @@ split_markers = [
 for marker in split_markers:
     if marker not in combined_split_script:
         fail(f"Missing split-script marker: {marker}")
-
 
 module_markers = {
     "modules/GitGlideGUI.Core/GitBranchOperations.psm1": [
@@ -279,7 +300,6 @@ module_markers = {
 for rel_path, markers in module_markers.items():
     require_markers(rel_path, markers, "module")
 
-
 require_markers(
     "tests/GitHistoryOperations.Tests.ps1",
     [
@@ -304,34 +324,23 @@ require_markers(
     "Pester runner robustness",
 )
 
-
 forbidden_regression_markers = [
     "GitGlideGUI-v3.4.ps1",
     "GitGlideGUI-v3.6.5.ps1",
     "$dialog.Tag = [string]$sender.Tag",
 ]
 
-for rel_path in [main_script, *part_files, "git-glide-gui.bat", "scripts/windows/smoke-launch.ps1"]:
+for rel_path in [MAIN_SCRIPT, *PARTS, "git-glide-gui.bat", "scripts/windows/smoke-launch.ps1"]:
     reject_markers(rel_path, forbidden_regression_markers, "regression")
 
+# Versioned runtime implementation files should no longer be part of the package.
+for old_script in (ROOT / "scripts/windows").glob("GitGlideGUI-v*.ps1"):
+    fail(f"Unexpected versioned runtime script included: {old_script.name}")
 
-# Do not allow unresolved merge conflict markers in the versioned GUI implementation.
-assert_no_conflict_markers([main_script, *part_files])
-
+# Do not allow unresolved merge conflict markers in the stable GUI implementation.
+assert_no_conflict_markers([MAIN_SCRIPT, *PARTS, "scripts/windows/GitGlideVersion.ps1"])
 
 # Technical-debt guard: GUI implementation files should stay below 4000 lines.
-assert_line_count_guard([main_script, *part_files], MAX_GUI_SCRIPT_LINES)
-
-
-# Keep stale versioned monolithic GUI scripts out of release packages.
-# Split part files for the current version are allowed.
-for old_script in (ROOT / "scripts/windows").glob("GitGlideGUI-v*.ps1"):
-    name = old_script.name
-    if name == f"GitGlideGUI-v{version}.ps1":
-        continue
-    if name.startswith(f"GitGlideGUI-v{version}.part") and name.endswith(".ps1"):
-        continue
-    fail(f"Unexpected old versioned main script included: {name}")
-
+assert_line_count_guard([MAIN_SCRIPT, *PARTS], MAX_GUI_SCRIPT_LINES)
 
 print("Static smoke test passed.")
