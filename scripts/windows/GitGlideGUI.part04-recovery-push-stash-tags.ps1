@@ -1,5 +1,5 @@
-# This file is part of Git Glide GUI v3.8.0 split-script architecture.
-# It is dot-sourced by GitGlideGUI-v3.8.0.ps1.
+# This file is part of Git Glide GUI stable split-script architecture.
+# It is dot-sourced by GitGlideGUI.ps1.
 
 #region Recovery and Cherry-pick Operations
 
@@ -557,13 +557,13 @@ function Get-GitGlideGuiScriptValidationPaths {
     }
 
     $names = @(
-        'GitGlideGUI-v3.8.0.ps1',
-        'GitGlideGUI-v3.8.0.part01-bootstrap-config.ps1',
-        'GitGlideGUI-v3.8.0.part02-state-selection.ps1',
-        'GitGlideGUI-v3.8.0.part03-previews-basic-ops.ps1',
-        'GitGlideGUI-v3.8.0.part04-recovery-push-stash-tags.ps1',
-        'GitGlideGUI-v3.8.0.part05-ui.ps1',
-        'GitGlideGUI-v3.8.0.part06-run.ps1'
+        'GitGlideGUI.ps1',
+        'GitGlideGUI.part01-bootstrap-config.ps1',
+        'GitGlideGUI.part02-state-selection.ps1',
+        'GitGlideGUI.part03-previews-basic-ops.ps1',
+        'GitGlideGUI.part04-recovery-push-stash-tags.ps1',
+        'GitGlideGUI.part05-ui.ps1',
+        'GitGlideGUI.part06-run.ps1'
     )
 
     foreach ($name in $names) {
@@ -581,7 +581,7 @@ function Test-GuiScriptSyntax {
             [scriptblock]::Create((Get-Content -Raw -LiteralPath $path)) > $null
         }
 
-        $message = "PowerShell parse OK for Git Glide GUI v3.8.0 split script set:`r`n" + ($paths -join "`r`n")
+        $message = ("PowerShell parse OK for Git Glide GUI v{0} split script set:`r`n" -f $script:GitGlideGuiVersion) + ($paths -join "`r`n")
         if ($script:RecoveryTextBox) { $script:RecoveryTextBox.Text = $message }
         Set-CommandPreview -Title 'Validate GUI script' -Commands 'powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\smoke-launch.ps1' -Notes ('Validated {0} split script file(s).' -f $paths.Count)
         Append-Log -Text 'PowerShell parse OK for Git Glide GUI split script set.' -Color ([System.Drawing.Color]::DarkGreen)

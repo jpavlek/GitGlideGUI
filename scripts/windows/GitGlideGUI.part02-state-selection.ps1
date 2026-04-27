@@ -1,5 +1,5 @@
-# This file is part of Git Glide GUI v3.8.0 split-script architecture.
-# It is dot-sourced by GitGlideGUI-v3.8.0.ps1.
+# This file is part of Git Glide GUI stable split-script architecture.
+# It is dot-sourced by GitGlideGUI.ps1.
 
 #region Script Variables
 

@@ -1,13 +1,19 @@
 param(
-    [string]$Version = '3.8.0',
+    [string]$Version = '',
     [string]$Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
     [string]$Output = ''
 )
 $ErrorActionPreference = 'Stop'
+
+. (Join-Path $PSScriptRoot 'GitGlideVersion.ps1')
+
+$Version = Resolve-GitGlideVersion -RepositoryRoot $Root -ExplicitVersion $Version
+
 if ([string]::IsNullOrWhiteSpace($Output)) {
     $parent = Split-Path -Parent $Root
     $Output = Join-Path $parent ("GitGlideGUI_v$($Version.Replace('.', '_'))_functional.zip")
 }
+
 $stage = Join-Path ([System.IO.Path]::GetTempPath()) ("GitGlideGUI_package_$([Guid]::NewGuid().ToString('N'))")
 New-Item -ItemType Directory -Path $stage | Out-Null
 try {

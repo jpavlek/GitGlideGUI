@@ -1,10 +1,10 @@
-# This file is part of Git Glide GUI v3.8.0 split-script architecture.
-# It is dot-sourced by GitGlideGUI-v3.8.0.ps1.
+# This file is part of Git Glide GUI stable split-script architecture.
+# It is dot-sourced by GitGlideGUI.ps1.
 
 #region UI Setup
 
 $form = New-Object System.Windows.Forms.Form
-$script:AppVersion = '3.8.0'
+$script:AppVersion = if ($script:GitGlideGuiVersion) { $script:GitGlideGuiVersion } else { '0.0.0-dev' }
 $form.Text = "Git Glide GUI v$script:AppVersion - safer visual Git workflows"
 $form.Size = New-Object System.Drawing.Size -ArgumentList @((Get-ConfigInt -Name 'WindowWidth' -DefaultValue 1580), (Get-ConfigInt -Name 'WindowHeight' -DefaultValue 1080))
 $form.StartPosition = 'CenterScreen'
@@ -939,7 +939,7 @@ $recoveryLayout.Controls.Add($script:RecoveryTextBox, 0, 4)
 
 Set-ControlPreview -Control $stateDoctorButton -Builder { $snapshot = Get-RepositoryStateDoctorSnapshot; if ($snapshot) { [string]$snapshot.Preview } else { 'git status -sb' } } -Title 'Repository State Doctor' -Notes 'Explains detached HEAD, branch divergence, in-progress operations, conflict markers, and the next safe action.'
 Set-ControlPreview -Control $markerScanButton -Builder { "git status -sb`r`ngit diff --name-only --diff-filter=U" } -Title 'Find conflict markers' -Notes 'Scans changed and unmerged files for <<<<<<<, =======, and >>>>>>> marker lines.'
-Set-ControlPreview -Control $validateGuiScriptButton -Builder { "powershell -NoProfile -ExecutionPolicy Bypass -Command `"`$ErrorActionPreference='Stop'; [scriptblock]::Create((Get-Content -Raw 'scripts/windows/GitGlideGUI-v3.8.0.ps1')) > `$null; 'PowerShell parse OK'`"" } -Title 'Validate GUI script' -Notes 'Parses the current GUI PowerShell script without running a second GUI instance.'
+Set-ControlPreview -Control $validateGuiScriptButton -Builder { "powershell -NoProfile -ExecutionPolicy Bypass -Command `"`$ErrorActionPreference='Stop'; [scriptblock]::Create((Get-Content -Raw 'scripts/windows/GitGlideGUI.ps1')) > `$null; 'PowerShell parse OK'`"" } -Title 'Validate GUI script' -Notes 'Parses the current GUI PowerShell script without running a second GUI instance.'
 Set-ControlPreview -Control $recoveryRefreshButton -Builder { Build-RecoveryStatusPreview } -Title 'Refresh recovery status' -Notes 'Runs a safe read-only status command and updates the Recovery panel.'
 Set-ControlPreview -Control $conflictRefreshButton -Builder { if (Get-Command Get-GgrUnmergedFilesCommandPlan -ErrorAction SilentlyContinue) { (Get-GgrUnmergedFilesCommandPlan).Display } else { 'git diff --name-only --diff-filter=U' } } -Title 'List conflicted files' -Notes 'Runs a read-only command that lists files with unresolved merge conflicts.'
 Set-ControlPreview -Control $stageResolvedConflictButton -Builder { $path = if ($script:ConflictFilesListBox -and $script:ConflictFilesListBox.SelectedItem) { [string]$script:ConflictFilesListBox.SelectedItem } else { '<resolved-file>' }; if (Get-Command Get-GgrStageResolvedFileCommandPlan -ErrorAction SilentlyContinue) { (Get-GgrStageResolvedFileCommandPlan -Path $path).Display } else { 'git add -- ' + (Quote-Arg $path) } } -Title 'Stage resolved conflict file' -Notes 'Use after editing a conflicted file and removing conflict markers.'

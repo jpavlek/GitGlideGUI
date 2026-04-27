@@ -1,10 +1,10 @@
-# Git Glide GUI v3.8.0 - Start Here
+# Git Glide GUI v3.8.1 - Start Here
 
 This guide helps you launch Git Glide GUI, choose the right first action, validate the package, and find the main workflows.
 
-For the product overview, positioning, and v3.8.0 release focus, see `README.md`.
+For the product overview, positioning, and v3.8.1 release focus, see `README.md`.
 
-v3.8.0 builds on v3.7.0 by adding visual history and branch-relationship understanding. It helps users inspect whether branches are ahead, behind, diverged, already merged, or need closer review before merge, pull, push, cleanup, or release actions.
+v3.8.1 is a stabilization release. It keeps the v3.8.0 visual history and branch-relationship features while reducing release churn by moving runtime launch paths to stable script filenames and treating the version as data.
 
 ## Requirements
 
@@ -186,7 +186,7 @@ History inspection is useful before decisions such as:
 - undoing a local commit
 - publishing a release branch
 
-v3.8.0 adds **Branch relationships** to make branch state easier to understand before risky actions.
+v3.8 introduced **Branch relationships** to make branch state easier to understand before risky actions.
 
 Use **Branch relationships** to compare:
 
@@ -268,28 +268,28 @@ git merge --no-ff develop
 git push
 ```
 
-## Split-script layout
+## Stable split-script layout
 
-v3.8.0 continues the split-script layout introduced in v3.7.0.
+v3.8.1 keeps the split-script layout introduced in v3.7.0 and stabilizes the runtime filenames.
 
 The launcher calls:
 
 ```text
-scripts/windows/GitGlideGUI-v3.8.0.ps1
+scripts/windows/GitGlideGUI.ps1
 ```
 
 That entrypoint dot-sources:
 
 ```text
-scripts/windows/GitGlideGUI-v3.8.0.part01-bootstrap-config.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part02-state-selection.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part03-previews-basic-ops.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part04-recovery-push-stash-tags.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part05-ui.ps1
-scripts/windows/GitGlideGUI-v3.8.0.part06-run.ps1
+scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1
+scripts/windows/GitGlideGUI.part02-state-selection.ps1
+scripts/windows/GitGlideGUI.part03-previews-basic-ops.ps1
+scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1
+scripts/windows/GitGlideGUI.part05-ui.ps1
+scripts/windows/GitGlideGUI.part06-run.ps1
 ```
 
-The application still runs through one versioned entrypoint, while the implementation remains separated into smaller files so future versions can evolve with less risk.
+The product version is read from `VERSION` and `manifest.json`. Runtime script filenames no longer need to change for every release.
 
 ## Development workflow for this package
 
@@ -298,7 +298,7 @@ For continued development, use a feature branch and run checks before committing
 ```bat
 git switch develop
 git pull
-git switch -c feature/v3-8-visual-history-branch-understanding
+git switch -c fix/v3-8-1-version-source-of-truth
 run-quality-checks.bat
 git-glide-gui.bat
 ```
@@ -310,6 +310,7 @@ Commit only after local quality checks pass.
 - **v3.6.13**: workflow checklist, merged-branch cleanup guidance, and release consistency smoke checks.
 - **v3.7.0**: repository state clarity, conflict recovery UX, split-script layout, dynamic context banner sizing, color-coded diff rendering, and technical-debt reduction.
 - **v3.8.0**: visual history and branch relationship understanding for safer merge, pull, push, cleanup, and release decisions.
+- **v3.8.1**: version source-of-truth and release-churn reduction with stable runtime script filenames.
 
 ## More documentation
 
@@ -317,8 +318,9 @@ Start with:
 
 ```text
 README.md
-docs/ARCHITECTURE_v3_8.md
+docs/RELEASE_NOTES_v3_8_1.md
 docs/RELEASE_NOTES_v3_8.md
+docs/ARCHITECTURE_v3_8.md
 docs/REPOSITORY_WORKFLOW.md
 docs/ROADMAP_REVIEW_v3_8.md
 docs/SWOT_AND_ROADMAP_v3_8.md
