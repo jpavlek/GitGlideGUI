@@ -9,20 +9,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Get-GitGlideVersion {
-    param([string]$ScriptDirectory = $PSScriptRoot)
+. (Join-Path $PSScriptRoot 'GitGlideVersion.ps1')
 
-    $repoRoot = Resolve-Path (Join-Path $ScriptDirectory '..\..')
-    $versionPath = Join-Path $repoRoot 'VERSION'
-    if (Test-Path -LiteralPath $versionPath -PathType Leaf) {
-        $candidate = (Get-Content -LiteralPath $versionPath -Raw).Trim()
-        if (-not [string]::IsNullOrWhiteSpace($candidate)) { return $candidate }
-    }
-
-    return '0.0.0-dev'
-}
-
-$script:GitGlideGuiVersion = Get-GitGlideVersion -ScriptDirectory $PSScriptRoot
+$packageRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$script:GitGlideGuiVersion = Resolve-GitGlideVersion -RepositoryRoot $packageRoot
 $script:GitGlideGuiScriptDirectory = $PSScriptRoot
 
 $script:GitGlideGuiParts = @(
