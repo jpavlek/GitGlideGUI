@@ -2379,24 +2379,68 @@ $form.Add_Shown({
     Apply-SavedLayout
 })
 
-$form.Add_FormClosing({
-    # v3.5: WinForms can invoke FormClosing while the hosting PowerShell
-    # pipeline is already stopping. Letting PipelineStoppedException escape
-    # from this event handler produces a .NET JIT/debugging dialog instead of
-    # a normal shutdown. Keep close-time cleanup best-effort and non-throwing.
-    $script:IsShuttingDown = $true
-    if ($script:ShutdownCleanupStarted) { return }
-    $script:ShutdownCleanupStarted = $true
+function Invoke-GitGlideSafeShutdownAction {
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Action,
+
+        [string]$Context = 'shutdown'
+    )
 
     try {
-        Save-LayoutConfig
+        & $Action
     } catch [System.Management.Automation.PipelineStoppedException] {
-        # Host is stopping; do not write to the pipeline and do not rethrow.
+        # PowerShell can raise this while WinForms is closing. Swallow it so
+        # shutdown does not show the .NET JIT/unhandled-exception dialog.
     } catch {
-        # Closing must remain reliable even if layout persistence fails.
-        try { Write-AuditLog -Message ("SHUTDOWN_CLEANUP_WARNING | {0}" -f $_.Exception.Message) } catch {}
-    } finally {
-        try { Cancel-CurrentOperation } catch {}
+        try {
+            if (Get-Command Append-Log -ErrorAction SilentlyContinue) {
+                Append-Log -Text ("Ignored {0} error during shutdown: {1}" -f $Context, $_.Exception.Message) -Color ([System.Drawing.Color]::DarkGray)
+            }
+        } catch {
+            # Never throw from shutdown logging.
+        }
+    }
+}
+
+$form.Add_FormClosing({
+    try {
+        # v3.8.1: WinForms can invoke FormClosing while the hosting PowerShell
+        # pipeline is already stopping. Letting PipelineStoppedException escape
+        # from this event handler produces a .NET JIT/debugging dialog instead of
+        # a normal shutdown. Keep close-time cleanup best-effort and non-throwing.
+        $script:IsShuttingDown = $true
+
+        if ($script:ShutdownCleanupStarted) {
+            return
+        }
+
+        $script:ShutdownCleanupStarted = $true
+
+        try {
+            Save-LayoutConfig
+        } catch [System.Management.Automation.PipelineStoppedException] {
+            # Host is stopping; do not write to the pipeline and do not rethrow.
+        } catch {
+            # Closing must remain reliable even if layout persistence fails.
+            try {
+                Write-AuditLog -Message ("SHUTDOWN_CLEANUP_WARNING | {0}" -f $_.Exception.Message)
+            } catch {
+                # Never throw from shutdown logging.
+            }
+        }
+
+        try {
+            Cancel-CurrentOperation
+        } catch [System.Management.Automation.PipelineStoppedException] {
+            # Host is stopping; ignore.
+        } catch {
+            # Never throw from shutdown cleanup.
+        }
+    } catch [System.Management.Automation.PipelineStoppedException] {
+        # Final guard: never let pipeline-stop escape FormClosing.
+    } catch {
+        # Final guard: never show the .NET JIT dialog during close.
     }
 })
 
