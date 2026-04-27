@@ -136,3 +136,10 @@ docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_8.md
 docs/SWOT_AND_ROADMAP_v3_8.md
 docs/ROADMAP_REVIEW_v3_8.md
 ```
+
+Metrics
+
+```text
+docs/METRICS_AND_VALUE_MODEL.md
+docs/RELEASE_NOTES_v3_8_2.md
+```
