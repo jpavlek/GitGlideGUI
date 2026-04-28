@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.8.2",
-  "created_utc": "2026-04-25T18:20:00Z",
+  "version": "3.9.0",
+  "created_utc": "2026-04-27T22:51:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
   "main_script": "scripts/windows/GitGlideGUI.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.8.2 metrics, value, technical-debt, and release-quality observability",
+  "iteration_focus": "v3.9.0 guided conflict resolution assistant",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -23,37 +23,38 @@
     "modules/GitGlideGUI.Core/GitConflictRecovery.psm1",
     "modules/GitGlideGUI.Core/GitCherryPickOperations.psm1",
     "modules/GitGlideGUI.Core/GitLearningGuidance.psm1",
-    "modules/GitGlideGUI.Core/GitHubOperations.psm1"
+    "modules/GitGlideGUI.Core/GitHubOperations.psm1",
+    "modules/GitGlideGUI.Core/GitConflictAssistant.psm1"
   ],
   "added": [
-    "Local metrics collector for product, quality, technical-debt, release, and value metrics",
-    "Markdown metrics report generator",
-    "Feature/problem manifest with value and risk-reduction point scoring",
-    "Metric definitions for package change surface, release churn, net maturity, feature points, and technical debt",
-    "Metrics collection launcher scripts/windows/collect-metrics.bat",
-    "Metrics and value model documentation"
+    "Guided conflict resolution assistant core module",
+    "Conflict marker scan helpers for text and files",
+    "Stage-resolved decision helper that blocks staging while conflict markers remain",
+    "Ours/theirs command plans with destructive-risk metadata",
+    "Operation-aware continue and abort command plans for merge, cherry-pick, and rebase",
+    "Conflict resolution assistant documentation and tests"
   ],
   "next_recommended": [
-    "v3.8.3: generated release scorecards and previous-tag duration metrics",
-    "v3.9.0: guided conflict resolution assistant and safer merge workflow automation",
-    "v3.10.0: interactive rebase and commit cleanup workflows",
+    "v3.9.1: branch cleanup and remote branch hygiene assistant",
+    "v3.10.0: modular layout state model with collapsible workspace panels",
+    "v3.10.1: stackable and dockable panel simulation with explicit layout save/discard controls",
     "v3.11.0: CI/CD and pull-request workflow integration"
   ],
   "highlights": [
-    "Makes release value, technical debt, release churn, package change surface, and net maturity measurable locally",
-    "Separates observable metrics from scored estimates",
-    "Supports better decisions between feature work and stabilization work",
-    "Keeps metrics local-only and dependency-free"
+    "Guides users through merge, cherry-pick, and rebase conflict recovery",
+    "Keeps all conflict recovery commands transparent and previewable",
+    "Blocks staging while conflict markers remain",
+    "Requires confirmation for destructive ours/theirs and abort choices",
+    "Adds a safe foundation for later visual conflict resolution UI"
   ],
   "iteration_highlights": [
-    "Added metrics/metric_definitions.json",
-    "Added metrics/feature_manifest.json",
-    "Added scripts/metrics/collect_gitglide_metrics.py",
-    "Added scripts/metrics/generate_metrics_report.py",
-    "Added scripts/windows/collect-metrics.bat",
-    "Added docs/METRICS_AND_VALUE_MODEL.md",
-    "Added docs/RELEASE_NOTES_v3_8_2.md",
-    "Extended quality checks with metrics collection"
+    "Added modules/GitGlideGUI.Core/GitConflictAssistant.psm1",
+    "Added tests/GitConflictAssistant.Tests.ps1",
+    "Added docs/CONFLICT_RESOLUTION_ASSISTANT_v3_9.md",
+    "Added docs/RELEASE_NOTES_v3_9_0.md",
+    "Added guided conflict resolution command-plan helpers",
+    "Added conflict marker block scanning and summary formatting",
+    "Added stage-resolved safety decision helper"
   ],
   "split_script_parts": [
     "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",

@@ -1,0 +1,11 @@
+{
+  "feature_to_add": {
+    "id": "conflict.guided_resolution_assistant",
+    "name": "Guided conflict resolution assistant",
+    "introduced": "3.9.0",
+    "problem_ids": ["conflict.recovery", "git.decision_safety"],
+    "value_weight": 5,
+    "risk_reduction_weight": 5,
+    "status": "active"
+  }
+}

@@ -52,7 +52,7 @@ Add-Type -AssemblyName System.Drawing
 
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-# v2.3: import pure, UI-free helpers when packaged with the GUI.
+# v2.3+: import pure, UI-free helpers when packaged with the GUI.
 # The script keeps fallback implementations below so the GUI still starts if a module is missing.
 $script:CoreModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitCommandSafety.psm1'
 $script:StatusModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitRepositoryStatus.psm1'
@@ -67,10 +67,30 @@ $script:RecoveryModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.
 $script:CherryPickModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitCherryPickOperations.psm1'
 $script:LearningModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitLearningGuidance.psm1'
 $script:GitHubModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitHubOperations.psm1'
-foreach ($modulePath in @($script:CoreModulePath, $script:StatusModulePath, $script:OnboardingModulePath, $script:StagingModulePath, $script:BranchModulePath, $script:StashModulePath, $script:TagModulePath, $script:CommitModulePath, $script:HistoryModulePath, $script:RecoveryModulePath, $script:CherryPickModulePath, $script:LearningModulePath, $script:GitHubModulePath)) {
+$script:ConflictAssistantModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitConflictAssistant.psm1'
+
+foreach ($modulePath in @(
+    $script:CoreModulePath,
+    $script:StatusModulePath,
+    $script:OnboardingModulePath,
+    $script:StagingModulePath,
+    $script:BranchModulePath,
+    $script:StashModulePath,
+    $script:TagModulePath,
+    $script:CommitModulePath,
+    $script:HistoryModulePath,
+    $script:RecoveryModulePath,
+    $script:CherryPickModulePath,
+    $script:LearningModulePath,
+    $script:GitHubModulePath,
+    $script:ConflictAssistantModulePath
+)) {
     if (Test-Path -LiteralPath $modulePath) {
-        try { Import-Module -Name $modulePath -Force -DisableNameChecking -ErrorAction Stop }
-        catch { Write-Warning "Failed to import Git Glide GUI core module '$modulePath': $_" }
+        try {
+            Import-Module -Name $modulePath -Force -DisableNameChecking -ErrorAction Stop
+        } catch {
+            Write-Warning "Failed to import Git Glide GUI core module '$modulePath': $_"
+        }
     }
 }
 

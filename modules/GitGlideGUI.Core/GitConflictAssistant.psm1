@@ -1,0 +1,30 @@
+Set-StrictMode -Version Latest
+
+function New-GgcaCommandPlan {
+    param([string]$Title,[string[]]$Arguments,[string]$Description='', [bool]$Destructive=$false,[bool]$RequiresConfirmation=$true,[string]$RiskLevel='normal')
+    [pscustomobject]@{ Title=$Title; FileName='git'; Arguments=$Arguments; CommandLine=('git '+($Arguments -join ' ')); Description=$Description; Destructive=$Destructive; RequiresConfirmation=$RequiresConfirmation; RiskLevel=$RiskLevel }
+}
+function Get-GgcaUnmergedFilesCommandPlan { New-GgcaCommandPlan -Title 'List unmerged files' -Arguments @('diff','--name-only','--diff-filter=U') -Description 'Read-only command that lists unresolved files.' -RequiresConfirmation $false -RiskLevel 'read-only' }
+function ConvertFrom-GgcaUnmergedFileList { param([string]$Text=''); @($Text -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { [pscustomobject]@{ Path=$_.Trim(); Status='unmerged' } }) }
+function Get-GgcaConflictMarkerScanForText {
+    param([string]$Text='',[string]$Path='')
+    $lines=@($Text -split "`r?`n",-1); $blocks=@(); $cur=$null
+    for($i=0;$i -lt $lines.Count;$i++){ $n=$i+1; $line=$lines[$i]
+        if($line -match '^<<<<<<<'){ if($cur){$cur.Incomplete=$true;$cur.EndLine=$n-1;$blocks+=[pscustomobject]$cur}; $cur=[ordered]@{Path=$Path;StartLine=$n;Separator=$null;EndLine=$null;Incomplete=$false}; continue }
+        if($line -match '^=======$' -and $cur){ $cur.Separator=$n; continue }
+        if($line -match '^>>>>>>>' -and $cur){ $cur.EndLine=$n; if($null -eq $cur.Separator){$cur.Incomplete=$true}; $blocks+=[pscustomobject]$cur; $cur=$null; continue }
+    }
+    if($cur){$cur.Incomplete=$true;$cur.EndLine=$lines.Count;$blocks+=[pscustomobject]$cur}
+    [pscustomobject]@{ Path=$Path; BlockCount=@($blocks).Count; IncompleteCount=@($blocks|Where-Object{$_.Incomplete}).Count; HasMarkers=(@($blocks).Count -gt 0); HasOnlyCompleteBlocks=((@($blocks).Count -gt 0) -and (@($blocks|Where-Object{$_.Incomplete}).Count -eq 0)); Blocks=@($blocks) }
+}
+function Get-GgcaConflictMarkerScanForFile { param([string]$Path); if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "Conflict file not found: $Path"}; Get-GgcaConflictMarkerScanForText -Text (Get-Content -LiteralPath $Path -Raw -Encoding UTF8) -Path $Path }
+function Format-GgcaConflictMarkerSummary { param($Scan); if(-not $Scan.HasMarkers){return "No conflict markers found in $($Scan.Path)."}; (($Scan.Blocks|ForEach-Object{"- lines $($_.StartLine)-$($_.EndLine), incomplete=$($_.Incomplete)"}) -join [Environment]::NewLine) }
+function Test-GgcaPathSafeForGitFileArgument { param([string]$Path); -not [string]::IsNullOrWhiteSpace($Path) -and $Path -notmatch '[\x00\r\n]' }
+function Get-GgcaCheckoutOursCommandPlan { param([string]$Path); if(-not(Test-GgcaPathSafeForGitFileArgument $Path)){throw 'Unsafe or empty conflict path.'}; New-GgcaCommandPlan -Title 'Use ours for selected file' -Arguments @('checkout','--ours','--',$Path) -Description 'Keeps the current branch side for the selected file.' -Destructive $true -RiskLevel 'destructive-file-choice' }
+function Get-GgcaCheckoutTheirsCommandPlan { param([string]$Path); if(-not(Test-GgcaPathSafeForGitFileArgument $Path)){throw 'Unsafe or empty conflict path.'}; New-GgcaCommandPlan -Title 'Use theirs for selected file' -Arguments @('checkout','--theirs','--',$Path) -Description 'Keeps the incoming side for the selected file.' -Destructive $true -RiskLevel 'destructive-file-choice' }
+function Get-GgcaStageResolvedFileCommandPlan { param([string]$Path); if(-not(Test-GgcaPathSafeForGitFileArgument $Path)){throw 'Unsafe or empty conflict path.'}; New-GgcaCommandPlan -Title 'Stage resolved conflict file' -Arguments @('add','--',$Path) -Description 'Stages the selected file after markers are removed.' -Destructive $false }
+function Test-GgcaStageResolvedFileAllowed { param($Scan); [pscustomobject]@{ Allowed=(-not $Scan.HasMarkers); Reason=if($Scan.HasMarkers){'Conflict markers still present. Resolve all <<<<<<< / ======= / >>>>>>> blocks before staging.'}else{'No conflict markers found. The file can be staged if the resolved content is correct.'} } }
+function Get-GgcaContinueOperationCommandPlan { param([ValidateSet('merge','cherry-pick','rebase')][string]$Operation='merge'); if($Operation -eq 'cherry-pick'){New-GgcaCommandPlan -Title 'Continue cherry-pick' -Arguments @('cherry-pick','--continue')} elseif($Operation -eq 'rebase'){New-GgcaCommandPlan -Title 'Continue rebase' -Arguments @('rebase','--continue')} else {New-GgcaCommandPlan -Title 'Continue merge' -Arguments @('commit')} }
+function Get-GgcaAbortOperationCommandPlan { param([ValidateSet('merge','cherry-pick','rebase')][string]$Operation='merge'); if($Operation -eq 'cherry-pick'){New-GgcaCommandPlan -Title 'Abort cherry-pick' -Arguments @('cherry-pick','--abort') -Destructive $true -RiskLevel 'operation-abort'} elseif($Operation -eq 'rebase'){New-GgcaCommandPlan -Title 'Abort rebase' -Arguments @('rebase','--abort') -Destructive $true -RiskLevel 'operation-abort'} else {New-GgcaCommandPlan -Title 'Abort merge' -Arguments @('merge','--abort') -Destructive $true -RiskLevel 'operation-abort'} }
+function Get-GgcaResolutionGuidance { param([string]$Operation='merge',[int]$ConflictFileCount=0,[int]$ConflictMarkerBlockCount=0); "Guided conflict resolution assistant`nOperation: $Operation`nConflicted files: $ConflictFileCount`nConflict marker blocks in selected file: $ConflictMarkerBlockCount`n`nResolve, rescan, stage when markers are absent, then continue or abort." }
+Export-ModuleMember -Function New-GgcaCommandPlan,Get-GgcaUnmergedFilesCommandPlan,ConvertFrom-GgcaUnmergedFileList,Get-GgcaConflictMarkerScanForText,Get-GgcaConflictMarkerScanForFile,Format-GgcaConflictMarkerSummary,Test-GgcaPathSafeForGitFileArgument,Get-GgcaCheckoutOursCommandPlan,Get-GgcaCheckoutTheirsCommandPlan,Get-GgcaStageResolvedFileCommandPlan,Test-GgcaStageResolvedFileAllowed,Get-GgcaContinueOperationCommandPlan,Get-GgcaAbortOperationCommandPlan,Get-GgcaResolutionGuidance
