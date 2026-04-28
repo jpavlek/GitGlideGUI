@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at_utc": "2026-04-28T19:33:44.984514+00:00",
+  "generated_at_utc": "2026-04-28T22:10:07.876412+00:00",
   "repository_root": "D:\\Projects\\PersonalCloud\\GitFlowGUI\\GitGlideGUI_v3_6_4_functional",
   "version": "3.9.1",
   "current_branch": "feature/v3-9-1-branch-cleanup-remote-hygiene",
@@ -18,7 +18,7 @@
     ]
   },
   "file_inventory": {
-    "total_files": 258,
+    "total_files": 257,
     "runtime_script_file_count": 15,
     "module_file_count": 15,
     "test_file_count": 25,
@@ -220,37 +220,48 @@
   },
   "git": {
     "baseline_ref": "v3.8.1",
-    "commit_count_since_baseline": 6,
+    "commit_count_since_baseline": 7,
     "merge_commit_count_since_baseline": 4,
-    "non_merge_commit_count_since_baseline": 2,
-    "changed_file_count_since_baseline": 34,
-    "added_lines_since_baseline": 3472,
-    "deleted_lines_since_baseline": 36,
+    "non_merge_commit_count_since_baseline": 3,
+    "changed_file_count_since_baseline": 46,
+    "added_lines_since_baseline": 5242,
+    "deleted_lines_since_baseline": 75,
     "changed_files_since_baseline": [
       "GUI_LAYOUT_ARCHITECTURE_PLAN_v3_10.md",
       "PATCH_SNIPPETS_v3_8_2.md",
       "PATCH_SNIPPETS_v3_9_0.md",
+      "PATCH_SNIPPETS_v3_9_1.md",
       "README.md",
       "VERSION",
       "WORKFLOW_GAPS_AFTER_THREAD_v3_9_0.md",
       "docs/ARCHITECTURE_v3_9_0.md",
+      "docs/ARCHITECTURE_v3_9_1.md",
+      "docs/BRANCH_CLEANUP_ASSISTANT_v3_9_1.md",
       "docs/CONFLICT_RESOLUTION_ASSISTANT_v3_9_0.md",
+      "docs/CONFLICT_RESOLUTION_ASSISTANT_v3_9_1.md",
       "docs/METRICS_AND_VALUE_MODEL.md",
       "docs/RELEASE_NOTES_v3_8_2.md",
       "docs/RELEASE_NOTES_v3_9_0.md",
+      "docs/RELEASE_NOTES_v3_9_1.md",
       "docs/ROADMAP_REVIEW_v3_9_0.md",
+      "docs/ROADMAP_REVIEW_v3_9_1.md",
       "docs/START_HERE.md",
       "docs/SWOT_AND_ROADMAP_v3_9_0.md",
+      "docs/SWOT_AND_ROADMAP_v3_9_1.md",
       "docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_9_0.md",
+      "docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_9_1.md",
       "manifest.json",
       "metrics/METRICS_REPORT.md",
       "metrics/feature_manifest.json",
+      "metrics/feature_manifest_v3_9_1_patch.json",
       "metrics/feature_manifest_v3_9_patch.json",
       "metrics/metric_definitions.json",
       "metrics/snapshots/.gitkeep",
       "metrics/snapshots/gitglide_metrics_latest.json",
       "metrics/snapshots/gitglide_metrics_v3_8_1.json",
       "metrics/snapshots/gitglide_metrics_v3_9_0.json",
+      "metrics/snapshots/gitglide_metrics_v3_9_1.json",
+      "modules/GitGlideGUI.Core/GitBranchCleanup.psm1",
       "modules/GitGlideGUI.Core/GitConflictAssistant.psm1",
       "scripts/metrics/collect_gitglide_metrics.py",
       "scripts/metrics/generate_metrics_report.py",
@@ -259,6 +270,7 @@
       "scripts/windows/GitGlideGUI.part05-ui.ps1",
       "scripts/windows/collect-metrics.bat",
       "scripts/windows/run-quality-checks.bat",
+      "tests/GitBranchCleanup.Tests.ps1",
       "tests/GitConflictAssistant.Tests.ps1",
       "tests/static_smoke_test.py"
     ],
@@ -267,18 +279,19 @@
       "VERSION",
       "docs/RELEASE_NOTES_v3_8_2.md",
       "docs/RELEASE_NOTES_v3_9_0.md",
+      "docs/RELEASE_NOTES_v3_9_1.md",
       "docs/START_HERE.md",
       "manifest.json",
       "scripts/windows/run-quality-checks.bat"
     ],
-    "release_churn_ratio": 0.2059
+    "release_churn_ratio": 0.1739
   },
   "change_surface": {
-    "added_kib": 100.64,
-    "changed_kib": 382.77,
+    "added_kib": 145.41,
+    "changed_kib": 382.93,
     "deleted_kib": 0.0,
-    "package_change_surface_kib": 483.42,
-    "net_package_growth_kib": 143.53
+    "package_change_surface_kib": 528.34,
+    "net_package_growth_kib": 189.79
   },
   "feature_value": {
     "problem_count": 5,
@@ -322,7 +335,7 @@
   "scores": {
     "quality_score": 100,
     "net_maturity_score": 38.54,
-    "feature_points_per_kib": 0.1345,
-    "debt_points_per_kib": 0.0547
+    "feature_points_per_kib": 0.123,
+    "debt_points_per_kib": 0.0501
   }
 }

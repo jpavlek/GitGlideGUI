@@ -1,6 +1,6 @@
 # Git Glide GUI Metrics Report
 
-Generated: `2026-04-28T19:33:44.984514+00:00`
+Generated: `2026-04-28T22:10:07.876412+00:00`
 
 ## Summary
 
@@ -14,21 +14,21 @@ Generated: `2026-04-28T19:33:44.984514+00:00`
 
 ## Release window
 
-- Commits since baseline: 6
+- Commits since baseline: 7
 - Merge commits since baseline: 4
-- Non-merge commits since baseline: 2
-- Changed files since baseline: 34
-- Added lines since baseline: 3472
-- Deleted lines since baseline: 36
-- Release churn ratio: 20.6%
+- Non-merge commits since baseline: 3
+- Changed files since baseline: 46
+- Added lines since baseline: 5242
+- Deleted lines since baseline: 75
+- Release churn ratio: 17.4%
 
 ## Package change surface
 
-- Added KiB: 100.64
-- Changed KiB: 382.77
+- Added KiB: 145.41
+- Changed KiB: 382.93
 - Deleted KiB: 0.0
-- Package change surface KiB: **483.42**
-- Net package growth KiB: **143.53**
+- Package change surface KiB: **528.34**
+- Net package growth KiB: **189.79**
 
 ## Feature and problem model
 
@@ -65,6 +65,7 @@ Generated: `2026-04-28T19:33:44.984514+00:00`
 - `VERSION`
 - `docs/RELEASE_NOTES_v3_8_2.md`
 - `docs/RELEASE_NOTES_v3_9_0.md`
+- `docs/RELEASE_NOTES_v3_9_1.md`
 - `docs/START_HERE.md`
 - `manifest.json`
 - `scripts/windows/run-quality-checks.bat`
