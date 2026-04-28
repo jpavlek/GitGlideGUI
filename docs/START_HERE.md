@@ -1,10 +1,10 @@
-# Git Glide GUI v3.8.1 - Start Here
+# Git Glide GUI v3.10.0 - Start Here
 
 This guide helps you launch Git Glide GUI, choose the right first action, validate the package, and find the main workflows.
 
-For the product overview, positioning, and v3.8.1 release focus, see `README.md`.
+For the product overview, positioning, and v3.10.0 release focus, see `README.md`.
 
-v3.8.1 is a stabilization release. It keeps the v3.8.0 visual history and branch-relationship features while reducing release churn by moving runtime launch paths to stable script filenames and treating the version as data.
+v3.10.0 adds the modular Layout State Model used to save splitter/window layout as structured data and prepare future collapsible, stackable, and dockable panels.
 
 ## Requirements
 
@@ -107,6 +107,20 @@ Outputs:
 metrics/snapshots/gitglide_metrics_latest.json
 metrics/METRICS_REPORT.md
 ```
+
+## Layout state and save policy
+
+Open **Appearance** to inspect the v3.10.0 Layout State Model.
+
+Available controls:
+
+- **Save layout now** stores the current splitter/window state immediately.
+- **Show layout state** displays the active layout profile and panel model.
+- **Discard session layout** restores the saved layout without keeping temporary resizing.
+- **Reset layout** returns layout state to the built-in defaults.
+- **Save policy** controls whether layout is saved on exit: `ask-on-exit`, `always`, or `never`.
+
+This is the foundation for v3.10.1+ collapsible, stackable, and dockable workspace panels.
 
 ## UI modes
 
