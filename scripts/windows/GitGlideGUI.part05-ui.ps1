@@ -2713,8 +2713,8 @@ function Invoke-GitGlideSafeShutdownAction {
         # shutdown does not show the .NET JIT/unhandled-exception dialog.
     } catch {
         try {
-            if (Get-Command Append-Log -ErrorAction SilentlyContinue) {
-                Append-Log -Text ("Ignored {0} error during shutdown: {1}" -f $Context, $_.Exception.Message) -Color ([System.Drawing.Color]::DarkGray)
+            if (Get-Command Write-AuditLog -ErrorAction SilentlyContinue) {
+                Write-AuditLog -Message ("SHUTDOWN_CLEANUP_WARNING | {0}: {1}" -f $Context, $_.Exception.Message)
             }
         } catch {
             # Never throw from shutdown logging.
@@ -2722,12 +2722,8 @@ function Invoke-GitGlideSafeShutdownAction {
     }
 }
 
-$form.Add_FormClosing({
+function Invoke-GitGlideShutdownCleanup {
     try {
-        # v3.8.1: WinForms can invoke FormClosing while the hosting PowerShell
-        # pipeline is already stopping. Letting PipelineStoppedException escape
-        # from this event handler produces a .NET JIT/debugging dialog instead of
-        # a normal shutdown. Keep close-time cleanup best-effort and non-throwing.
         $script:IsShuttingDown = $true
 
         if ($script:ShutdownCleanupStarted) {
@@ -2736,31 +2732,38 @@ $form.Add_FormClosing({
 
         $script:ShutdownCleanupStarted = $true
 
-        try {
-            Save-LayoutConfig -Reason 'closing'
-        } catch [System.Management.Automation.PipelineStoppedException] {
-            # Host is stopping; do not write to the pipeline and do not rethrow.
-        } catch {
-            # Closing must remain reliable even if layout persistence fails.
-            try {
-                Write-AuditLog -Message ("SHUTDOWN_CLEANUP_WARNING | {0}" -f $_.Exception.Message)
-            } catch {
-                # Never throw from shutdown logging.
+        Invoke-GitGlideSafeShutdownAction -Context 'save classic splitter layout' -Action {
+            if (Get-Command Save-LayoutConfig -ErrorAction SilentlyContinue) {
+                Save-LayoutConfig
             }
         }
 
+        Invoke-GitGlideSafeShutdownAction -Context 'save v3.10 layout state' -Action {
+            if (Get-Command Save-GitGlideLayoutStateOnExit -ErrorAction SilentlyContinue) {
+                Save-GitGlideLayoutStateOnExit
+            }
+        }
+
+        Invoke-GitGlideSafeShutdownAction -Context 'cancel running operation' -Action {
+            if (Get-Command Cancel-CurrentOperation -ErrorAction SilentlyContinue) {
+                Cancel-CurrentOperation
+            }
+        }
+    } catch [System.Management.Automation.PipelineStoppedException] {
+        # Final guard.
+    } catch {
         try {
-            Cancel-CurrentOperation
-        } catch [System.Management.Automation.PipelineStoppedException] {
-            # Host is stopping; ignore.
+            if (Get-Command Write-AuditLog -ErrorAction SilentlyContinue) {
+                Write-AuditLog -Message ("SHUTDOWN_CLEANUP_WARNING | final guard: {0}" -f $_.Exception.Message)
+            }
         } catch {
             # Never throw from shutdown cleanup.
         }
-    } catch [System.Management.Automation.PipelineStoppedException] {
-        # Final guard: never let pipeline-stop escape FormClosing.
-    } catch {
-        # Final guard: never show the .NET JIT dialog during close.
     }
+}
+
+$form.Add_FormClosing({
+    Invoke-GitGlideShutdownCleanup
 })
 
 #endregion

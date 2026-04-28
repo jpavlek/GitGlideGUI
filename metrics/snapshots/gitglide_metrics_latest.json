@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0",
-  "generated_at_utc": "2026-04-28T20:35:44.997502+00:00",
-  "repository_root": "/tmp/gitglide_v3_10_work",
+  "generated_at_utc": "2026-04-28T21:57:29.651076+00:00",
+  "repository_root": "D:\\Projects\\PersonalCloud\\GitFlowGUI\\GitGlideGUI_v3_6_4_functional",
   "version": "3.10.0",
-  "current_branch": "",
-  "latest_tag": "",
+  "current_branch": "feature/v3-10-modular-layout-state-model",
+  "latest_tag": "v3.9.1",
   "manifest": {
     "version": "3.10.0",
     "main_script": "scripts/windows/GitGlideGUI.ps1",
@@ -18,11 +18,11 @@
     ]
   },
   "file_inventory": {
-    "total_files": 222,
+    "total_files": 268,
     "runtime_script_file_count": 15,
     "module_file_count": 16,
     "test_file_count": 26,
-    "doc_file_count": 136,
+    "doc_file_count": 138,
     "runtime_script_files": [
       "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",
       "scripts/windows/GitGlideGUI.part02-state-selection.ps1",
@@ -99,12 +99,13 @@
       "docs/ARCHITECTURE_v3_9_1.md",
       "docs/BRANCH_CLEANUP_ASSISTANT_v3_9_1.md",
       "docs/CHANGELOG_V3_7_0.md",
-      "docs/CONFLICT_RESOLUTION_ASSISTANT_v3_9_0.md",
-      "docs/CONFLICT_RESOLUTION_ASSISTANT_v3_9_1.md",
+      "docs/CONFLICT_RESOLUTION_ASSISTANT.md",
       "docs/FILES_CHANGED_V3_7_0.md",
+      "docs/FILES_CHANGED_v3_10_0.md",
       "docs/FILES_CHANGED_v3_7.md",
       "docs/FILES_CHANGED_v3_8.md",
       "docs/FILES_CHANGED_v3_8_1.md",
+      "docs/GitGlideGUI-main-v3_6_12.zip",
       "docs/IMPROVEMENTS_SUMMARY_v1_8.md",
       "docs/INSTALL_AND_RUN_V3_7_0.md",
       "docs/LAYOUT_STATE_MODEL_v3_10_0.md",
@@ -226,23 +227,53 @@
     ]
   },
   "git": {
-    "baseline_ref": "",
-    "commit_count_since_baseline": 0,
+    "baseline_ref": "v3.9.1",
+    "commit_count_since_baseline": 1,
     "merge_commit_count_since_baseline": 0,
-    "non_merge_commit_count_since_baseline": 0,
-    "changed_file_count_since_baseline": 0,
-    "added_lines_since_baseline": 0,
-    "deleted_lines_since_baseline": 0,
-    "changed_files_since_baseline": [],
-    "release_churn_candidate_files": [],
-    "release_churn_ratio": 0.0
+    "non_merge_commit_count_since_baseline": 1,
+    "changed_file_count_since_baseline": 22,
+    "added_lines_since_baseline": 1631,
+    "deleted_lines_since_baseline": 341,
+    "changed_files_since_baseline": [
+      "README.md",
+      "VERSION",
+      "docs/ARCHITECTURE_v3_10_0.md",
+      "docs/CONFLICT_RESOLUTION_ASSISTANT.md",
+      "docs/FILES_CHANGED_v3_10_0.md",
+      "docs/LAYOUT_STATE_MODEL_v3_10_0.md",
+      "docs/RELEASE_NOTES_v3_10_0.md",
+      "docs/ROADMAP_REVIEW_v3_10_0.md",
+      "docs/START_HERE.md",
+      "docs/SWOT_AND_ROADMAP_v3_10_0.md",
+      "docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_10_0.md",
+      "manifest.json",
+      "metrics/METRICS_REPORT.md",
+      "metrics/feature_manifest.json",
+      "metrics/snapshots/gitglide_metrics_latest.json",
+      "metrics/snapshots/gitglide_metrics_v3_10_0.json",
+      "modules/GitGlideGUI.Core/GitLayoutState.psm1",
+      "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",
+      "scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1",
+      "scripts/windows/GitGlideGUI.part05-ui.ps1",
+      "tests/GitLayoutState.Tests.ps1",
+      "tests/static_smoke_test.py"
+    ],
+    "release_churn_candidate_files": [
+      "README.md",
+      "VERSION",
+      "docs/FILES_CHANGED_v3_10_0.md",
+      "docs/RELEASE_NOTES_v3_10_0.md",
+      "docs/START_HERE.md",
+      "manifest.json"
+    ],
+    "release_churn_ratio": 0.2727
   },
   "change_surface": {
-    "added_kib": 0.0,
-    "changed_kib": 0.0,
+    "added_kib": 34.36,
+    "changed_kib": 422.77,
     "deleted_kib": 0.0,
-    "package_change_surface_kib": 0.0,
-    "net_package_growth_kib": 0.0
+    "package_change_surface_kib": 457.13,
+    "net_package_growth_kib": 58.12
   },
   "feature_value": {
     "problem_count": 5,
@@ -260,12 +291,12 @@
     }
   },
   "technical_debt": {
-    "technical_debt_points_total": 24.98,
+    "technical_debt_points_total": 27.66,
     "components": {
-      "modularity_pressure": 12.48,
+      "modularity_pressure": 12.66,
       "runtime_version_churn": 0.0,
       "docs_regression_risk": 0.0,
-      "todo_fixme_hack_debt": 3.0,
+      "todo_fixme_hack_debt": 5.5,
       "marker_test_brittleness": 3.0,
       "manual_release_process_debt": 3.5,
       "gui_behavioral_test_gap": 3.0
@@ -275,18 +306,18 @@
       "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1": 1125,
       "scripts/windows/GitGlideGUI.part02-state-selection.ps1": 2184,
       "scripts/windows/GitGlideGUI.part03-previews-basic-ops.ps1": 1503,
-      "scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1": 2668,
-      "scripts/windows/GitGlideGUI.part05-ui.ps1": 2766,
+      "scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1": 2707,
+      "scripts/windows/GitGlideGUI.part05-ui.ps1": 2769,
       "scripts/windows/GitGlideGUI.part06-run.ps1": 36
     },
     "oversized_script_files": [],
     "versioned_runtime_script_count": 0,
-    "todo_fixme_hack_count": 6
+    "todo_fixme_hack_count": 11
   },
   "scores": {
     "quality_score": 100,
-    "net_maturity_score": 44.02,
-    "feature_points_per_kib": 69.0,
-    "debt_points_per_kib": 24.98
+    "net_maturity_score": 41.34,
+    "feature_points_per_kib": 0.1509,
+    "debt_points_per_kib": 0.0605
   }
 }
