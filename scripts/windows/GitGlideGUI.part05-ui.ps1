@@ -1205,6 +1205,144 @@ $integrateActionsPanel.Controls.Add($script:IntegrationFeatureBranchComboBox)
 [void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Clean merged branch' -Width 160 -Handler { Cleanup-SelectedFeatureBranch } -PreviewBuilder { Build-CleanupSelectedFeatureBranchPreview } -PreviewTitle 'Clean up merged feature branch' -Notes 'Deletes a merged feature/fix branch locally and remotely after confirmation. Do this only after merge and push are complete.')
 [void](New-ActionButton -ParentPanel $integrateActionsPanel -Text 'Open PR URL' -Width 120 -Handler { Open-LastPullRequestUrl } -PreviewBuilder { if ($script:Config.ContainsKey('LastPullRequestUrl') -and -not [string]::IsNullOrWhiteSpace([string]$script:Config.LastPullRequestUrl)) { [string]$script:Config.LastPullRequestUrl } else { 'push a feature branch to GitHub to detect a pull request URL' } } -PreviewTitle 'Open last detected pull request URL' -Notes 'When GitHub prints a pull/new URL after push, Git Glide stores it for quick opening.')
 
+# v3.9.1: Branch Cleanup Assistant
+$branchCleanupLabel = New-Object System.Windows.Forms.Label
+$branchCleanupLabel.Text = 'Branch Cleanup Assistant'
+$branchCleanupLabel.Width = 170
+$branchCleanupLabel.Height = 26
+$branchCleanupLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$branchCleanupLabel.Margin = New-Object System.Windows.Forms.Padding(12, 8, 4, 4)
+$integrateActionsPanel.Controls.Add($branchCleanupLabel)
+
+$branchCleanupFetchPruneButton = New-Object System.Windows.Forms.Button
+$branchCleanupFetchPruneButton.Text = 'Fetch --prune'
+$branchCleanupFetchPruneButton.Width = 120
+$branchCleanupFetchPruneButton.Height = 32
+$branchCleanupFetchPruneButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$branchCleanupFetchPruneButton.Add_Click({ Invoke-BranchCleanupFetchPrune })
+$integrateActionsPanel.Controls.Add($branchCleanupFetchPruneButton)
+
+$branchCleanupRefreshButton = New-Object System.Windows.Forms.Button
+$branchCleanupRefreshButton.Text = 'Cleanup refresh'
+$branchCleanupRefreshButton.Width = 135
+$branchCleanupRefreshButton.Height = 32
+$branchCleanupRefreshButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$branchCleanupRefreshButton.Add_Click({ Refresh-BranchCleanupAssistant })
+$integrateActionsPanel.Controls.Add($branchCleanupRefreshButton)
+
+$branchCleanupShowButton = New-Object System.Windows.Forms.Button
+$branchCleanupShowButton.Text = 'Show cleanup'
+$branchCleanupShowButton.Width = 125
+$branchCleanupShowButton.Height = 32
+$branchCleanupShowButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$branchCleanupShowButton.Add_Click({ Show-BranchCleanupAssistant })
+$integrateActionsPanel.Controls.Add($branchCleanupShowButton)
+
+$branchCleanupLocalLabel = New-Object System.Windows.Forms.Label
+$branchCleanupLocalLabel.Text = 'Local:'
+$branchCleanupLocalLabel.Width = 45
+$branchCleanupLocalLabel.Height = 26
+$branchCleanupLocalLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$branchCleanupLocalLabel.Margin = New-Object System.Windows.Forms.Padding(12, 8, 4, 4)
+$integrateActionsPanel.Controls.Add($branchCleanupLocalLabel)
+
+$script:BranchCleanupLocalComboBox = New-Object System.Windows.Forms.ComboBox
+$script:BranchCleanupLocalComboBox.Width = 240
+$script:BranchCleanupLocalComboBox.DropDownStyle = 'DropDown'
+$script:BranchCleanupLocalComboBox.Margin = New-Object System.Windows.Forms.Padding(4)
+$script:BranchCleanupLocalComboBox.Add_TextChanged({
+    $branch = if ($script:BranchCleanupLocalComboBox) { [string]$script:BranchCleanupLocalComboBox.Text } else { '<branch>' }
+    Set-CommandPreview `
+        -Title 'Delete local branch' `
+        -Commands ('git branch -d ' + (Quote-Arg $branch)) `
+        -Notes 'Preview only. Delete requires explicit confirmation.'
+})
+$integrateActionsPanel.Controls.Add($script:BranchCleanupLocalComboBox)
+
+$branchCleanupDeleteLocalButton = New-Object System.Windows.Forms.Button
+$branchCleanupDeleteLocalButton.Text = 'Delete local'
+$branchCleanupDeleteLocalButton.Width = 110
+$branchCleanupDeleteLocalButton.Height = 32
+$branchCleanupDeleteLocalButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$branchCleanupDeleteLocalButton.Add_Click({ Invoke-BranchCleanupDeleteSelectedLocal })
+$integrateActionsPanel.Controls.Add($branchCleanupDeleteLocalButton)
+
+$branchCleanupRemoteLabel = New-Object System.Windows.Forms.Label
+$branchCleanupRemoteLabel.Text = 'Remote:'
+$branchCleanupRemoteLabel.Width = 58
+$branchCleanupRemoteLabel.Height = 26
+$branchCleanupRemoteLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$branchCleanupRemoteLabel.Margin = New-Object System.Windows.Forms.Padding(12, 8, 4, 4)
+$integrateActionsPanel.Controls.Add($branchCleanupRemoteLabel)
+
+$script:BranchCleanupRemoteComboBox = New-Object System.Windows.Forms.ComboBox
+$script:BranchCleanupRemoteComboBox.Width = 240
+$script:BranchCleanupRemoteComboBox.DropDownStyle = 'DropDown'
+$script:BranchCleanupRemoteComboBox.Margin = New-Object System.Windows.Forms.Padding(4)
+$script:BranchCleanupRemoteComboBox.Add_TextChanged({
+    $branch = if ($script:BranchCleanupRemoteComboBox) { [string]$script:BranchCleanupRemoteComboBox.Text } else { '<branch>' }
+    $remote = if ($script:Config.ContainsKey('DefaultRemoteName')) { [string]$script:Config.DefaultRemoteName } else { 'origin' }
+
+    Set-CommandPreview `
+        -Title 'Delete remote branch' `
+        -Commands ('git push ' + (Quote-Arg $remote) + ' --delete ' + (Quote-Arg $branch)) `
+        -Notes 'Preview only. Remote delete requires explicit confirmation.'
+})
+$integrateActionsPanel.Controls.Add($script:BranchCleanupRemoteComboBox)
+
+$branchCleanupDeleteRemoteButton = New-Object System.Windows.Forms.Button
+$branchCleanupDeleteRemoteButton.Text = 'Delete remote'
+$branchCleanupDeleteRemoteButton.Width = 120
+$branchCleanupDeleteRemoteButton.Height = 32
+$branchCleanupDeleteRemoteButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$branchCleanupDeleteRemoteButton.Add_Click({ Invoke-BranchCleanupDeleteSelectedRemote })
+$integrateActionsPanel.Controls.Add($branchCleanupDeleteRemoteButton)
+
+$script:BranchCleanupTextBox = New-Object System.Windows.Forms.TextBox
+$script:BranchCleanupTextBox.Width = 920
+$script:BranchCleanupTextBox.Height = 80
+$script:BranchCleanupTextBox.Multiline = $true
+$script:BranchCleanupTextBox.ScrollBars = 'Vertical'
+$script:BranchCleanupTextBox.ReadOnly = $true
+$script:BranchCleanupTextBox.Font = $script:FontMono
+$script:BranchCleanupTextBox.Margin = New-Object System.Windows.Forms.Padding(4)
+$script:BranchCleanupTextBox.Text = 'Click Cleanup refresh to inspect local and remote branch hygiene.'
+$integrateActionsPanel.Controls.Add($script:BranchCleanupTextBox)
+
+Set-ControlPreview -Control $branchCleanupFetchPruneButton -Builder {
+    if (Get-Command Get-GgbcFetchPruneCommandPlan -ErrorAction SilentlyContinue) {
+        (Get-GgbcFetchPruneCommandPlan).Display
+    } else {
+        'git fetch origin --prune'
+    }
+} -Title 'Fetch and prune remote-tracking branches' -Notes 'Updates remote-tracking refs and removes stale tracking refs. Does not delete remote branches.'
+
+Set-ControlPreview -Control $branchCleanupRefreshButton -Builder {
+    "git branch -vv`r`ngit branch -r`r`ngit branch --merged main`r`ngit branch --merged develop"
+} -Title 'Branch Cleanup Assistant' -Notes 'Read-only branch cleanup inspection.'
+
+Set-ControlPreview -Control $branchCleanupShowButton -Builder {
+    "git branch -vv`r`ngit branch -r"
+} -Title 'Show branch cleanup summary' -Notes 'Refreshes and displays branch cleanup recommendations.'
+
+Set-ControlPreview -Control $branchCleanupDeleteLocalButton -Builder {
+    $branch = if ($script:BranchCleanupLocalComboBox) { [string]$script:BranchCleanupLocalComboBox.Text } else { '<branch>' }
+    'git branch -d ' + (Quote-Arg $branch)
+} -Title 'Delete selected local branch' -Notes 'Uses git branch -d and blocks protected branches.'
+
+Set-ControlPreview -Control $branchCleanupDeleteRemoteButton -Builder {
+    $branch = if ($script:BranchCleanupRemoteComboBox) { [string]$script:BranchCleanupRemoteComboBox.Text } else { '<branch>' }
+    $remote = if ($script:Config.ContainsKey('DefaultRemoteName')) { [string]$script:Config.DefaultRemoteName } else { 'origin' }
+    'git push ' + (Quote-Arg $remote) + ' --delete ' + (Quote-Arg $branch)
+} -Title 'Delete selected remote branch' -Notes 'Deletes the selected branch from the shared remote after confirmation.'
+
+if ($script:ToolTip) {
+    $script:ToolTip.SetToolTip($branchCleanupFetchPruneButton, 'Run git fetch origin --prune to update remote-tracking refs and remove stale tracking refs.')
+    $script:ToolTip.SetToolTip($branchCleanupRefreshButton, 'Inspect local branches, remote branches, merged branches, and cleanup candidates.')
+    $script:ToolTip.SetToolTip($branchCleanupDeleteLocalButton, 'Delete the selected local branch only after confirmation. Protected branches are blocked.')
+    $script:ToolTip.SetToolTip($branchCleanupDeleteRemoteButton, 'Delete the selected remote branch only after confirmation. Protected branches are blocked.')
+}
+
 # Stash panel
 $stashLayout = New-Object System.Windows.Forms.TableLayoutPanel
 $stashLayout.Dock = 'Fill'
