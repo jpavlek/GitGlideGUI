@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.9.1",
-  "created_utc": "2026-04-27T22:51:00Z",
+  "version": "3.10.0",
+  "created_utc": "2026-04-28T20:45:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
   "main_script": "scripts/windows/GitGlideGUI.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.9.1 branch cleanup and remote branch hygiene assistant",
+  "iteration_focus": "v3.10.0 modular layout state model and explicit layout save policy",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -25,30 +25,34 @@
     "modules/GitGlideGUI.Core/GitLearningGuidance.psm1",
     "modules/GitGlideGUI.Core/GitHubOperations.psm1",
     "modules/GitGlideGUI.Core/GitConflictAssistant.psm1",
-	"modules/GitGlideGUI.Core/GitBranchCleanup.psm1"
+    "modules/GitGlideGUI.Core/GitBranchCleanup.psm1",
+    "modules/GitGlideGUI.Core/GitLayoutState.psm1"
   ],
   "added": [
-    "Branch cleanup and remote branch hygiene assistant",
-	"Branch cleanup core module and Pester tests",
-	"Protected branch blocking for local and remote cleanup",
-	"Previewable fetch/prune, local delete, and remote delete command plans",
-	"Branch cleanup documentation and roadmap review"
+    "Modular layout state model independent of WinForms controls",
+    "UI-free GitLayoutState core module and Pester tests",
+    "Layout save policy: ask on exit, always save, or never save",
+    "Appearance tab controls for saving, discarding, resetting, and inspecting layout state",
+    "Layout documentation and v3.10.0 roadmap alignment"
   ],
   "next_recommended": [
-    "v3.10.0: modular layout state model with collapsible workspace panels",
-    "v3.10.1: stackable and dockable panel simulation with explicit layout save/discard controls",
+    "v3.10.1: collapsible panel host helpers and restorable panel collapsed state",
+    "v3.10.2: stackable workspace groups for history, recovery, integrate, metrics, and output panels",
+    "v3.10.3: dockable layout simulation with saved workspace profiles",
     "v3.11.0: CI/CD and pull-request workflow integration"
   ],
   "highlights": [
-    "Guides users through branch cleanup after merge and release workflows",
-	"Distinguishes safe local cleanup, remote cleanup, protected branches, and review-needed branches",
-	"Keeps all branch deletion actions previewable and confirmation-based"
+    "Separates layout intent from direct WinForms control manipulation",
+    "Keeps current splitters functional while adding a durable state model for future panel hosts",
+    "Lets users choose whether layout changes are saved automatically, never saved, or confirmed on exit",
+    "Prepares the GUI for collapsible, stackable, and dockable workspace panels without a risky UI rewrite"
   ],
   "iteration_highlights": [
-    "Added modules/GitGlideGUI.Core/GitBranchCleanup.psm1",
-	"Added tests/GitBranchCleanup.Tests.ps1",
-	"Added branch cleanup documentation",
-	"Added branch cleanup and remote hygiene command-plan helpers"
+    "Added modules/GitGlideGUI.Core/GitLayoutState.psm1",
+    "Added tests/GitLayoutState.Tests.ps1",
+    "Added docs/LAYOUT_STATE_MODEL_v3_10_0.md",
+    "Extended Appearance tab with layout save/discard/reset controls",
+    "Updated static smoke checks for the layout state model"
   ],
   "split_script_parts": [
     "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",

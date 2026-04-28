@@ -1,4 +1,4 @@
-# Git Glide GUI v3.8.1
+# Git Glide GUI v3.10.0
 
 Git Glide GUI is a lightweight, privacy-first Windows Git interface built with PowerShell/WinForms and designed for both manual and AI-assisted software development.
 
@@ -30,17 +30,17 @@ This makes it especially useful in fast manual and AI-assisted development workf
 
 - ***For Every Skill Level***: Onboarding learning sections help beginners understand the "why" behind actions, while reminders and custom actions help experienced users move quickly without losing transparency or control.
 
-## Current focus: v3.8.1 version source-of-truth and release-churn reduction
+## Current focus: v3.10.0 modular layout state model
 
-v3.8.1 is a stabilization release. It reduces release churn by moving runtime launch paths from versioned script filenames to stable script filenames and treating the version as data.
+v3.10.0 is an architecture-focused release. It keeps the current WinForms splitter layout functional while introducing a UI-independent Layout State Model that future releases can use for collapsible, stackable, and dockable workspace panels.
 
 The release focuses on three areas:
 
-1. **Stable runtime entrypoint** — `git-glide-gui.bat` launches the stable PowerShell entrypoint instead of a versioned script filename.
-2. **Version source-of-truth** — `VERSION` and `manifest.json` define the current product version, while runtime file names remain stable across releases.
-3. **Lower release noise** — future versions should no longer need to rename the main GUI script and all six split-script parts only because the version number changed.
+1. **Layout state as data** — splitter distances, panel identities, visibility, collapsed state, dock preference, and active profile now have a durable model.
+2. **Explicit save policy** — users can choose `ask-on-exit`, `always`, or `never` for saving layout changes.
+3. **Low-risk migration path** — current controls still work, while v3.10.1+ can build reusable panel hosts on top of the model.
 
-The goal is to make future releases easier to review, test, package, and merge by reducing version-only file churn.
+The goal is to reduce layout pressure without rewriting the application in a different UI framework.
 
 ## Previous focus: v3.8.0 visual history and branch understanding
 
@@ -124,8 +124,9 @@ docs/REPOSITORY_WORKFLOW.md
 Release notes:
 
 ```text
-docs/RELEASE_NOTES_v3_8_1.md
-docs/RELEASE_NOTES_v3_8.md
+docs/RELEASE_NOTES_v3_10_0.md
+docs/LAYOUT_STATE_MODEL_v3_10_0.md
+docs/RELEASE_NOTES_v3_9_1.md
 ```
 
 v3.8 line architecture and planning:
@@ -142,4 +143,12 @@ Metrics
 ```text
 docs/METRICS_AND_VALUE_MODEL.md
 docs/RELEASE_NOTES_v3_8_2.md
+```
+
+v3.10 layout architecture:
+
+```text
+docs/LAYOUT_STATE_MODEL_v3_10_0.md
+docs/ARCHITECTURE_v3_10_0.md
+docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_10_0.md
 ```
