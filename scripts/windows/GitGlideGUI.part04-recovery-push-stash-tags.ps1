@@ -2183,4 +2183,298 @@ function Save-LayoutConfig {
     }
 }
 
+# v3.9.1: Branch Cleanup Assistant
+# Keeps branch cleanup visible, previewable, and confirmation-based.
+
+function Get-BranchCleanupSelectedLocalBranch {
+    if ($script:BranchCleanupLocalComboBox -and $script:BranchCleanupLocalComboBox.Text) {
+        return ([string]$script:BranchCleanupLocalComboBox.Text).Trim()
+    }
+
+    return ''
+}
+
+function Get-BranchCleanupSelectedRemoteBranch {
+    if ($script:BranchCleanupRemoteComboBox -and $script:BranchCleanupRemoteComboBox.Text) {
+        return ([string]$script:BranchCleanupRemoteComboBox.Text).Trim()
+    }
+
+    return ''
+}
+
+function Invoke-BranchCleanupGitText {
+    param([object]$Plan)
+
+    if (-not $Plan -or -not $Plan.Arguments) { return '' }
+
+    $result = Run-External `
+        -FileName 'git' `
+        -Arguments (@('-C', $script:RepoRoot) + @($Plan.Arguments)) `
+        -Caption ([string]$Plan.Display) `
+        -AllowFailure `
+        -QuietOutput
+
+    if ($result.ExitCode -ne 0) { return '' }
+
+    return [string]$result.StdOut
+}
+
+function Refresh-BranchCleanupAssistant {
+    try {
+        if (-not (Test-GitRepository)) {
+            [System.Windows.Forms.MessageBox]::Show(
+                'Open a Git repository first.',
+                'No repository',
+                'OK',
+                'Information'
+            ) | Out-Null
+            return
+        }
+
+        $remoteName = if ($script:Config.ContainsKey('DefaultRemoteName')) {
+            [string]$script:Config.DefaultRemoteName
+        } else {
+            'origin'
+        }
+
+        $mainBranch = if ($script:Config.ContainsKey('MainBranch')) {
+            [string]$script:Config.MainBranch
+        } else {
+            'main'
+        }
+
+        $baseBranch = if ($script:Config.ContainsKey('BaseBranch')) {
+            [string]$script:Config.BaseBranch
+        } else {
+            'develop'
+        }
+
+        $currentBranch = if ($script:CurrentBranch) {
+            [string]$script:CurrentBranch
+        } else {
+            ''
+        }
+
+        $branchText = Invoke-BranchCleanupGitText -Plan (Get-GgbcBranchVerboseCommandPlan)
+        $remoteText = Invoke-BranchCleanupGitText -Plan (Get-GgbcRemoteBranchesCommandPlan)
+        $mergedMainText = Invoke-BranchCleanupGitText -Plan (Get-GgbcMergedLocalBranchesCommandPlan -BaseBranch $mainBranch)
+        $mergedDevelopText = Invoke-BranchCleanupGitText -Plan (Get-GgbcMergedLocalBranchesCommandPlan -BaseBranch $baseBranch)
+
+        $localBranches = @(ConvertFrom-GgbcBranchVerboseText -Text $branchText)
+        $remoteBranches = @(ConvertFrom-GgbcRemoteBranchText -Text $remoteText -RemoteName $remoteName)
+        $remoteNames = @($remoteBranches | ForEach-Object { [string]$_.Name })
+
+        $mergedMain = @(ConvertFrom-GgbcMergedBranchText -Text $mergedMainText)
+        $mergedDevelop = @(ConvertFrom-GgbcMergedBranchText -Text $mergedDevelopText)
+
+        $candidates = @()
+        foreach ($branch in $localBranches) {
+            $candidates += Get-GgbcBranchCleanupCandidate `
+                -BranchName ([string]$branch.Name) `
+                -MergedIntoMain $mergedMain `
+                -MergedIntoDevelop $mergedDevelop `
+                -RemoteBranches $remoteNames `
+                -MainBranch $mainBranch `
+                -BaseBranch $baseBranch `
+                -CurrentBranch $currentBranch
+        }
+
+        $summary = Format-GgbcBranchCleanupSummary -Candidates $candidates -RemoteCandidates $remoteBranches
+
+        if ($script:BranchCleanupLocalComboBox) {
+            $script:BranchCleanupLocalComboBox.Items.Clear()
+
+            foreach ($candidate in @($candidates | Where-Object { $_.Recommendation -eq 'safe-delete' })) {
+                [void]$script:BranchCleanupLocalComboBox.Items.Add([string]$candidate.Branch)
+            }
+
+            if ($script:BranchCleanupLocalComboBox.Items.Count -gt 0) {
+                $script:BranchCleanupLocalComboBox.SelectedIndex = 0
+            }
+        }
+
+        if ($script:BranchCleanupRemoteComboBox) {
+            $script:BranchCleanupRemoteComboBox.Items.Clear()
+
+            foreach ($remote in $remoteBranches) {
+                if (-not (Test-GgbcProtectedBranch -BranchName ([string]$remote.Name) -MainBranch $mainBranch -BaseBranch $baseBranch)) {
+                    [void]$script:BranchCleanupRemoteComboBox.Items.Add([string]$remote.Name)
+                }
+            }
+
+            if ($script:BranchCleanupRemoteComboBox.Items.Count -gt 0) {
+                $script:BranchCleanupRemoteComboBox.SelectedIndex = 0
+            }
+        }
+
+        if ($script:BranchCleanupTextBox) {
+            $script:BranchCleanupTextBox.Text = $summary
+        } elseif ($script:RecoveryTextBox) {
+            $script:RecoveryTextBox.Text = $summary
+        }
+
+        Set-CommandPreview `
+            -Title 'Branch Cleanup Assistant' `
+            -Commands "git branch -vv`r`ngit branch -r`r`ngit branch --merged $mainBranch`r`ngit branch --merged $baseBranch" `
+            -Notes 'Read-only branch hygiene refresh. Delete actions require separate confirmation.'
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            $_.Exception.Message,
+            'Branch cleanup refresh failed',
+            'OK',
+            'Error'
+        ) | Out-Null
+    }
+}
+
+function Show-BranchCleanupAssistant {
+    Refresh-BranchCleanupAssistant
+}
+
+function Invoke-BranchCleanupFetchPrune {
+    try {
+        $remoteName = if ($script:Config.ContainsKey('DefaultRemoteName')) {
+            [string]$script:Config.DefaultRemoteName
+        } else {
+            'origin'
+        }
+
+        $plan = Get-GgbcFetchPruneCommandPlan -RemoteName $remoteName
+
+        $ok = Confirm-GuiAction `
+            -Title 'Fetch and prune remote-tracking refs' `
+            -Message ("Run:`r`n`r`n$($plan.CommandLine)`r`n`r`nThis updates remote-tracking refs and removes stale tracking refs. It does not delete remote branches.") `
+            -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+
+        if (-not $ok) { return }
+
+        $result = Run-External `
+            -FileName 'git' `
+            -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) `
+            -Caption ([string]$plan.Display) `
+            -AllowFailure
+
+        if ($result.ExitCode -ne 0) {
+            Show-GitFailureGuidance -Result $result -Operation 'fetch prune' -ShowDialog
+            return
+        }
+
+        Refresh-BranchCleanupAssistant
+        Refresh-Status
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            $_.Exception.Message,
+            'Fetch prune failed',
+            'OK',
+            'Error'
+        ) | Out-Null
+    }
+}
+
+function Invoke-BranchCleanupDeleteSelectedLocal {
+    try {
+        $branch = Get-BranchCleanupSelectedLocalBranch
+
+        if ([string]::IsNullOrWhiteSpace($branch)) {
+            [System.Windows.Forms.MessageBox]::Show(
+                'Select or type a local branch first.',
+                'No local branch selected',
+                'OK',
+                'Information'
+            ) | Out-Null
+            return
+        }
+
+        $plan = Get-GgbcDeleteLocalBranchCommandPlan `
+            -BranchName $branch `
+            -MainBranch ([string]$script:Config.MainBranch) `
+            -BaseBranch ([string]$script:Config.BaseBranch) `
+            -CurrentBranch ([string]$script:CurrentBranch)
+
+        $ok = Confirm-GuiAction `
+            -Title 'Delete local branch' `
+            -Message ("Delete local branch?`r`n`r`n$branch`r`n`r`nCommand:`r`n$($plan.CommandLine)") `
+            -Icon ([System.Windows.Forms.MessageBoxIcon]::Warning)
+
+        if (-not $ok) { return }
+
+        $result = Run-External `
+            -FileName 'git' `
+            -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) `
+            -Caption ([string]$plan.Display) `
+            -AllowFailure
+
+        if ($result.ExitCode -ne 0) {
+            Show-GitFailureGuidance -Result $result -Operation 'delete local branch' -ShowDialog
+            return
+        }
+
+        Refresh-BranchCleanupAssistant
+        Refresh-Status
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            $_.Exception.Message,
+            'Delete local branch failed',
+            'OK',
+            'Error'
+        ) | Out-Null
+    }
+}
+
+function Invoke-BranchCleanupDeleteSelectedRemote {
+    try {
+        $branch = Get-BranchCleanupSelectedRemoteBranch
+
+        if ([string]::IsNullOrWhiteSpace($branch)) {
+            [System.Windows.Forms.MessageBox]::Show(
+                'Select or type a remote branch first.',
+                'No remote branch selected',
+                'OK',
+                'Information'
+            ) | Out-Null
+            return
+        }
+
+        $remoteName = if ($script:Config.ContainsKey('DefaultRemoteName')) {
+            [string]$script:Config.DefaultRemoteName
+        } else {
+            'origin'
+        }
+
+        $plan = Get-GgbcDeleteRemoteBranchCommandPlan `
+            -BranchName $branch `
+            -RemoteName $remoteName `
+            -MainBranch ([string]$script:Config.MainBranch) `
+            -BaseBranch ([string]$script:Config.BaseBranch)
+
+        $ok = Confirm-GuiAction `
+            -Title 'Delete remote branch' `
+            -Message ("Delete remote branch?`r`n`r`n$remoteName/$branch`r`n`r`nCommand:`r`n$($plan.CommandLine)`r`n`r`nThis affects the shared remote repository.") `
+            -Icon ([System.Windows.Forms.MessageBoxIcon]::Warning)
+
+        if (-not $ok) { return }
+
+        $result = Run-External `
+            -FileName 'git' `
+            -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) `
+            -Caption ([string]$plan.Display) `
+            -AllowFailure
+
+        if ($result.ExitCode -ne 0) {
+            Show-GitFailureGuidance -Result $result -Operation 'delete remote branch' -ShowDialog
+            return
+        }
+
+        Refresh-BranchCleanupAssistant
+        Refresh-Status
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            $_.Exception.Message,
+            'Delete remote branch failed',
+            'OK',
+            'Error'
+        ) | Out-Null
+    }
+}
+
 #endregion

@@ -68,6 +68,7 @@ $script:CherryPickModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGU
 $script:LearningModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitLearningGuidance.psm1'
 $script:GitHubModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitHubOperations.psm1'
 $script:ConflictAssistantModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitConflictAssistant.psm1'
+$script:BranchCleanupModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitBranchCleanup.psm1'
 
 foreach ($modulePath in @(
     $script:CoreModulePath,
@@ -83,7 +84,8 @@ foreach ($modulePath in @(
     $script:CherryPickModulePath,
     $script:LearningModulePath,
     $script:GitHubModulePath,
-    $script:ConflictAssistantModulePath
+    $script:ConflictAssistantModulePath,
+	$script:BranchCleanupModulePath
 )) {
     if (Test-Path -LiteralPath $modulePath) {
         try {

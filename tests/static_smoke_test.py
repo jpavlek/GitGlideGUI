@@ -128,7 +128,9 @@ required = [
     "modules/GitGlideGUI.Core/GitStashOperations.psm1",
     "modules/GitGlideGUI.Core/GitTagOperations.psm1",
     "modules/GitGlideGUI.Core/GitConflictAssistant.psm1",
+    "modules/GitGlideGUI.Core/GitBranchCleanup.psm1",
     "tests/GitBranchOperations.Tests.ps1",
+    "tests/GitBranchCleanup.Tests.ps1",
     "tests/GitCherryPickOperations.Tests.ps1",
     "tests/GitCommandSafety.Tests.ps1",
     "tests/GitCommitOperations.Tests.ps1",
@@ -153,9 +155,7 @@ required = [
     "tests/GitConflictAssistant.Tests.ps1",
     "docs/START_HERE.md",
     "docs/METRICS_AND_VALUE_MODEL.md",
-    "docs/CONFLICT_RESOLUTION_ASSISTANT_v3_9_0.md",
-    "docs/RELEASE_NOTES_v3_9_0.md",
-    f"docs/RELEASE_NOTES_v{version_string}.md",
+    "docs/BRANCH_CLEANUP_ASSISTANT_v3_9_1.md",
     f"docs/RELEASE_NOTES_v{version_string}.md",
     f"docs/SWOT_AND_ROADMAP_v{version_string}.md",
     f"docs/ROADMAP_REVIEW_v{version_string}.md",
@@ -307,6 +307,28 @@ require_markers(
     "conflict assistant tests",
 )
 
+require_markers(
+    "modules/GitGlideGUI.Core/GitBranchCleanup.psm1",
+    [
+        "Get-GgbcFetchPruneCommandPlan",
+        "ConvertFrom-GgbcBranchVerboseText",
+        "Get-GgbcDeleteLocalBranchCommandPlan",
+        "Get-GgbcDeleteRemoteBranchCommandPlan",
+        "Format-GgbcBranchCleanupSummary",
+    ],
+    "branch cleanup module",
+)
+
+require_markers(
+    "tests/GitBranchCleanup.Tests.ps1",
+    [
+        "GitBranchCleanup parsing helpers",
+        "GitBranchCleanup protection and command plans",
+        "GitBranchCleanup recommendation helpers",
+    ],
+    "branch cleanup tests",
+)
+
 combined_split_script = "\n".join(read_text(p) for p in [MAIN_SCRIPT, *PARTS])
 
 split_markers = [
@@ -334,6 +356,11 @@ split_markers = [
     "Refresh-ConflictAssistant",
     "Show-ConflictAssistantSelectedFileScan",
     "Invoke-ConflictAssistantStageResolved",
+    "Branch Cleanup Assistant",
+    "Refresh-BranchCleanupAssistant",
+    "Show-BranchCleanupAssistant",
+    "Invoke-BranchCleanupDeleteSelectedLocal",
+    "Invoke-BranchCleanupDeleteSelectedRemote",
 ]
 
 for marker in split_markers:
