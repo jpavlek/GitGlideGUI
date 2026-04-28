@@ -1786,6 +1786,66 @@ $script:ThemePreviewPanel.Controls.Add($themePreviewLabel)
 $themePersistenceLabel = New-WrappingLabel -Text 'Saved color settings live in the ThemeColors object inside GitGlideGUI-Config.json. Delete that object or use Reset all colors to return to defaults.' -Height 42
 $appearanceLayout.Controls.Add($themePersistenceLabel, 0, 2)
 
+$layoutStatePanel = New-Object System.Windows.Forms.FlowLayoutPanel
+$layoutStatePanel.Dock = 'Fill'
+$layoutStatePanel.WrapContents = $true
+$layoutStatePanel.AutoSize = $true
+$layoutStatePanel.Margin = New-Object System.Windows.Forms.Padding(0, 4, 0, 0)
+$appearanceLayout.Controls.Add($layoutStatePanel, 0, 3)
+
+$script:LayoutStateSummaryLabel = New-Object System.Windows.Forms.Label
+$script:LayoutStateSummaryLabel.Text = 'Layout State Model active. Save policy: ask-on-exit'
+$script:LayoutStateSummaryLabel.AutoSize = $true
+$script:LayoutStateSummaryLabel.Margin = New-Object System.Windows.Forms.Padding(4, 9, 12, 4)
+$layoutStatePanel.Controls.Add($script:LayoutStateSummaryLabel)
+
+$layoutPolicyLabel = New-Object System.Windows.Forms.Label
+$layoutPolicyLabel.Text = 'Save policy:'
+$layoutPolicyLabel.AutoSize = $true
+$layoutPolicyLabel.Margin = New-Object System.Windows.Forms.Padding(8, 9, 4, 4)
+$layoutStatePanel.Controls.Add($layoutPolicyLabel)
+
+$script:LayoutSavePolicyComboBox = New-Object System.Windows.Forms.ComboBox
+$script:LayoutSavePolicyComboBox.DropDownStyle = 'DropDownList'
+$script:LayoutSavePolicyComboBox.Width = 125
+[void]$script:LayoutSavePolicyComboBox.Items.AddRange(@('ask-on-exit','always','never'))
+$script:LayoutSavePolicyComboBox.Text = Get-GitGlideLayoutSavePolicy
+$script:LayoutSavePolicyComboBox.Margin = New-Object System.Windows.Forms.Padding(4)
+$script:LayoutSavePolicyComboBox.Add_SelectedIndexChanged({ Set-GitGlideLayoutSavePolicy -Policy ([string]$script:LayoutSavePolicyComboBox.SelectedItem) })
+$layoutStatePanel.Controls.Add($script:LayoutSavePolicyComboBox)
+
+$saveLayoutNowButton = New-Object System.Windows.Forms.Button
+$saveLayoutNowButton.Text = 'Save layout now'
+$saveLayoutNowButton.Width = 125
+$saveLayoutNowButton.Height = 32
+$saveLayoutNowButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$saveLayoutNowButton.Add_Click({ Save-GitGlideLayoutStateNow })
+$layoutStatePanel.Controls.Add($saveLayoutNowButton)
+
+$showLayoutStateButton = New-Object System.Windows.Forms.Button
+$showLayoutStateButton.Text = 'Show layout state'
+$showLayoutStateButton.Width = 135
+$showLayoutStateButton.Height = 32
+$showLayoutStateButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$showLayoutStateButton.Add_Click({ Show-GitGlideLayoutState })
+$layoutStatePanel.Controls.Add($showLayoutStateButton)
+
+$discardLayoutChangesButton = New-Object System.Windows.Forms.Button
+$discardLayoutChangesButton.Text = 'Discard session layout'
+$discardLayoutChangesButton.Width = 155
+$discardLayoutChangesButton.Height = 32
+$discardLayoutChangesButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$discardLayoutChangesButton.Add_Click({ Discard-GitGlideSessionLayoutChanges })
+$layoutStatePanel.Controls.Add($discardLayoutChangesButton)
+
+$resetLayoutStateButton = New-Object System.Windows.Forms.Button
+$resetLayoutStateButton.Text = 'Reset layout'
+$resetLayoutStateButton.Width = 105
+$resetLayoutStateButton.Height = 32
+$resetLayoutStateButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$resetLayoutStateButton.Add_Click({ Reset-GitGlideLayoutState })
+$layoutStatePanel.Controls.Add($resetLayoutStateButton)
+
 
 # Tags / Release panel
 $script:TagsTabPage = $tagsActionsPanel.Parent
@@ -2477,6 +2537,11 @@ $script:ToolTip.SetToolTip($applyThemeHexButton, 'Apply the typed #RRGGBB color 
 $script:ToolTip.SetToolTip($resetSelectedThemeButton, 'Reset only the selected GUI color role to the built-in default.')
 $script:ToolTip.SetToolTip($resetAllThemeButton, 'Reset all GUI colors to the built-in defaults.')
 $script:ToolTip.SetToolTip($applyThemeNowButton, 'Reapply the currently saved theme colors to the open window.')
+$script:ToolTip.SetToolTip($script:LayoutSavePolicyComboBox, 'Choose when Git Glide saves layout changes: ask on exit, always save, or never save.')
+$script:ToolTip.SetToolTip($saveLayoutNowButton, 'Save current splitter/window layout immediately to GitGlideGUI-Config.json.')
+$script:ToolTip.SetToolTip($showLayoutStateButton, 'Show the current Layout State Model in the preview/help area.')
+$script:ToolTip.SetToolTip($discardLayoutChangesButton, 'Restore the saved layout and do not keep this session layout changes.')
+$script:ToolTip.SetToolTip($resetLayoutStateButton, 'Reset saved layout state to v3.10.0 defaults without changing theme colors.')
 $script:ToolTip.SetToolTip($openRepositoryButton, 'Select an existing Git repository folder. Use Init new... when you intentionally want to create a repository.')
 $script:ToolTip.SetToolTip($newRepositoryButton, 'Initialize a selected normal folder as a new Git repository for a new project.')
 $script:ToolTip.SetToolTip($script:SuggestedNextActionButton, 'Runs only safe suggested actions, such as opening a wizard, focusing a panel, showing a diff, or selecting a setup workflow. It does not silently run destructive Git commands.')
@@ -2521,6 +2586,10 @@ Set-ControlPreview -Control $deleteTagButton -Builder { Build-SelectedTagPreview
 Set-ControlPreview -Control $checkoutTagButton -Builder { Build-SelectedTagPreview -Action 'Checkout' } -Title 'Checkout selected tag or create branch from tag' -Notes 'Creates a branch when Branch from tag has a name; otherwise warns before detached HEAD checkout.'
 Set-ControlPreview -Control $openRepositoryButton -Builder { 'select an existing Git repository folder and refresh status' } -Title 'Open repository' -Notes 'Use this when Git Glide GUI was launched from the extracted tool folder instead of the repository.'
 Set-ControlPreview -Control $newRepositoryButton -Builder { 'git init -b <main-branch>' } -Title 'Initialize new repository' -Notes 'Use this when the selected project folder intentionally does not have a Git repository yet.'
+Set-ControlPreview -Control $saveLayoutNowButton -Builder { if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) { Format-GglsLayoutSummary -LayoutState (Get-GitGlideCurrentLayoutState) } else { 'save current splitter distances to LayoutState' } } -Title 'Save layout now' -Notes 'Saves current splitter distances and layout save policy to GitGlideGUI-Config.json.'
+Set-ControlPreview -Control $showLayoutStateButton -Builder { if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) { Format-GglsLayoutSummary -LayoutState (Get-GitGlideCurrentLayoutState) } else { 'show Layout State Model' } } -Title 'Show layout state' -Notes 'Shows the UI-independent Layout State Model used by v3.10.0 and future collapsible/stackable/dockable panels.'
+Set-ControlPreview -Control $discardLayoutChangesButton -Builder { 'restore saved LayoutState and legacy splitter distances without saving this session changes' } -Title 'Discard session layout changes' -Notes 'Reapplies the saved layout state. This is useful when you resized panels temporarily.'
+Set-ControlPreview -Control $resetLayoutStateButton -Builder { 'reset LayoutState to built-in defaults' } -Title 'Reset layout state' -Notes 'Resets saved layout state only. Theme colors are not changed.'
 
 Refresh-CustomGitButtonsPanel
 Refresh-ThemeColorList
@@ -2668,7 +2737,7 @@ $form.Add_FormClosing({
         $script:ShutdownCleanupStarted = $true
 
         try {
-            Save-LayoutConfig
+            Save-LayoutConfig -Reason 'closing'
         } catch [System.Management.Automation.PipelineStoppedException] {
             # Host is stopping; do not write to the pipeline and do not rethrow.
         } catch {

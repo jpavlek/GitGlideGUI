@@ -2142,8 +2142,179 @@ function Set-SafeSplitterDistance {
     }
 }
 
+function Get-GitGlideLayoutSavePolicy {
+    try {
+        if ($script:Config -and $script:Config.ContainsKey('LayoutSavePolicy') -and -not [string]::IsNullOrWhiteSpace([string]$script:Config.LayoutSavePolicy)) {
+            $policy = [string]$script:Config.LayoutSavePolicy
+            if (Get-Command Get-GglsNormalizedSavePolicy -ErrorAction SilentlyContinue) { return Get-GglsNormalizedSavePolicy -SavePolicy $policy }
+            if ($policy -in @('ask-on-exit','always','never')) { return $policy }
+        }
+    } catch {}
+    return 'ask-on-exit'
+}
+
+function Get-GitGlideLayoutActiveProfile {
+    try {
+        if (Get-Command Get-UiMode -ErrorAction SilentlyContinue) { return ([string](Get-UiMode)).ToLowerInvariant() }
+    } catch {}
+    return 'workflow'
+}
+
+function Get-GitGlideLayoutSplitterDistances {
+    $distances = @{}
+    try { if ($script:RootTopSplit) { $distances['RootTopSplitDistance'] = [int]$script:RootTopSplit.SplitterDistance } } catch {}
+    try { if ($script:MainWorkSplit) { $distances['MainWorkSplitDistance'] = [int]$script:MainWorkSplit.SplitterDistance } } catch {}
+    try { if ($script:HeaderTopAreaSplit) { $distances['HeaderTopAreaSplitDistance'] = [int]$script:HeaderTopAreaSplit.SplitterDistance } } catch {}
+    try { if ($script:TopSplit) { $distances['TopSplitDistance'] = [int]$script:TopSplit.SplitterDistance } } catch {}
+    try { if ($script:TopLeftSplit) { $distances['TopLeftSplitDistance'] = [int]$script:TopLeftSplit.SplitterDistance } } catch {}
+    try { if ($script:CommitPreviewSplit) { $distances['CommitPreviewSplitDistance'] = [int]$script:CommitPreviewSplit.SplitterDistance } } catch {}
+    try { if ($script:ContentSplit) { $distances['ContentSplitDistance'] = [int]$script:ContentSplit.SplitterDistance } } catch {}
+    try { if ($script:RightSplit) { $distances['RightSplitDistance'] = [int]$script:RightSplit.SplitterDistance } } catch {}
+    try { if ($script:ChangedFilesActionSplit) { $distances['ChangedFilesActionSplitDistance'] = [int]$script:ChangedFilesActionSplit.SplitterDistance } } catch {}
+    try { if ($script:LogActionSplit) { $distances['LogActionSplitDistance'] = [int]$script:LogActionSplit.SplitterDistance } } catch {}
+    try { if ($script:AppearanceMainSplit) { $distances['AppearanceSplitDistance'] = [int]$script:AppearanceMainSplit.SplitterDistance } } catch {}
+    return $distances
+}
+
+function Get-GitGlideLayoutSplitterControlMap {
+    return @{
+        RootTopSplitDistance = $script:RootTopSplit
+        MainWorkSplitDistance = $script:MainWorkSplit
+        HeaderTopAreaSplitDistance = $script:HeaderTopAreaSplit
+        TopSplitDistance = $script:TopSplit
+        TopLeftSplitDistance = $script:TopLeftSplit
+        CommitPreviewSplitDistance = $script:CommitPreviewSplit
+        ContentSplitDistance = $script:ContentSplit
+        RightSplitDistance = $script:RightSplit
+        ChangedFilesActionSplitDistance = $script:ChangedFilesActionSplit
+        LogActionSplitDistance = $script:LogActionSplit
+        AppearanceSplitDistance = $script:AppearanceMainSplit
+    }
+}
+
+function Get-GitGlideCurrentLayoutState {
+    $policy = Get-GitGlideLayoutSavePolicy
+    $profile = Get-GitGlideLayoutActiveProfile
+    $state = $null
+    try {
+        if ($script:Config -and $script:Config.ContainsKey('LayoutState')) { $state = $script:Config.LayoutState }
+    } catch {}
+
+    if (Get-Command Merge-GglsLayoutState -ErrorAction SilentlyContinue) {
+        $state = Merge-GglsLayoutState -LayoutState $state -SavePolicy $policy
+        try { $state.activeProfile = $profile } catch {}
+        if (Get-Command Update-GglsLayoutStateFromSplitterDistances -ErrorAction SilentlyContinue) {
+            $state = Update-GglsLayoutStateFromSplitterDistances -LayoutState $state -SplitterDistances (Get-GitGlideLayoutSplitterDistances) -ProfileName $profile
+        }
+        return $state
+    }
+
+    return [pscustomobject]@{ schemaVersion = 1; activeProfile = $profile; savePolicy = $policy; profiles = @{} }
+}
+
+function Apply-GitGlideLayoutState {
+    param($State)
+
+    if ($null -eq $State) { return }
+    if (-not (Get-Command Get-GglsProfile -ErrorAction SilentlyContinue)) { return }
+
+    try {
+        $profile = Get-GglsProfile -LayoutState $State
+        if ($null -eq $profile) { return }
+        $profileHash = ConvertTo-GglsPlainHashtable -Value $profile
+        $panels = ConvertTo-GglsPlainHashtable -Value $profileHash['panels']
+        $splitters = Get-GitGlideLayoutSplitterControlMap
+        foreach ($panelId in @($panels.Keys)) {
+            $panel = ConvertTo-GglsPlainHashtable -Value $panels[$panelId]
+            $key = [string]$panel['splitterKey']
+            if ([string]::IsNullOrWhiteSpace($key)) { continue }
+            if (-not $splitters.ContainsKey($key)) { continue }
+            $splitter = $splitters[$key]
+            if ($null -eq $splitter) { continue }
+            $distance = 0
+            try { $distance = [int]$panel['splitterDistance'] } catch { $distance = 0 }
+            if ($distance -gt 0) { Set-SafeSplitterDistance -Splitter $splitter -Distance $distance -FallbackDistance $distance }
+        }
+        Update-GitGlideLayoutPolicyUi
+    } catch {
+        Append-Log -Text ('Could not apply Layout State Model: ' + $_.Exception.Message) -Color ([System.Drawing.Color]::DarkOrange)
+    }
+}
+
+function Update-GitGlideLayoutPolicyUi {
+    $policy = Get-GitGlideLayoutSavePolicy
+    try { if ($script:LayoutSavePolicyComboBox) { $script:LayoutSavePolicyComboBox.Text = $policy } } catch {}
+    try { if ($script:LayoutStateSummaryLabel) { $script:LayoutStateSummaryLabel.Text = ('Layout State Model active. Save policy: {0}' -f $policy) } } catch {}
+}
+
+function Save-GitGlideLayoutStateNow {
+    $state = Get-GitGlideCurrentLayoutState
+    Set-ConfigValue -Name 'LayoutState' -Value $state
+    Set-ConfigValue -Name 'LayoutSavePolicy' -Value (Get-GitGlideLayoutSavePolicy)
+    Save-Config -Config $script:Config
+    Update-GitGlideLayoutPolicyUi
+    if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) {
+        Set-CommandPreview -Title 'Layout State Model' -Commands (Format-GglsLayoutSummary -LayoutState $state) -Notes 'Saved current splitter distances and layout save policy to GitGlideGUI-Config.json.'
+    }
+    Append-Log -Text 'Saved layout state.' -Color ([System.Drawing.Color]::DarkGreen)
+}
+
+function Set-GitGlideLayoutSavePolicy {
+    param([string]$Policy)
+
+    if (Get-Command Get-GglsNormalizedSavePolicy -ErrorAction SilentlyContinue) { $Policy = Get-GglsNormalizedSavePolicy -SavePolicy $Policy }
+    elseif ($Policy -notin @('ask-on-exit','always','never')) { $Policy = 'ask-on-exit' }
+
+    Set-ConfigValue -Name 'LayoutSavePolicy' -Value $Policy
+    try {
+        $state = Get-GitGlideCurrentLayoutState
+        if (Get-Command Set-GglsLayoutSavePolicy -ErrorAction SilentlyContinue) { $state = Set-GglsLayoutSavePolicy -LayoutState $state -SavePolicy $Policy }
+        Set-ConfigValue -Name 'LayoutState' -Value $state
+    } catch {}
+    Save-Config -Config $script:Config
+    Update-GitGlideLayoutPolicyUi
+    Set-CommandPreview -Title 'Layout save policy' -Commands ('layout save policy = ' + $Policy) -Notes 'Controls whether splitter/window layout is saved on exit.'
+}
+
+function Show-GitGlideLayoutState {
+    $state = Get-GitGlideCurrentLayoutState
+    $summary = if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) { Format-GglsLayoutSummary -LayoutState $state } else { 'Layout State Model summary is unavailable.' }
+    Set-CommandPreview -Title 'Layout State Model' -Commands $summary -Notes 'This is the current UI-independent layout model that v3.10.1+ can use for collapsible, stackable, and dockable panels.'
+    if ($script:HelpTextBox) { $script:HelpTextBox.Text = $summary }
+}
+
+function Reset-GitGlideLayoutState {
+    $ok = Confirm-GuiAction -Title 'Reset layout state' -Message 'Reset saved splitter/window layout state to the built-in v3.10.0 defaults? Theme colors are not changed.' -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+    if (-not $ok) { return }
+    $policy = Get-GitGlideLayoutSavePolicy
+    $state = if (Get-Command New-GglsDefaultLayoutState -ErrorAction SilentlyContinue) { New-GglsDefaultLayoutState -ActiveProfile (Get-GitGlideLayoutActiveProfile) -SavePolicy $policy } else { $null }
+    Set-ConfigValue -Name 'LayoutState' -Value $state
+    Save-Config -Config $script:Config
+    Apply-GitGlideLayoutState -State $state
+    Update-GitGlideLayoutPolicyUi
+    Append-Log -Text 'Reset layout state to defaults.' -Color ([System.Drawing.Color]::DarkGreen)
+}
+
+function Discard-GitGlideSessionLayoutChanges {
+    Apply-SavedLayout
+    Append-Log -Text 'Discarded this session layout changes and restored saved layout.' -Color ([System.Drawing.Color]::DarkSlateGray)
+    Show-GitGlideLayoutState
+}
+
 function Apply-SavedLayout {
     if (-not (Get-ConfigBool -Name 'RememberWindowLayout' -DefaultValue $true)) { return }
+
+    $hasSavedLayoutState = $false
+    try { $hasSavedLayoutState = ($script:Config -and $script:Config.ContainsKey('LayoutState') -and $null -ne $script:Config.LayoutState) } catch {}
+    if ($hasSavedLayoutState -and (Get-Command Merge-GglsLayoutState -ErrorAction SilentlyContinue)) {
+        try {
+            $state = Merge-GglsLayoutState -LayoutState $script:Config.LayoutState -SavePolicy (Get-GitGlideLayoutSavePolicy)
+            Apply-GitGlideLayoutState -State $state
+            return
+        } catch {
+            Append-Log -Text ('Saved layout state could not be applied, falling back to legacy splitter settings: ' + $_.Exception.Message) -Color ([System.Drawing.Color]::DarkOrange)
+        }
+    }
 
     Set-SafeSplitterDistance -Splitter $script:MainWorkSplit -Distance (Get-ConfigInt -Name 'MainWorkSplitDistance' -DefaultValue 470) -FallbackDistance 470
     Set-SafeSplitterDistance -Splitter $script:RootTopSplit -Distance (Get-ConfigInt -Name 'RootTopSplitDistance' -DefaultValue 38) -FallbackDistance 38
@@ -2156,10 +2327,25 @@ function Apply-SavedLayout {
     Set-SafeSplitterDistance -Splitter $script:ChangedFilesActionSplit -Distance (Get-ConfigInt -Name 'ChangedFilesActionSplitDistance' -DefaultValue 520) -FallbackDistance 520
     Set-SafeSplitterDistance -Splitter $script:LogActionSplit -Distance (Get-ConfigInt -Name 'LogActionSplitDistance' -DefaultValue 245) -FallbackDistance 245
     Set-SafeSplitterDistance -Splitter $script:AppearanceMainSplit -Distance (Get-ConfigInt -Name 'AppearanceSplitDistance' -DefaultValue 280) -FallbackDistance 280
+    Update-GitGlideLayoutPolicyUi
 }
 
 function Save-LayoutConfig {
+    param(
+        [string]$Reason = 'manual',
+        [switch]$ForceSave
+    )
+
     if (-not (Get-ConfigBool -Name 'RememberWindowLayout' -DefaultValue $true)) { return }
+
+    $policy = Get-GitGlideLayoutSavePolicy
+    if (-not $ForceSave) {
+        if ($policy -eq 'never') { return }
+        if ($policy -eq 'ask-on-exit' -and $Reason -eq 'closing') {
+            $answer = [System.Windows.Forms.MessageBox]::Show('Save this session layout changes for the next Git Glide GUI launch?', 'Save layout on exit', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+            if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+        }
+    }
 
     try {
         if ($form.WindowState -eq [System.Windows.Forms.FormWindowState]::Normal) {
@@ -2177,6 +2363,8 @@ function Save-LayoutConfig {
         if ($script:ChangedFilesActionSplit) { Set-ConfigValue -Name 'ChangedFilesActionSplitDistance' -Value ([int]$script:ChangedFilesActionSplit.SplitterDistance) }
         if ($script:LogActionSplit) { Set-ConfigValue -Name 'LogActionSplitDistance' -Value ([int]$script:LogActionSplit.SplitterDistance) }
         if ($script:AppearanceMainSplit) { Set-ConfigValue -Name 'AppearanceSplitDistance' -Value ([int]$script:AppearanceMainSplit.SplitterDistance) }
+        Set-ConfigValue -Name 'LayoutSavePolicy' -Value $policy
+        if (Get-Command Merge-GglsLayoutState -ErrorAction SilentlyContinue) { Set-ConfigValue -Name 'LayoutState' -Value (Get-GitGlideCurrentLayoutState) }
         Save-Config -Config $script:Config
     } catch {
         Write-Warning "Failed to save layout config: $_"

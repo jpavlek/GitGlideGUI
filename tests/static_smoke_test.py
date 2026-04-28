@@ -129,8 +129,10 @@ required = [
     "modules/GitGlideGUI.Core/GitTagOperations.psm1",
     "modules/GitGlideGUI.Core/GitConflictAssistant.psm1",
     "modules/GitGlideGUI.Core/GitBranchCleanup.psm1",
+    "modules/GitGlideGUI.Core/GitLayoutState.psm1",
     "tests/GitBranchOperations.Tests.ps1",
     "tests/GitBranchCleanup.Tests.ps1",
+    "tests/GitLayoutState.Tests.ps1",
     "tests/GitCherryPickOperations.Tests.ps1",
     "tests/GitCommandSafety.Tests.ps1",
     "tests/GitCommitOperations.Tests.ps1",
@@ -153,16 +155,22 @@ required = [
     "tests/GitStashOperations.Tests.ps1",
     "tests/GitTagOperations.Tests.ps1",
     "tests/GitConflictAssistant.Tests.ps1",
+    
+    # ...
     "docs/START_HERE.md",
     "docs/METRICS_AND_VALUE_MODEL.md",
+    
+    # Stable feature docs from previous major workflow features.
+    "docs/CONFLICT_RESOLUTION_ASSISTANT.md",
     "docs/BRANCH_CLEANUP_ASSISTANT_v3_9_1.md",
+    
+    # Current version docs.
+    f"docs/LAYOUT_STATE_MODEL_v{version_string}.md",
     f"docs/RELEASE_NOTES_v{version_string}.md",
     f"docs/SWOT_AND_ROADMAP_v{version_string}.md",
     f"docs/ROADMAP_REVIEW_v{version_string}.md",
     f"docs/ARCHITECTURE_v{version_string}.md",
     f"docs/TECHNICAL_DEBT_REDUCTION_PLAN_v{version_string}.md",
-    f"docs/RELEASE_NOTES_v{version_string}.md",
-    f"docs/CONFLICT_RESOLUTION_ASSISTANT_v{version_string}.md",
 ]
 
 require_paths(required)
@@ -173,7 +181,7 @@ require_markers(
         "Why this exists",
         "What makes it different?",
         "Core Features",
-        "Current focus: v3.8.1",
+        "Current focus: v3.10.0",
         "Stable split-script layout",
     ],
     "README product positioning",
@@ -235,6 +243,7 @@ require_markers(
         "branch.merge_safety",
         "quality.observability",
         "quality.metrics_observability",
+        "layout.state_model",
     ],
     "feature manifest",
 )
@@ -329,6 +338,29 @@ require_markers(
     "branch cleanup tests",
 )
 
+require_markers(
+    "modules/GitGlideGUI.Core/GitLayoutState.psm1",
+    [
+        "New-GglsDefaultLayoutState",
+        "Get-GglsPanelState",
+        "Set-GglsPanelState",
+        "Set-GglsLayoutSavePolicy",
+        "Update-GglsLayoutStateFromSplitterDistances",
+        "Format-GglsLayoutSummary",
+    ],
+    "layout state module",
+)
+
+require_markers(
+    "tests/GitLayoutState.Tests.ps1",
+    [
+        "GitLayoutState default model",
+        "GitLayoutState panel updates",
+        "GitLayoutState summary",
+    ],
+    "layout state tests",
+)
+
 combined_split_script = "\n".join(read_text(p) for p in [MAIN_SCRIPT, *PARTS])
 
 split_markers = [
@@ -361,6 +393,11 @@ split_markers = [
     "Show-BranchCleanupAssistant",
     "Invoke-BranchCleanupDeleteSelectedLocal",
     "Invoke-BranchCleanupDeleteSelectedRemote",
+    "Layout State Model",
+    "Save-GitGlideLayoutStateNow",
+    "Set-GitGlideLayoutSavePolicy",
+    "Reset-GitGlideLayoutState",
+    "Discard-GitGlideSessionLayoutChanges",
 ]
 
 for marker in split_markers:

@@ -40,6 +40,7 @@
 # - v3.6.12: UI organization with Simple/Workflow/Expert modes, mode-aware tabs, command palette, and Changed Files context banner to reduce visual overload without removing functionality.
 # - v3.6.13: workflow checklist and branch cleanup guidance with release consistency smoke checks.
 # - v3.8: repository state doctor, conflict marker scanner, dynamic banner sizing, branch relationships, and local quality checks.
+# - v3.10.0: modular layout state model with explicit save policy controls.
 
 param(
     [string]$RepositoryPath = '',
@@ -69,6 +70,7 @@ $script:LearningModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.
 $script:GitHubModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitHubOperations.psm1'
 $script:ConflictAssistantModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitConflictAssistant.psm1'
 $script:BranchCleanupModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitBranchCleanup.psm1'
+$script:LayoutStateModulePath = Join-Path $PSScriptRoot '..\..\modules\GitGlideGUI.Core\GitLayoutState.psm1'
 
 foreach ($modulePath in @(
     $script:CoreModulePath,
@@ -85,7 +87,8 @@ foreach ($modulePath in @(
     $script:LearningModulePath,
     $script:GitHubModulePath,
     $script:ConflictAssistantModulePath,
-	$script:BranchCleanupModulePath
+	$script:BranchCleanupModulePath,
+    $script:LayoutStateModulePath
 )) {
     if (Test-Path -LiteralPath $modulePath) {
         try {
@@ -213,7 +216,10 @@ $script:DefaultConfig = @{
     }
     AutoPreviewDiffOnSelection = $true
     RememberWindowLayout = $true
+    LayoutSavePolicy = 'ask-on-exit'
+    LayoutState = $null
 }
+
 
 function Load-Config {
     # Start from defaults, then overlay the user file. This lets newer script versions
