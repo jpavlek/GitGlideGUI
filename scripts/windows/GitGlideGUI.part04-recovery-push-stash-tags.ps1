@@ -2665,4 +2665,43 @@ function Invoke-BranchCleanupDeleteSelectedRemote {
     }
 }
 
+function Save-GitGlideLayoutStateOnExit {
+    try {
+        if (-not $script:Config) {
+            return
+        }
+
+        $policy = 'ask-on-exit'
+        try {
+            if ($script:Config.ContainsKey('LayoutSavePolicy') -and -not [string]::IsNullOrWhiteSpace([string]$script:Config.LayoutSavePolicy)) {
+                $policy = [string]$script:Config.LayoutSavePolicy
+            }
+        } catch {}
+
+        if ($policy -eq 'never') {
+            return
+        }
+
+        if ($policy -eq 'ask-on-exit') {
+            # Do not show modal dialogs during shutdown. Treat ask-on-exit as
+            # no automatic save for now; the user can use "Save layout now".
+            return
+        }
+
+        if ($policy -ne 'always') {
+            return
+        }
+
+        if (Get-Command Save-GitGlideLayoutStateNow -ErrorAction SilentlyContinue) {
+            Save-GitGlideLayoutStateNow -Silent
+        }
+    } catch [System.Management.Automation.PipelineStoppedException] {
+        throw
+    } catch {
+        try {
+            Write-AuditLog -Message ("SHUTDOWN_CLEANUP_WARNING | layout state save failed: {0}" -f $_.Exception.Message)
+        } catch {}
+    }
+}
+
 #endregion
