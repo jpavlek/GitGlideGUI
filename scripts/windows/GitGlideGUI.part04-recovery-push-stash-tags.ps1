@@ -97,6 +97,232 @@ function Get-SelectedConflictFilePath {
     return (Join-Path $script:RepoRoot $relative)
 }
 
+# v3.9.0: Conflict Resolution Assistant
+# This adapter layer reuses the existing conflict recovery UI while routing
+# selected-file checks and command previews through GitConflictAssistant helpers.
+
+function Get-ConflictAssistantSelectedRelativePath {
+    if (-not $script:ConflictFilesListBox -or $script:ConflictFilesListBox.SelectedItem -eq $null) {
+        return ''
+    }
+
+    return [string]$script:ConflictFilesListBox.SelectedItem
+}
+
+function Get-ConflictAssistantSelectedFullPath {
+    $relative = Get-ConflictAssistantSelectedRelativePath
+    if ([string]::IsNullOrWhiteSpace($relative)) { return '' }
+
+    if (Get-Command Get-SelectedConflictFilePath -ErrorAction SilentlyContinue) {
+        return Get-SelectedConflictFilePath
+    }
+
+    return Join-Path $script:RepoRoot $relative
+}
+
+function Refresh-ConflictAssistant {
+    try {
+        if (Get-Command Refresh-ConflictFiles -ErrorAction SilentlyContinue) {
+            Refresh-ConflictFiles
+        }
+
+        $notes = 'Conflict Resolution Assistant refreshed. Select a conflicted file, scan it, resolve markers, then stage only when markers are gone.'
+
+        if (Get-Command Get-GgcaUnmergedFilesCommandPlan -ErrorAction SilentlyContinue) {
+            $plan = Get-GgcaUnmergedFilesCommandPlan
+            Set-CommandPreview -Title 'Conflict Resolution Assistant' -Commands ([string]$plan.CommandLine) -Notes $notes
+        } else {
+            Set-CommandPreview -Title 'Conflict Resolution Assistant' -Commands 'git diff --name-only --diff-filter=U' -Notes $notes
+        }
+
+        if ($script:RecoveryTextBox) {
+            $script:RecoveryTextBox.Text = @(
+                'Conflict Resolution Assistant'
+                ''
+                '1. List conflicted files.'
+                '2. Select one conflicted file.'
+                '3. Scan the selected file for conflict markers.'
+                '4. Resolve the file manually.'
+                '5. Stage only after markers are gone.'
+                '6. Continue or abort the active operation intentionally.'
+            ) -join [Environment]::NewLine
+        }
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Conflict assistant refresh failed', 'OK', 'Error') | Out-Null
+    }
+}
+
+function Show-ConflictAssistantSelectedFileScan {
+    try {
+        $relative = Get-ConflictAssistantSelectedRelativePath
+        $path = Get-ConflictAssistantSelectedFullPath
+
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            [System.Windows.Forms.MessageBox]::Show('Select a conflicted file first.', 'No conflicted file selected', 'OK', 'Information') | Out-Null
+            return
+        }
+
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            [System.Windows.Forms.MessageBox]::Show("The selected conflict file was not found:`r`n$path", 'File not found', 'OK', 'Warning') | Out-Null
+            return
+        }
+
+        if (Get-Command Get-GgcaConflictMarkerScanForFile -ErrorAction SilentlyContinue) {
+            $scan = Get-GgcaConflictMarkerScanForFile -Path $path
+            $summary = if (Get-Command Format-GgcaConflictMarkerSummary -ErrorAction SilentlyContinue) {
+                Format-GgcaConflictMarkerSummary -Scan $scan
+            } else {
+                "Conflict markers found: $($scan.BlockCount)"
+            }
+
+            if ($script:RecoveryTextBox) { $script:RecoveryTextBox.Text = $summary }
+
+            $notes = if ($scan.HasMarkers) {
+                'Conflict markers remain. Resolve all marker blocks before staging.'
+            } else {
+                'No conflict markers found. Review the resolved content before staging.'
+            }
+
+            Set-CommandPreview -Title 'Conflict assistant selected-file scan' -Commands ('git add -- ' + (Quote-Arg $relative)) -Notes $notes
+            return
+        }
+
+        if (Get-Command Get-GgrConflictMarkerScanForFile -ErrorAction SilentlyContinue) {
+            $scan = Get-GgrConflictMarkerScanForFile -Path $path
+            $summary = if (Get-Command Format-GgrConflictMarkerScan -ErrorAction SilentlyContinue) {
+                Format-GgrConflictMarkerScan -Scan $scan
+            } else {
+                [string]$scan.Summary
+            }
+
+            if ($script:RecoveryTextBox) { $script:RecoveryTextBox.Text = $summary }
+            Set-CommandPreview -Title 'Conflict assistant selected-file scan' -Commands ('git add -- ' + (Quote-Arg $relative)) -Notes 'Legacy conflict marker scan used.'
+            return
+        }
+
+        [System.Windows.Forms.MessageBox]::Show('No conflict marker scanner is available.', 'Scanner unavailable', 'OK', 'Warning') | Out-Null
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Conflict assistant scan failed', 'OK', 'Error') | Out-Null
+    }
+}
+
+function Invoke-ConflictAssistantUseOurs {
+    try {
+        $relative = Get-ConflictAssistantSelectedRelativePath
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            [System.Windows.Forms.MessageBox]::Show('Select a conflicted file first.', 'No conflicted file selected', 'OK', 'Information') | Out-Null
+            return
+        }
+
+        $plan = if (Get-Command Get-GgcaCheckoutOursCommandPlan -ErrorAction SilentlyContinue) {
+            Get-GgcaCheckoutOursCommandPlan -Path $relative
+        } else {
+            [pscustomobject]@{
+                CommandLine = 'git checkout --ours -- ' + (Quote-Arg $relative)
+                Arguments = @('checkout', '--ours', '--', $relative)
+                Description = 'Use current branch side for the selected file.'
+            }
+        }
+
+        $ok = Confirm-GuiAction -Title 'Use ours for selected file' -Message ("This will choose the current branch side for:`r`n`r`n$relative`r`n`r`nCommand:`r`n$($plan.CommandLine)`r`n`r`nReview the file before staging.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Warning)
+        if (-not $ok) { return }
+
+        $result = Run-External -FileName 'git' -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) -Caption ([string]$plan.CommandLine) -AllowFailure
+        if ($result.ExitCode -ne 0) { Show-GitFailureGuidance -Result $result -Operation 'use ours for conflict file' -ShowDialog; return }
+
+        Show-ConflictAssistantSelectedFileScan
+        Refresh-Status
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Use ours failed', 'OK', 'Error') | Out-Null
+    }
+}
+
+function Invoke-ConflictAssistantUseTheirs {
+    try {
+        $relative = Get-ConflictAssistantSelectedRelativePath
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            [System.Windows.Forms.MessageBox]::Show('Select a conflicted file first.', 'No conflicted file selected', 'OK', 'Information') | Out-Null
+            return
+        }
+
+        $plan = if (Get-Command Get-GgcaCheckoutTheirsCommandPlan -ErrorAction SilentlyContinue) {
+            Get-GgcaCheckoutTheirsCommandPlan -Path $relative
+        } else {
+            [pscustomobject]@{
+                CommandLine = 'git checkout --theirs -- ' + (Quote-Arg $relative)
+                Arguments = @('checkout', '--theirs', '--', $relative)
+                Description = 'Use incoming branch side for the selected file.'
+            }
+        }
+
+        $ok = Confirm-GuiAction -Title 'Use theirs for selected file' -Message ("This will choose the incoming branch side for:`r`n`r`n$relative`r`n`r`nCommand:`r`n$($plan.CommandLine)`r`n`r`nReview the file before staging.") -Icon ([System.Windows.Forms.MessageBoxIcon]::Warning)
+        if (-not $ok) { return }
+
+        $result = Run-External -FileName 'git' -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) -Caption ([string]$plan.CommandLine) -AllowFailure
+        if ($result.ExitCode -ne 0) { Show-GitFailureGuidance -Result $result -Operation 'use theirs for conflict file' -ShowDialog; return }
+
+        Show-ConflictAssistantSelectedFileScan
+        Refresh-Status
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Use theirs failed', 'OK', 'Error') | Out-Null
+    }
+}
+
+function Invoke-ConflictAssistantStageResolved {
+    try {
+        $relative = Get-ConflictAssistantSelectedRelativePath
+        $path = Get-ConflictAssistantSelectedFullPath
+
+        if ([string]::IsNullOrWhiteSpace($relative) -or [string]::IsNullOrWhiteSpace($path)) {
+            [System.Windows.Forms.MessageBox]::Show('Select a conflicted file first.', 'No conflicted file selected', 'OK', 'Information') | Out-Null
+            return
+        }
+
+        if (Get-Command Get-GgcaConflictMarkerScanForFile -ErrorAction SilentlyContinue) {
+            $scan = Get-GgcaConflictMarkerScanForFile -Path $path
+            $decision = Test-GgcaStageResolvedFileAllowed -Scan $scan
+
+            if (-not $decision.Allowed) {
+                $summary = if (Get-Command Format-GgcaConflictMarkerSummary -ErrorAction SilentlyContinue) {
+                    Format-GgcaConflictMarkerSummary -Scan $scan
+                } else {
+                    [string]$decision.Reason
+                }
+
+                if ($script:RecoveryTextBox) { $script:RecoveryTextBox.Text = $summary }
+                [System.Windows.Forms.MessageBox]::Show([string]$decision.Reason, 'Conflict markers still present', 'OK', 'Warning') | Out-Null
+                Set-CommandPreview -Title 'Stage resolved blocked' -Commands ('git add -- ' + (Quote-Arg $relative)) -Notes ([string]$decision.Reason)
+                return
+            }
+        }
+
+        if (Get-Command Stage-SelectedConflictFileAsResolved -ErrorAction SilentlyContinue) {
+            Stage-SelectedConflictFileAsResolved
+            return
+        }
+
+        $plan = if (Get-Command Get-GgcaStageResolvedFileCommandPlan -ErrorAction SilentlyContinue) {
+            Get-GgcaStageResolvedFileCommandPlan -Path $relative
+        } else {
+            [pscustomobject]@{
+                CommandLine = 'git add -- ' + (Quote-Arg $relative)
+                Arguments = @('add', '--', $relative)
+            }
+        }
+
+        $ok = Confirm-GuiAction -Title 'Stage resolved file' -Message ("Stage this resolved file?`r`n`r`n$relative`r`n`r`nCommand:`r`n$($plan.CommandLine)") -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+        if (-not $ok) { return }
+
+        $result = Run-External -FileName 'git' -Arguments (@('-C', $script:RepoRoot) + @($plan.Arguments)) -Caption ([string]$plan.CommandLine) -AllowFailure
+        if ($result.ExitCode -ne 0) { Show-GitFailureGuidance -Result $result -Operation 'stage resolved conflict file' -ShowDialog; return }
+
+        Refresh-Status
+        Refresh-ConflictAssistant
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Stage resolved failed', 'OK', 'Error') | Out-Null
+    }
+}
+
 function Open-SelectedConflictFile {
     try {
         $path = Get-SelectedConflictFilePath

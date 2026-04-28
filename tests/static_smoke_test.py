@@ -89,7 +89,7 @@ expected_parts = PARTS
 if manifest.get("split_script_parts") != expected_parts:
     fail("manifest split_script_parts does not match stable split script layout.")
 
-minor = version.rsplit('.', 1)[0].replace('.', '_')
+version_string = version.replace('.', '_')
 required = [
     "README.md",
     "VERSION",
@@ -127,6 +127,7 @@ required = [
     "modules/GitGlideGUI.Core/GitStagingOperations.psm1",
     "modules/GitGlideGUI.Core/GitStashOperations.psm1",
     "modules/GitGlideGUI.Core/GitTagOperations.psm1",
+    "modules/GitGlideGUI.Core/GitConflictAssistant.psm1",
     "tests/GitBranchOperations.Tests.ps1",
     "tests/GitCherryPickOperations.Tests.ps1",
     "tests/GitCommandSafety.Tests.ps1",
@@ -149,15 +150,19 @@ required = [
     "tests/GitStagingOperations.Tests.ps1",
     "tests/GitStashOperations.Tests.ps1",
     "tests/GitTagOperations.Tests.ps1",
+    "tests/GitConflictAssistant.Tests.ps1",
     "docs/START_HERE.md",
     "docs/METRICS_AND_VALUE_MODEL.md",
-    f"docs/RELEASE_NOTES_v{version.replace('.', '_')}.md",
-    f"docs/RELEASE_NOTES_v{minor}.md",
-    f"docs/SWOT_AND_ROADMAP_v{minor}.md",
-    f"docs/ROADMAP_REVIEW_v{minor}.md",
-    f"docs/ARCHITECTURE_v{minor}.md",
-    f"docs/TECHNICAL_DEBT_REDUCTION_PLAN_v{minor}.md",
-    f"docs/RELEASE_NOTES_v{version.replace('.', '_')}.md",
+    "docs/CONFLICT_RESOLUTION_ASSISTANT_v3_9_0.md",
+    "docs/RELEASE_NOTES_v3_9_0.md",
+    f"docs/RELEASE_NOTES_v{version_string}.md",
+    f"docs/RELEASE_NOTES_v{version_string}.md",
+    f"docs/SWOT_AND_ROADMAP_v{version_string}.md",
+    f"docs/ROADMAP_REVIEW_v{version_string}.md",
+    f"docs/ARCHITECTURE_v{version_string}.md",
+    f"docs/TECHNICAL_DEBT_REDUCTION_PLAN_v{version_string}.md",
+    f"docs/RELEASE_NOTES_v{version_string}.md",
+    f"docs/CONFLICT_RESOLUTION_ASSISTANT_v{version_string}.md",
 ]
 
 require_paths(required)
@@ -278,6 +283,30 @@ require_markers(
     "stable wrapper",
 )
 
+require_markers(
+    "modules/GitGlideGUI.Core/GitConflictAssistant.psm1",
+    [
+        "Get-GgcaUnmergedFilesCommandPlan",
+        "Get-GgcaConflictMarkerScanForText",
+        "Get-GgcaCheckoutOursCommandPlan",
+        "Get-GgcaCheckoutTheirsCommandPlan",
+        "Test-GgcaStageResolvedFileAllowed",
+        "Get-GgcaContinueOperationCommandPlan",
+        "Get-GgcaAbortOperationCommandPlan",
+    ],
+    "conflict assistant module",
+)
+
+require_markers(
+    "tests/GitConflictAssistant.Tests.ps1",
+    [
+        "GitConflictAssistant command plans",
+        "GitConflictAssistant conflict marker scanning",
+        "blocks staging when markers remain",
+    ],
+    "conflict assistant tests",
+)
+
 combined_split_script = "\n".join(read_text(p) for p in [MAIN_SCRIPT, *PARTS])
 
 split_markers = [
@@ -301,6 +330,10 @@ split_markers = [
     "Show-BranchRelationshipOverview",
     "HistoryRelationshipTextBox",
     "SHUTDOWN_CLEANUP_WARNING",
+    "Conflict Resolution Assistant",
+    "Refresh-ConflictAssistant",
+    "Show-ConflictAssistantSelectedFileScan",
+    "Invoke-ConflictAssistantStageResolved",
 ]
 
 for marker in split_markers:

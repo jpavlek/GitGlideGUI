@@ -729,8 +729,57 @@ $recoveryRefreshButton.Height = 32
 $recoveryRefreshButton.Margin = New-Object System.Windows.Forms.Padding(4)
 $recoveryRefreshButton.Add_Click({ Refresh-RecoveryStatus })
 $recoveryControls.Controls.Add($recoveryRefreshButton)
+
 $conflictRefreshButton = New-Object System.Windows.Forms.Button
 $conflictRefreshButton.Text = 'List conflicted files'
+
+$conflictAssistantLabel = New-Object System.Windows.Forms.Label
+$conflictAssistantLabel.Text = 'Conflict Resolution Assistant'
+$conflictAssistantLabel.AutoSize = $true
+$conflictAssistantLabel.Margin = New-Object System.Windows.Forms.Padding(8, 8, 8, 4)
+$conflictAssistantLabel.Font = $script:UiFontBold
+$recoveryControls.Controls.Add($conflictAssistantLabel)
+
+$conflictAssistantRefreshButton = New-Object System.Windows.Forms.Button
+$conflictAssistantRefreshButton.Text = 'Assistant refresh'
+$conflictAssistantRefreshButton.Width = 125
+$conflictAssistantRefreshButton.Height = 32
+$conflictAssistantRefreshButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$conflictAssistantRefreshButton.Add_Click({ Refresh-ConflictAssistant })
+$recoveryControls.Controls.Add($conflictAssistantRefreshButton)
+
+$conflictAssistantScanButton = New-Object System.Windows.Forms.Button
+$conflictAssistantScanButton.Text = 'Assistant scan'
+$conflictAssistantScanButton.Width = 115
+$conflictAssistantScanButton.Height = 32
+$conflictAssistantScanButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$conflictAssistantScanButton.Add_Click({ Show-ConflictAssistantSelectedFileScan })
+$recoveryControls.Controls.Add($conflictAssistantScanButton)
+
+$conflictAssistantOursButton = New-Object System.Windows.Forms.Button
+$conflictAssistantOursButton.Text = 'Use ours'
+$conflictAssistantOursButton.Width = 90
+$conflictAssistantOursButton.Height = 32
+$conflictAssistantOursButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$conflictAssistantOursButton.Add_Click({ Invoke-ConflictAssistantUseOurs })
+$recoveryControls.Controls.Add($conflictAssistantOursButton)
+
+$conflictAssistantTheirsButton = New-Object System.Windows.Forms.Button
+$conflictAssistantTheirsButton.Text = 'Use theirs'
+$conflictAssistantTheirsButton.Width = 95
+$conflictAssistantTheirsButton.Height = 32
+$conflictAssistantTheirsButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$conflictAssistantTheirsButton.Add_Click({ Invoke-ConflictAssistantUseTheirs })
+$recoveryControls.Controls.Add($conflictAssistantTheirsButton)
+
+$conflictAssistantStageButton = New-Object System.Windows.Forms.Button
+$conflictAssistantStageButton.Text = 'Assistant stage'
+$conflictAssistantStageButton.Width = 125
+$conflictAssistantStageButton.Height = 32
+$conflictAssistantStageButton.Margin = New-Object System.Windows.Forms.Padding(4)
+$conflictAssistantStageButton.Add_Click({ Invoke-ConflictAssistantStageResolved })
+$recoveryControls.Controls.Add($conflictAssistantStageButton)
+
 $conflictRefreshButton.Width = 150
 $conflictRefreshButton.Height = 32
 $conflictRefreshButton.Margin = New-Object System.Windows.Forms.Padding(4)
@@ -943,6 +992,63 @@ Set-ControlPreview -Control $validateGuiScriptButton -Builder { "powershell -NoP
 Set-ControlPreview -Control $recoveryRefreshButton -Builder { Build-RecoveryStatusPreview } -Title 'Refresh recovery status' -Notes 'Runs a safe read-only status command and updates the Recovery panel.'
 Set-ControlPreview -Control $conflictRefreshButton -Builder { if (Get-Command Get-GgrUnmergedFilesCommandPlan -ErrorAction SilentlyContinue) { (Get-GgrUnmergedFilesCommandPlan).Display } else { 'git diff --name-only --diff-filter=U' } } -Title 'List conflicted files' -Notes 'Runs a read-only command that lists files with unresolved merge conflicts.'
 Set-ControlPreview -Control $stageResolvedConflictButton -Builder { $path = if ($script:ConflictFilesListBox -and $script:ConflictFilesListBox.SelectedItem) { [string]$script:ConflictFilesListBox.SelectedItem } else { '<resolved-file>' }; if (Get-Command Get-GgrStageResolvedFileCommandPlan -ErrorAction SilentlyContinue) { (Get-GgrStageResolvedFileCommandPlan -Path $path).Display } else { 'git add -- ' + (Quote-Arg $path) } } -Title 'Stage resolved conflict file' -Notes 'Use after editing a conflicted file and removing conflict markers.'
+
+Set-ControlPreview -Control $conflictAssistantRefreshButton -Builder {
+    if (Get-Command Get-GgcaUnmergedFilesCommandPlan -ErrorAction SilentlyContinue) {
+        (Get-GgcaUnmergedFilesCommandPlan).CommandLine
+    } else {
+        'git diff --name-only --diff-filter=U'
+    }
+} -Title 'Conflict Resolution Assistant' -Notes 'Refreshes the assistant and lists unresolved conflict files.'
+
+Set-ControlPreview -Control $conflictAssistantScanButton -Builder {
+    $path = if ($script:ConflictFilesListBox -and $script:ConflictFilesListBox.SelectedItem) {
+        [string]$script:ConflictFilesListBox.SelectedItem
+    } else {
+        '<conflicted-file>'
+    }
+    'scan selected file for conflict markers, then preview: git add -- ' + (Quote-Arg $path)
+} -Title 'Conflict assistant selected-file scan' -Notes 'Scans the selected conflicted file for remaining conflict markers.'
+
+Set-ControlPreview -Control $conflictAssistantOursButton -Builder {
+    $path = if ($script:ConflictFilesListBox -and $script:ConflictFilesListBox.SelectedItem) {
+        [string]$script:ConflictFilesListBox.SelectedItem
+    } else {
+        '<conflicted-file>'
+    }
+    if (Get-Command Get-GgcaCheckoutOursCommandPlan -ErrorAction SilentlyContinue) {
+        (Get-GgcaCheckoutOursCommandPlan -Path $path).CommandLine
+    } else {
+        'git checkout --ours -- ' + (Quote-Arg $path)
+    }
+} -Title 'Use ours for selected conflict file' -Notes 'Chooses the current branch side for the selected conflicted file. Requires confirmation.'
+
+Set-ControlPreview -Control $conflictAssistantTheirsButton -Builder {
+    $path = if ($script:ConflictFilesListBox -and $script:ConflictFilesListBox.SelectedItem) {
+        [string]$script:ConflictFilesListBox.SelectedItem
+    } else {
+        '<conflicted-file>'
+    }
+    if (Get-Command Get-GgcaCheckoutTheirsCommandPlan -ErrorAction SilentlyContinue) {
+        (Get-GgcaCheckoutTheirsCommandPlan -Path $path).CommandLine
+    } else {
+        'git checkout --theirs -- ' + (Quote-Arg $path)
+    }
+} -Title 'Use theirs for selected conflict file' -Notes 'Chooses the incoming branch side for the selected conflicted file. Requires confirmation.'
+
+Set-ControlPreview -Control $conflictAssistantStageButton -Builder {
+    $path = if ($script:ConflictFilesListBox -and $script:ConflictFilesListBox.SelectedItem) {
+        [string]$script:ConflictFilesListBox.SelectedItem
+    } else {
+        '<resolved-file>'
+    }
+    if (Get-Command Get-GgcaStageResolvedFileCommandPlan -ErrorAction SilentlyContinue) {
+        (Get-GgcaStageResolvedFileCommandPlan -Path $path).CommandLine
+    } else {
+        'git add -- ' + (Quote-Arg $path)
+    }
+} -Title 'Conflict assistant stage resolved file' -Notes 'Stages the selected file only after conflict marker checks pass.'
+
 Set-ControlPreview -Control $script:ContinueOperationButton -Builder { $state = Get-RecoveryStateSnapshot; if ($state -and $state.CherryPickInProgress) { 'git cherry-pick --continue' } elseif ($state -and $state.RebaseInProgress) { 'git rebase --continue' } elseif ($state -and $state.MergeInProgress) { 'git commit --no-edit' } else { 'git status --short' } } -Title 'Continue interrupted operation' -Notes 'Chooses merge, cherry-pick, or rebase continuation based on repository state markers.'
 Set-ControlPreview -Control $launchMergeToolButton -Builder { Build-ExternalMergeToolPreview } -Title 'Launch external merge tool' -Notes 'Default is git mergetool. Configure Git merge.tool globally or edit the command here.'
 if ($script:ToolTip) {
@@ -950,6 +1056,12 @@ if ($script:ToolTip) {
     $script:ToolTip.SetToolTip($markerScanButton, 'Find leftover conflict markers in changed/unmerged files before staging.')
     $script:ToolTip.SetToolTip($validateGuiScriptButton, 'Parse-check the currently running PowerShell GUI script.')
     $script:ToolTip.SetToolTip($script:ConflictFilesListBox, 'Double-click a conflicted file to open it. Resolve markers, save, then stage the file.')
+
+    $script:ToolTip.SetToolTip($conflictAssistantRefreshButton, 'Refresh the Conflict Resolution Assistant and list unresolved conflict files.')
+    $script:ToolTip.SetToolTip($conflictAssistantScanButton, 'Scan the selected conflicted file for remaining conflict markers.')
+    $script:ToolTip.SetToolTip($conflictAssistantOursButton, 'Use the current branch version of the selected conflicted file. Review before staging.')
+    $script:ToolTip.SetToolTip($conflictAssistantTheirsButton, 'Use the incoming branch version of the selected conflicted file. Review before staging.')
+    $script:ToolTip.SetToolTip($conflictAssistantStageButton, 'Stage the selected file as resolved only after marker checks pass.')
 }
 Set-ControlPreview -Control $abortMergeButton -Builder { if (Get-Command Get-GgrAbortMergeCommandPlan -ErrorAction SilentlyContinue) { (Get-GgrAbortMergeCommandPlan).Display } else { 'git merge --abort' } } -Title 'Abort in-progress merge' -Notes 'Use only when a merge is in progress and you want to return to the pre-merge state.'
 Set-ControlPreview -Control $continueCherryPickButton -Builder { Build-CherryPickContinuePreview } -Title 'Continue cherry-pick' -Notes 'Use after resolving conflicts and staging the resolved files.'
