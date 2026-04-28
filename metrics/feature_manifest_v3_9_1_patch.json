@@ -1,0 +1,19 @@
+{
+  "features": [
+    {
+      "id": "branch.cleanup_remote_hygiene",
+      "version": "3.9.1",
+      "name": "Branch Cleanup and Remote Branch Hygiene Assistant",
+      "problem_area": [
+        "branch.cleanup",
+        "remote.hygiene",
+        "git.decision_safety"
+      ],
+      "description": "Guides users through fetch/prune, branch tracking inspection, merged branch classification, protected-branch blocking, and previewable local/remote branch deletion.",
+      "feature_points": 4,
+      "risk_reduction_points": 4,
+      "user_facing": true,
+      "engineering_value": 3
+    }
+  ]
+}
