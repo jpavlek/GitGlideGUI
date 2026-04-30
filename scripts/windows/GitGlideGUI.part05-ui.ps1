@@ -65,8 +65,9 @@ $progressPanel.Controls.Add($script:CancelButton)
 
 # Top area: repository status above branch/actions and commit/preview.
 # A horizontal splitter lets users decide how much vertical room the repository
-# status should use. The distance can be saved with Save layout now,
+# status should use. The distance can be saved with Save layout now
 # or automatically when the layout save policy is set to always.
+# Save panel state persists collapsed/restored panel-host state.
 $topAreaSplit = New-Object System.Windows.Forms.SplitContainer
 $script:HeaderTopAreaSplit = $topAreaSplit
 $topAreaSplit.Dock = 'Fill'
@@ -1795,7 +1796,7 @@ $layoutStatePanel.Margin = New-Object System.Windows.Forms.Padding(0, 4, 0, 0)
 $appearanceLayout.Controls.Add($layoutStatePanel, 0, 3)
 
 $script:LayoutStateSummaryLabel = New-Object System.Windows.Forms.Label
-$script:LayoutStateSummaryLabel.Text = 'Layout State Model active. Save policy: manual / ask-on-exit compatibility'
+$script:LayoutStateSummaryLabel.Text = 'Layout State Model active. Save policy: manual'
 $script:LayoutStateSummaryLabel.AutoSize = $true
 $script:LayoutStateSummaryLabel.Margin = New-Object System.Windows.Forms.Padding(4, 9, 12, 4)
 $layoutStatePanel.Controls.Add($script:LayoutStateSummaryLabel)
@@ -1809,7 +1810,7 @@ $layoutStatePanel.Controls.Add($layoutPolicyLabel)
 $script:LayoutSavePolicyComboBox = New-Object System.Windows.Forms.ComboBox
 $script:LayoutSavePolicyComboBox.DropDownStyle = 'DropDownList'
 $script:LayoutSavePolicyComboBox.Width = 125
-[void]$script:LayoutSavePolicyComboBox.Items.AddRange(@('ask-on-exit','always','never'))
+[void]$script:LayoutSavePolicyComboBox.Items.AddRange(@('manual','always','never'))
 $script:LayoutSavePolicyComboBox.Text = Get-GitGlideLayoutSavePolicy
 $script:LayoutSavePolicyComboBox.Margin = New-Object System.Windows.Forms.Padding(4)
 $script:LayoutSavePolicyComboBox.Add_SelectedIndexChanged({ Set-GitGlideLayoutSavePolicy -Policy ([string]$script:LayoutSavePolicyComboBox.SelectedItem) })
@@ -2541,21 +2542,65 @@ $script:StatusValueLabel.Text = 'Ready.'
 $statusStrip.Items.Add($script:StatusValueLabel) | Out-Null
 $rootLayout.Controls.Add($statusStrip, 0, 1)
 
-
 # Make every resizable splitter visibly discoverable. WinForms splitters are
 # otherwise easy to miss until the user happens to hover over the exact pixels.
-Enable-VisibleSplitter -Splitter $script:MainWorkSplit -Tooltip 'Drag this visible splitter to resize the upper workflow area versus Changed files / Diff preview / Live output. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:RootTopSplit -Tooltip 'Drag this visible splitter to resize the progress bar area versus the repository/status work area. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:HeaderTopAreaSplit -Tooltip 'Drag this visible splitter to resize Repository status versus Feature branch / Common actions / Commit panels. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:TopSplit -Tooltip 'Drag this visible splitter to resize left workflow controls versus Commit / preview / help. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:TopLeftSplit -Tooltip 'Drag this visible splitter to resize Feature branch versus Common actions. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:CommitPreviewSplit -Tooltip 'Drag this visible splitter to resize Commit editor versus Command preview / Help. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:ContentSplit -Tooltip 'Drag this visible splitter to resize Changed files versus Diff preview and command log. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:RightSplit -Tooltip 'Drag this visible splitter to resize Diff preview versus Live output / command log. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:ChangedFilesActionSplit -Tooltip 'Drag this visible splitter to resize Changed files list versus file action buttons. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:LogActionSplit -Tooltip 'Drag this visible splitter to resize Live output / command log versus log action buttons. Use Save layout now to persist, or set save policy to always.'
-Enable-VisibleSplitter -Splitter $script:AppearanceMainSplit -Tooltip 'Drag this visible splitter to resize the Appearance color list versus the selected color editor. Use Save layout now to persist, or set save policy to always.'
+# Layout persistence is explicit unless the user chooses the "always" save policy.
+$layoutPersistenceHint = 'Use Save layout now to persist, or set save policy to always.'
 
+$visibleSplitterTooltips = @(
+    @{
+        Splitter = $script:MainWorkSplit
+        Text = 'Drag to resize the upper workflow area versus Changed files / Diff preview / Live output.'
+    },
+    @{
+        Splitter = $script:RootTopSplit
+        Text = 'Drag to resize the progress bar area versus the repository/status work area.'
+    },
+    @{
+        Splitter = $script:HeaderTopAreaSplit
+        Text = 'Drag to resize Repository status versus Feature branch / Common actions / Commit panels.'
+    },
+    @{
+        Splitter = $script:TopSplit
+        Text = 'Drag to resize left workflow controls versus Commit / preview / help.'
+    },
+    @{
+        Splitter = $script:TopLeftSplit
+        Text = 'Drag to resize Feature branch versus Common actions.'
+    },
+    @{
+        Splitter = $script:CommitPreviewSplit
+        Text = 'Drag to resize Commit editor versus Command preview / Help.'
+    },
+    @{
+        Splitter = $script:ContentSplit
+        Text = 'Drag to resize Changed files versus Diff preview and command log.'
+    },
+    @{
+        Splitter = $script:RightSplit
+        Text = 'Drag to resize Diff preview versus Live output / command log.'
+    },
+    @{
+        Splitter = $script:ChangedFilesActionSplit
+        Text = 'Drag to resize Changed files list versus file action buttons.'
+    },
+    @{
+        Splitter = $script:LogActionSplit
+        Text = 'Drag to resize Live output / command log versus log action buttons.'
+    },
+    @{
+        Splitter = $script:AppearanceMainSplit
+        Text = 'Drag to resize the Appearance color list versus the selected color editor.'
+    }
+)
+
+foreach ($item in $visibleSplitterTooltips) {
+    if ($null -ne $item.Splitter) {
+        Enable-VisibleSplitter `
+            -Splitter $item.Splitter `
+            -Tooltip ('{0} {1}' -f $item.Text, $layoutPersistenceHint)
+    }
+}
 # Set up tooltips
 $script:ToolTip.SetToolTip($script:FeatureBranchTextBox, "Enter a new feature branch name. Branch names are validated before creation.")
 $script:ToolTip.SetToolTip($script:BaseFromDevelopCheckBox, "When checked, the tool switches to $($script:Config.BaseBranch), pulls, then creates the new feature branch. Requires a clean working tree.")
@@ -2594,22 +2639,14 @@ $script:ToolTip.SetToolTip($collapsePanelHostButton, 'Toggle the selected panel 
 $script:ToolTip.SetToolTip($restorePanelHostButton, 'Restore the selected collapsible panel.')
 $script:ToolTip.SetToolTip($restoreAllPanelHostsButton, 'Restore all collapsible panels in the current session.')
 $script:ToolTip.SetToolTip($savePanelHostStateButton, 'Save current collapsed/restored panel state into the Layout State Model.')
-$script:ToolTip.SetToolTip($script:LayoutSavePolicyComboBox, 'Choose when Git Glide saves layout changes. ask-on-exit is kept for compatibility but behaves as manual save during shutdown; use Save layout now to persist, or choose always save / never save.')
+$script:ToolTip.SetToolTip($script:LayoutSavePolicyComboBox, 'Choose when Git Glide saves layout changes: manual explicit save, always save on exit, or never save.')
 $script:ToolTip.SetToolTip($saveLayoutNowButton, 'Save current splitter/window layout immediately to GitGlideGUI-Config.json.')
 $script:ToolTip.SetToolTip($showLayoutStateButton, 'Show the current Layout State Model in the preview/help area.')
 $script:ToolTip.SetToolTip($discardLayoutChangesButton, 'Restore the saved layout and do not keep this session layout changes.')
-$script:ToolTip.SetToolTip($resetLayoutStateButton, 'Reset saved layout state to the built-in defaults without changing theme colors.')
+$script:ToolTip.SetToolTip($resetLayoutStateButton, 'Reset saved layout state to v3.10.2 defaults without changing theme colors.')
 $script:ToolTip.SetToolTip($openRepositoryButton, 'Select an existing Git repository folder. Use Init new... when you intentionally want to create a repository.')
 $script:ToolTip.SetToolTip($newRepositoryButton, 'Initialize a selected normal folder as a new Git repository for a new project.')
 $script:ToolTip.SetToolTip($script:SuggestedNextActionButton, 'Runs only safe suggested actions, such as opening a wizard, focusing a panel, showing a diff, or selecting a setup workflow. It does not silently run destructive Git commands.')
-
-function Get-GitGlidePanelHostPreviewText {
-    if (Get-Command Format-GitGlidePanelHostSummary -ErrorAction SilentlyContinue) {
-        return Format-GitGlidePanelHostSummary
-    }
-
-    return 'Collapsible Panel Host summary is unavailable because the layout host functions were not loaded.'
-}
 
 # Set up control previews
 Set-ControlPreview -Control $createBranchButton -Builder { Build-FeatureBranchCommandPreview } -Title 'Create feature branch' -Notes 'Creates a branch using the current feature branch textbox and base-from-develop option.'
@@ -2651,12 +2688,21 @@ Set-ControlPreview -Control $checkoutTagButton -Builder { Build-SelectedTagPrevi
 Set-ControlPreview -Control $openRepositoryButton -Builder { 'select an existing Git repository folder and refresh status' } -Title 'Open repository' -Notes 'Use this when Git Glide GUI was launched from the extracted tool folder instead of the repository.'
 Set-ControlPreview -Control $newRepositoryButton -Builder { 'git init -b <main-branch>' } -Title 'Initialize new repository' -Notes 'Use this when the selected project folder intentionally does not have a Git repository yet.'
 Set-ControlPreview -Control $saveLayoutNowButton -Builder { if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) { Format-GglsLayoutSummary -LayoutState (Get-GitGlideCurrentLayoutState) } else { 'save current splitter distances to LayoutState' } } -Title 'Save layout now' -Notes 'Saves current splitter distances and layout save policy to GitGlideGUI-Config.json.'
-Set-ControlPreview -Control $showLayoutStateButton -Builder { if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) { Format-GglsLayoutSummary -LayoutState (Get-GitGlideCurrentLayoutState) } else { 'show Layout State Model' } } -Title 'Show layout state' -Notes 'Shows the UI-independent Layout State Model used by collapsible panel hosts and future stackable/dockable panels.'
+Set-ControlPreview -Control $showLayoutStateButton -Builder { if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) { Format-GglsLayoutSummary -LayoutState (Get-GitGlideCurrentLayoutState) } else { 'show Layout State Model' } } -Title 'Show layout state' -Notes 'Shows the UI-independent Layout State Model used by v3.10.2 canonical collapsible panel hosts and future stackable/dockable panels.'
+
+function Get-GitGlidePanelHostPreviewText {
+    if (Get-Command Format-GitGlidePanelHostSummary -ErrorAction SilentlyContinue) {
+        return Format-GitGlidePanelHostSummary
+    }
+
+    return 'Collapsible Panel Host summary is unavailable because the layout host functions were not loaded.'
+}
 
 Set-ControlPreview -Control $collapsePanelHostButton -Builder { Get-GitGlidePanelHostPreviewText } -Title 'Collapsible Panel Host' -Notes 'Toggles the selected panel collapsed/restored. This changes only the workspace layout.'
 Set-ControlPreview -Control $restorePanelHostButton -Builder { Get-GitGlidePanelHostPreviewText } -Title 'Restore selected panel' -Notes 'Restores the selected collapsible panel.'
 Set-ControlPreview -Control $restoreAllPanelHostsButton -Builder { Get-GitGlidePanelHostPreviewText } -Title 'Restore all panels' -Notes 'Restores all collapsible panels in the current session.'
 Set-ControlPreview -Control $savePanelHostStateButton -Builder { Get-GitGlidePanelHostPreviewText } -Title 'Save panel host state' -Notes 'Saves collapsed/restored panel state into GitGlideGUI-Config.json.'
+
 Set-ControlPreview -Control $discardLayoutChangesButton -Builder { 'restore saved LayoutState and legacy splitter distances without saving this session changes' } -Title 'Discard session layout changes' -Notes 'Reapplies the saved layout state. This is useful when you resized panels temporarily.'
 Set-ControlPreview -Control $resetLayoutStateButton -Builder { 'reset LayoutState to built-in defaults' } -Title 'Reset layout state' -Notes 'Resets saved layout state only. Theme colors are not changed.'
 
@@ -2686,8 +2732,17 @@ function Invoke-GitGlideUiInitStep {
     }
 }
 
-Invoke-GitGlideUiInitStep -Context 'Refresh panel host list' -Action { Refresh-GitGlidePanelHostList }
-Invoke-GitGlideUiInitStep -Context 'Update panel host UI' -Action { Update-GitGlidePanelHostUi }
+Invoke-GitGlideUiInitStep -Context 'Refresh panel host list' -Action {
+    if (Get-Command Refresh-GitGlidePanelHostList -ErrorAction SilentlyContinue) {
+        Refresh-GitGlidePanelHostList
+    }
+}
+
+Invoke-GitGlideUiInitStep -Context 'Update panel host UI' -Action {
+    if (Get-Command Update-GitGlidePanelHostUi -ErrorAction SilentlyContinue) {
+        Update-GitGlidePanelHostUi
+    }
+}
 
 Refresh-CustomGitButtonsPanel
 Refresh-ThemeColorList
@@ -2793,9 +2848,23 @@ $form.Add_KeyDown({
 })
 
 $form.Add_Shown({
-    Invoke-GitGlideUiInitStep -Context 'Apply saved layout' -Action { Apply-SavedLayout }
-    Invoke-GitGlideUiInitStep -Context 'Refresh panel host list after layout restore' -Action { Refresh-GitGlidePanelHostList }
-    Invoke-GitGlideUiInitStep -Context 'Update panel host UI after layout restore' -Action { Update-GitGlidePanelHostUi }
+    Invoke-GitGlideUiInitStep -Context 'Apply saved layout' -Action {
+        if (Get-Command Apply-SavedLayout -ErrorAction SilentlyContinue) {
+            Apply-SavedLayout
+        }
+    }
+
+    Invoke-GitGlideUiInitStep -Context 'Refresh panel host list after layout restore' -Action {
+        if (Get-Command Refresh-GitGlidePanelHostList -ErrorAction SilentlyContinue) {
+            Refresh-GitGlidePanelHostList
+        }
+    }
+
+    Invoke-GitGlideUiInitStep -Context 'Update panel host UI after layout restore' -Action {
+        if (Get-Command Update-GitGlidePanelHostUi -ErrorAction SilentlyContinue) {
+            Update-GitGlidePanelHostUi
+        }
+    }
 })
 
 function Invoke-GitGlideSafeShutdownAction {
@@ -2828,7 +2897,7 @@ function Invoke-GitGlideSafeShutdownAction {
 
 function Invoke-GitGlideShutdownCleanup {
     try {
-        # v3.8.1/v3.10.1: WinForms can invoke FormClosing while the hosting
+        # v3.8.1/v3.10.2: WinForms can invoke FormClosing while the hosting
         # PowerShell pipeline is already stopping. Letting PipelineStoppedException
         # escape from this event handler can produce a .NET JIT/debugging dialog
         # instead of a normal shutdown. Keep close-time cleanup best-effort and

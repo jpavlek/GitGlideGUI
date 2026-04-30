@@ -1,16 +1,24 @@
-# Git Glide GUI v3.10.0 - Start Here
+# Git Glide GUI v3.10.2 - Start Here
 
 This guide helps you launch Git Glide GUI, choose the right first action, validate the package, and find the main workflows.
 
-For the product overview, positioning, and v3.10.0 release focus, see `README.md`.
+For the product overview, positioning, and v3.10.2 release focus, see `README.md`.
 
-v3.10.0 adds the modular Layout State Model used to save splitter/window layout as structured data and prepare future collapsible, stackable, and dockable panels.
+v3.10.2 is a stabilization release. It cleans up release hygiene, hardens the quality gate, adds tracked metrics refresh plus release artifact consistency checks, removes stale launcher artifacts, and aligns the Collapsible Panel Host with the canonical Layout State Model panel IDs.
 
 ## Requirements
+
+Runtime:
 
 - Windows 10 or 11.
 - Git installed and available from the command line.
 - Windows PowerShell.
+
+Development / quality-gate:
+
+- Python 3 for static smoke tests and metrics collection.
+- Optional: Pester for PowerShell tests.
+- Optional: PSScriptAnalyzer for PowerShell static analysis.
 
 ## Shortest path
 
@@ -43,7 +51,7 @@ Compatibility launcher:
 git-flow-gui2.bat
 ```
 
-Use `git-flow-gui2.bat` only when you need the older compatibility entry point.
+Use `git-flow-gui2.bat` only when you need the older compatibility entry point. Stale version-specific launchers are intentionally not part of the v3.10.2 release package.
 
 ## First startup choices
 
@@ -53,7 +61,7 @@ Use `git-flow-gui2.bat` only when you need the older compatibility entry point.
 
 ## Validate the package
 
-Before using a new package or after integrating changes, run:
+Before using a new package or after integrating changes, run the full quality gate from the package root folder:
 
 ```bat
 run-quality-checks.bat
@@ -65,6 +73,8 @@ The quality gate runs:
 2. Windows smoke launch with `-SmokeTest`.
 3. Pester tests when Pester is installed.
 4. PSScriptAnalyzer checks when PSScriptAnalyzer is installed.
+5. Metrics collection and Markdown report refresh.
+6. Release artifact consistency check after metrics are refreshed.
 
 For Pester-only test runs, use:
 
@@ -72,7 +82,7 @@ For Pester-only test runs, use:
 run-pester-tests.bat
 ```
 
-This is useful when you want to rerun only the PowerShell module and workflow tests without repeating the full static smoke, launch, and analyzer checks.
+This is useful when you want to rerun only the PowerShell module and workflow tests without repeating the full static smoke, launch, analyzer, metrics, and release artifact consistency checks.
 
 ## If something looks wrong
 
@@ -110,7 +120,7 @@ metrics/METRICS_REPORT.md
 
 ## Layout state and save policy
 
-Open **Appearance** to inspect the v3.10.0 Layout State Model.
+Open **Appearance** to inspect the v3.10.2 Layout State Model.
 
 Available controls:
 
@@ -118,9 +128,32 @@ Available controls:
 - **Show layout state** displays the active layout profile and panel model.
 - **Discard session layout** restores the saved layout without keeping temporary resizing.
 - **Reset layout** returns layout state to the built-in defaults.
-- **Save policy** controls whether layout is saved on exit: `ask-on-exit`, `always`, or `never`.
+- **Save policy** controls whether layout is saved: `manual`, `always`, or `never`.
 
-This is the foundation for v3.10.1+ collapsible, stackable, and dockable workspace panels.
+Policy meanings:
+
+- `manual`: layout changes are saved only when you click Save layout now or Save panel state.
+- `always`: layout changes are saved on close.
+- `never`: layout changes are session-only and are not saved.
+
+Legacy configs using `ask-on-exit` are normalized to `manual`. This reflects the actual shutdown behavior: Git Glide GUI intentionally avoids modal save prompts from `FormClosing` because they can trigger PowerShell/WinForms shutdown exceptions.
+
+## Collapsible Panel Host
+
+v3.10.2 keeps the v3.10.1 Appearance-tab controls for collapsing and restoring selected workspace panels, but aligns their IDs with the canonical Layout State Model registry.
+
+Supported panel host IDs:
+
+```text
+repositoryStatus
+topWorkflow
+changedFiles
+diffAndOutput
+diffPreview
+liveOutput
+```
+
+Use this when the screen feels crowded, then click Save layout now to persist the current panel state.
 
 ## UI modes
 
@@ -159,6 +192,8 @@ Recommended normal workflow:
 ## Changed files and staging
 
 Use the changed-file list to inspect staged, unstaged, and untracked files. Git Glide GUI uses explicit status badges so staged and unstaged changes are easier to distinguish.
+
+**Tracked Files**
 
 For clean tracked files that do not appear in **Changed Files**, use:
 
@@ -206,17 +241,6 @@ If markers remain, staging is blocked and the UI shows the marker lines that sti
 
 Use **History / Graph** to inspect a read-only `git log --graph` view before merging, pulling, deleting tags, or undoing commits.
 
-History inspection is useful before decisions such as:
-
-- merging a feature branch
-- syncing `develop` and `main`
-- deleting a merged branch
-- cherry-picking a commit
-- undoing a local commit
-- publishing a release branch
-
-v3.8 introduced **Branch relationships** to make branch state easier to understand before risky actions.
-
 Use **Branch relationships** to compare:
 
 - current branch vs upstream
@@ -250,6 +274,8 @@ Setup -> GitHub publish...
 ```
 
 to connect a local repository to GitHub. The workflow helps build the remote URL, reminds you not to initialize a GitHub repo with README or `.gitignore` when pushing an existing local repo, and includes privacy reminders for private repositories and GitHub Copilot AI/data-training settings.
+
+**GitHub diagnostics**
 
 Use:
 
@@ -299,8 +325,6 @@ git push
 
 ## Stable split-script layout
 
-v3.8.1 keeps the split-script layout introduced in v3.7.0 and stabilizes the runtime filenames.
-
 The launcher calls:
 
 ```text
@@ -327,7 +351,7 @@ For continued development, use a feature branch and run checks before committing
 ```bat
 git switch develop
 git pull
-git switch -c fix/v3-8-1-version-source-of-truth
+git switch -c fix/v3-10-2-release-hygiene-layout-host-consistency
 run-quality-checks.bat
 git-glide-gui.bat
 ```
@@ -336,10 +360,12 @@ Commit only after local quality checks pass.
 
 ## Recent release highlights
 
-- **v3.6.13**: workflow checklist, merged-branch cleanup guidance, and release consistency smoke checks.
 - **v3.7.0**: repository state clarity, conflict recovery UX, split-script layout, dynamic context banner sizing, color-coded diff rendering, and technical-debt reduction.
 - **v3.8.0**: visual history and branch relationship understanding for safer merge, pull, push, cleanup, and release decisions.
 - **v3.8.1**: version source-of-truth and release-churn reduction with stable runtime script filenames.
+- **v3.10.0**: modular Layout State Model.
+- **v3.10.1**: Collapsible Panel Host.
+- **v3.10.2**: release hygiene, quality-gate hardening, and layout-host consistency.
 
 ## More documentation
 
@@ -347,16 +373,11 @@ Start with:
 
 ```text
 README.md
-docs/RELEASE_NOTES_v3_8_1.md
-docs/RELEASE_NOTES_v3_8.md
-docs/ARCHITECTURE_v3_8.md
+docs/RELEASE_NOTES_v3_10_2.md
+docs/LAYOUT_STATE_MODEL_v3_10_2.md
+docs/ARCHITECTURE_v3_10_2.md
 docs/REPOSITORY_WORKFLOW.md
-docs/ROADMAP_REVIEW_v3_8.md
-docs/SWOT_AND_ROADMAP_v3_8.md
-docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_8.md
+docs/ROADMAP_REVIEW_v3_10_2.md
+docs/SWOT_AND_ROADMAP_v3_10_2.md
+docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_10_2.md
 ```
-
-
-## Collapsible Panel Host
-
-v3.10.1 adds Appearance-tab controls for collapsing and restoring selected workspace panels. Use this when the screen feels crowded, then click Save layout now to persist the current panel state.
