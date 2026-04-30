@@ -2147,10 +2147,11 @@ function Get-GitGlideLayoutSavePolicy {
         if ($script:Config -and $script:Config.ContainsKey('LayoutSavePolicy') -and -not [string]::IsNullOrWhiteSpace([string]$script:Config.LayoutSavePolicy)) {
             $policy = [string]$script:Config.LayoutSavePolicy
             if (Get-Command Get-GglsNormalizedSavePolicy -ErrorAction SilentlyContinue) { return Get-GglsNormalizedSavePolicy -SavePolicy $policy }
-            if ($policy -in @('ask-on-exit','always','never')) { return $policy }
+            if ($policy -eq 'ask-on-exit') { return 'manual' }
+            if ($policy -in @('manual','always','never')) { return $policy }
         }
     } catch {}
-    return 'ask-on-exit'
+    return 'manual'
 }
 
 function Get-GitGlideLayoutActiveProfile {
@@ -2193,15 +2194,57 @@ function Get-GitGlideLayoutSplitterControlMap {
 }
 
 function Get-GitGlidePanelHostDefinitions {
-    # v3.10.1: Collapsible Panel Host. Keep this WinForms mapping outside the
+    # v3.10.2: Collapsible Panel Host adapter. Keep this WinForms mapping outside the
     # UI-free GitLayoutState module so the core model remains testable.
     $defs = @(
-        [pscustomobject]@{ PanelId = 'repositoryStatus'; DisplayName = 'Repository status'; Splitter = $script:HeaderTopAreaSplit; Panel = 1; Notes = 'Collapse or restore the repository status header.' },
-        [pscustomobject]@{ PanelId = 'topWorkflow'; DisplayName = 'Top workflow area'; Splitter = $script:MainWorkSplit; Panel = 1; Notes = 'Collapse or restore the full upper workflow/action area.' },
-        [pscustomobject]@{ PanelId = 'changedFiles'; DisplayName = 'Changed files'; Splitter = $script:ContentSplit; Panel = 1; Notes = 'Collapse or restore the changed-file list and file action buttons.' },
-        [pscustomobject]@{ PanelId = 'diffAndOutput'; DisplayName = 'Diff and output area'; Splitter = $script:ContentSplit; Panel = 2; Notes = 'Collapse or restore the right-side diff/output area.' },
-        [pscustomobject]@{ PanelId = 'diffPreview'; DisplayName = 'Diff preview'; Splitter = $script:RightSplit; Panel = 1; Notes = 'Collapse or restore the diff preview panel.' },
-        [pscustomobject]@{ PanelId = 'liveOutput'; DisplayName = 'Live output'; Splitter = $script:RightSplit; Panel = 2; Notes = 'Collapse or restore the live command output panel.' }
+        [pscustomobject]@{
+			PanelId = 'repositoryStatus';
+			DisplayName = 'Repository status';
+			Splitter = $script:HeaderTopAreaSplit;
+			Panel = 1;
+			SplitterKey = 'HeaderTopAreaSplitDistance';
+			Notes = 'Collapse or restore the repository status header.'
+		},
+        [pscustomobject]@{
+			PanelId = 'topWorkflow';
+			DisplayName = 'Top workflow area';
+			Splitter = $script:MainWorkSplit;
+			Panel = 1;
+			SplitterKey = 'MainWorkSplitDistance';
+			Notes = 'Collapse or restore the full upper workflow/action area.'
+		},
+        [pscustomobject]@{
+			PanelId = 'changedFiles';
+			DisplayName = 'Changed files';
+			Splitter = $script:ContentSplit;
+			Panel = 1;
+			SplitterKey = 'ContentSplitDistance';
+			Notes = 'Collapse or restore the changed-file list and file action buttons.'
+		},
+        [pscustomobject]@{
+			PanelId = 'diffAndOutput';
+			DisplayName = 'Diff and output area';
+			Splitter = $script:ContentSplit;
+			Panel = 2;
+			SplitterKey = 'ContentSplitDistance';
+			Notes = 'Collapse or restore the right-side diff/output area.'
+		},
+        [pscustomobject]@{
+			PanelId = 'diffPreview';
+			DisplayName = 'Diff preview';
+			Splitter = $script:RightSplit;
+			Panel = 1;
+			SplitterKey = 'RightSplitDistance';
+			Notes = 'Collapse or restore the diff preview panel.'
+		},
+        [pscustomobject]@{
+			PanelId = 'liveOutput';
+			DisplayName = 'Live output';
+			Splitter = $script:RightSplit;
+			Panel = 2;
+			SplitterKey = 'RightSplitDistance';
+			Notes = 'Collapse or restore the live command output panel.'
+		}
     )
     return @($defs | Where-Object { $null -ne $_.Splitter })
 }
@@ -2258,14 +2301,14 @@ function Set-GitGlidePanelHostCollapsedOnControl {
 }
 
 function Update-GitGlideLayoutStateFromPanelHosts {
-
     param($LayoutState)
 
-    if ($null -eq $LayoutState) {
+    $state = if ($null -eq $LayoutState) { Get-GitGlideCurrentLayoutState } else { $LayoutState }
+
+    if ($null -eq $state) {
         return $LayoutState
     }
 
-    $state = $LayoutState
     $profile = Get-GitGlideLayoutActiveProfile
 
     foreach ($def in Get-GitGlidePanelHostDefinitions) {
@@ -2278,6 +2321,7 @@ function Update-GitGlideLayoutStateFromPanelHosts {
             $state = Set-GglsPanelLastSize -LayoutState $state -PanelId ([string]$def.PanelId) -LastSplitterDistance $distance -ProfileName $profile
         }
     }
+
     return $state
 }
 
@@ -2443,7 +2487,7 @@ function Update-GitGlideLayoutPolicyUi {
 function Save-GitGlideLayoutStateNow {
     param([switch]$Silent)
 
-    $state = Get-GitGlideCurrentLayoutState
+    $state = Update-GitGlideLayoutStateFromPanelHosts -LayoutState (Get-GitGlideCurrentLayoutState)
     Set-ConfigValue -Name 'LayoutState' -Value $state
     Set-ConfigValue -Name 'LayoutSavePolicy' -Value (Get-GitGlideLayoutSavePolicy)
     Save-Config -Config $script:Config
@@ -2451,8 +2495,12 @@ function Save-GitGlideLayoutStateNow {
 
     if (-not $Silent) {
         if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) {
-            Set-CommandPreview -Title 'Layout State Model' -Commands (Format-GglsLayoutSummary -LayoutState $state) -Notes 'Saved current splitter distances, collapsible panel state, and layout save policy to GitGlideGUI-Config.json.'
+            Set-CommandPreview `
+                -Title 'Layout State Model' `
+                -Commands (Format-GglsLayoutSummary -LayoutState $state) `
+                -Notes 'Saved current splitter distances, collapsible panel state, and layout save policy to GitGlideGUI-Config.json.'
         }
+
         Append-Log -Text 'Saved layout state.' -Color ([System.Drawing.Color]::DarkGreen)
     }
 }
@@ -2461,7 +2509,8 @@ function Set-GitGlideLayoutSavePolicy {
     param([string]$Policy)
 
     if (Get-Command Get-GglsNormalizedSavePolicy -ErrorAction SilentlyContinue) { $Policy = Get-GglsNormalizedSavePolicy -SavePolicy $Policy }
-    elseif ($Policy -notin @('ask-on-exit','always','never')) { $Policy = 'ask-on-exit' }
+    elseif ($Policy -eq 'ask-on-exit') { $Policy = 'manual' }
+    elseif ($Policy -notin @('manual','always','never')) { $Policy = 'manual' }
 
     Set-ConfigValue -Name 'LayoutSavePolicy' -Value $Policy
     try {
@@ -2477,12 +2526,12 @@ function Set-GitGlideLayoutSavePolicy {
 function Show-GitGlideLayoutState {
     $state = Get-GitGlideCurrentLayoutState
     $summary = if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) { Format-GglsLayoutSummary -LayoutState $state } else { 'Layout State Model summary is unavailable.' }
-    Set-CommandPreview -Title 'Layout State Model' -Commands $summary -Notes 'This is the current UI-independent layout model that v3.10.1 uses for collapsible panels, and future versions can extend for stackable and dockable panels.'
+    Set-CommandPreview -Title 'Layout State Model' -Commands $summary -Notes 'This is the current UI-independent layout model that v3.10.2 uses for canonical collapsible panel hosts, and future versions can extend for stackable and dockable panels.'
     if ($script:HelpTextBox) { $script:HelpTextBox.Text = $summary }
 }
 
 function Reset-GitGlideLayoutState {
-    $ok = Confirm-GuiAction -Title 'Reset layout state' -Message 'Reset saved splitter/window layout state to the built-in v3.10.1 defaults? Theme colors are not changed.' -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+    $ok = Confirm-GuiAction -Title 'Reset layout state' -Message 'Reset saved splitter/window layout state to the built-in v3.10.2 defaults? Theme colors are not changed.' -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
     if (-not $ok) { return }
     $policy = Get-GitGlideLayoutSavePolicy
     $state = if (Get-Command New-GglsDefaultLayoutState -ErrorAction SilentlyContinue) { New-GglsDefaultLayoutState -ActiveProfile (Get-GitGlideLayoutActiveProfile) -SavePolicy $policy } else { $null }
@@ -2539,8 +2588,8 @@ function Save-LayoutConfig {
     $policy = Get-GitGlideLayoutSavePolicy
     if (-not $ForceSave) {
         if ($policy -eq 'never') { return }
-        if ($policy -eq 'ask-on-exit' -and $Reason -eq 'closing') {
-            # v3.10.1: never show modal dialogs from FormClosing. PowerShell/WinForms can
+        if ($policy -eq 'manual' -and $Reason -eq 'closing') {
+            # v3.10.2: manual save policy never shows modal dialogs from FormClosing. PowerShell/WinForms can
             # raise PipelineStoppedException during shutdown if a scriptblock-backed event
             # opens UI while the host pipeline is stopping. Users can persist intentionally
             # with Save layout now; closing stays non-modal and safe.

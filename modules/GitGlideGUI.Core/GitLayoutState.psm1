@@ -23,18 +23,60 @@ function ConvertTo-GglsPlainHashtable {
     return $hash
 }
 
+function Test-GglsMapContainsKey {
+    param(
+        $Map,
+        [string]$Key
+    )
+
+    if ($null -eq $Map) {
+        return $false
+    }
+
+    if ($Map -is [System.Collections.IDictionary]) {
+        return $Map.Contains($Key)
+    }
+
+    try {
+        return @($Map.PSObject.Properties.Name) -contains $Key
+    } catch {
+        return $false
+    }
+}
+
 function Test-GglsLayoutSavePolicy {
     param([string]$SavePolicy)
 
-    return @('ask-on-exit', 'always', 'never') -contains ([string]$SavePolicy).ToLowerInvariant()
+    $candidate = ([string]$SavePolicy).Trim().ToLowerInvariant()
+    return @('manual', 'always', 'never', 'ask-on-exit') -contains $candidate
 }
 
 function Get-GglsNormalizedSavePolicy {
-    param([string]$SavePolicy = 'ask-on-exit')
+    param([string]$SavePolicy = 'manual')
 
     $candidate = ([string]$SavePolicy).Trim().ToLowerInvariant()
-    if (Test-GglsLayoutSavePolicy -SavePolicy $candidate) { return $candidate }
-    return 'ask-on-exit'
+    if ($candidate -eq 'ask-on-exit') { return 'manual' }
+    if (@('manual', 'always', 'never') -contains $candidate) { return $candidate }
+    return 'manual'
+}
+
+function Get-GglsCanonicalPanelId {
+    param([string]$PanelId)
+
+    $candidate = ([string]$PanelId).Trim()
+    switch ($candidate.ToLowerInvariant()) {
+        'repositorystatus' { return 'repositoryStatus' }
+        'topworkflow' { return 'topWorkflow' }
+        'workflowactions' { return 'workflowActions' }
+        'commitpreview' { return 'commitPreview' }
+        'changedfiles' { return 'changedFiles' }
+        'diffandoutput' { return 'diffAndOutput' }
+        'diffpreview' { return 'diffPreview' }
+        'liveoutput' { return 'liveOutput' }
+        'commandoutput' { return 'liveOutput' }
+        'appearanceeditor' { return 'appearanceEditor' }
+        default { return $candidate }
+    }
 }
 
 function New-GglsPanelState {
@@ -51,10 +93,11 @@ function New-GglsPanelState {
         [bool]$Collapsed = $false
     )
 
+    $canonicalId = Get-GglsCanonicalPanelId -PanelId $Id
     $effectiveLastSplitterDistance = if ([int]$LastSplitterDistance -gt 0) { [int]$LastSplitterDistance } else { [int]$SplitterDistance }
 
     return [pscustomobject]@{
-        id = $Id
+        id = $canonicalId
         displayName = $DisplayName
         visible = [bool]$Visible
         collapsed = [bool]$Collapsed
@@ -67,29 +110,38 @@ function New-GglsPanelState {
     }
 }
 
+function Get-GglsCanonicalPanelRegistry {
+    $panels = [ordered]@{}
+    $panels.repositoryStatus = New-GglsPanelState -Id 'repositoryStatus' -DisplayName 'Repository status' -Dock 'top' -Weight 0.18 -SplitterKey 'HeaderTopAreaSplitDistance' -SplitterDistance 120
+    $panels.topWorkflow = New-GglsPanelState -Id 'topWorkflow' -DisplayName 'Top workflow area' -Dock 'top' -Weight 0.42 -SplitterKey 'MainWorkSplitDistance' -SplitterDistance 470
+    $panels.workflowActions = New-GglsPanelState -Id 'workflowActions' -DisplayName 'Workflow actions' -Dock 'left' -Weight 0.40 -SplitterKey 'TopSplitDistance' -SplitterDistance 650
+    $panels.commitPreview = New-GglsPanelState -Id 'commitPreview' -DisplayName 'Commit / preview / help' -Dock 'right' -Weight 0.60 -SplitterKey 'CommitPreviewSplitDistance' -SplitterDistance 470
+    $panels.changedFiles = New-GglsPanelState -Id 'changedFiles' -DisplayName 'Changed Files' -Dock 'left' -Weight 0.35 -SplitterKey 'ContentSplitDistance' -SplitterDistance 430
+    $panels.diffAndOutput = New-GglsPanelState -Id 'diffAndOutput' -DisplayName 'Diff and output area' -Dock 'right' -Weight 0.65 -SplitterKey 'ContentSplitDistance' -SplitterDistance 430
+    $panels.diffPreview = New-GglsPanelState -Id 'diffPreview' -DisplayName 'Diff preview' -Dock 'fill' -Weight 0.45 -SplitterKey 'RightSplitDistance' -SplitterDistance 250
+    $panels.liveOutput = New-GglsPanelState -Id 'liveOutput' -DisplayName 'Live command output' -Dock 'bottom' -Weight 0.20 -Height 220 -SplitterKey 'RightSplitDistance' -SplitterDistance 245
+	$panels.appearanceEditor = New-GglsPanelState -Id 'appearanceEditor' -DisplayName 'Appearance and layout editor' -Dock 'right' -Weight 0.50 -SplitterKey 'AppearanceSplitDistance' -SplitterDistance 280
+    return $panels
+}
+
+function New-GglsProfile {
+    param([string]$Id, [string]$DisplayName)
+    return [pscustomobject]@{ id = $Id; displayName = $DisplayName; panels = (Get-GglsCanonicalPanelRegistry) }
+}
+
 function New-GglsDefaultLayoutState {
     param(
         [string]$ActiveProfile = 'workflow',
-        [string]$SavePolicy = 'ask-on-exit'
+        [string]$SavePolicy = 'manual'
     )
 
-    $workflowPanels = [ordered]@{
-        repositoryStatus = New-GglsPanelState -Id 'repositoryStatus' -DisplayName 'Repository status' -Dock 'top' -Weight 0.18 -SplitterKey 'HeaderTopAreaSplitDistance' -SplitterDistance 120
-        workflowActions = New-GglsPanelState -Id 'workflowActions' -DisplayName 'Workflow actions' -Dock 'left' -Weight 0.40 -SplitterKey 'TopSplitDistance' -SplitterDistance 650
-        commitPreview = New-GglsPanelState -Id 'commitPreview' -DisplayName 'Commit / preview / help' -Dock 'right' -Weight 0.60 -SplitterKey 'CommitPreviewSplitDistance' -SplitterDistance 470
-        changedFiles = New-GglsPanelState -Id 'changedFiles' -DisplayName 'Changed Files' -Dock 'left' -Weight 0.35 -SplitterKey 'ContentSplitDistance' -SplitterDistance 430
-        diffPreview = New-GglsPanelState -Id 'diffPreview' -DisplayName 'Diff preview' -Dock 'fill' -Weight 0.45 -SplitterKey 'RightSplitDistance' -SplitterDistance 250
-        commandOutput = New-GglsPanelState -Id 'commandOutput' -DisplayName 'Live command output' -Dock 'bottom' -Weight 0.20 -Height 220 -SplitterKey 'LogActionSplitDistance' -SplitterDistance 245
-        appearanceEditor = New-GglsPanelState -Id 'appearanceEditor' -DisplayName 'Appearance and layout editor' -Dock 'right' -Weight 0.50 -SplitterKey 'AppearanceSplitDistance' -SplitterDistance 280
-    }
-
     $profiles = [ordered]@{
-        simple = [pscustomobject]@{ id = 'simple'; displayName = 'Simple'; panels = $workflowPanels }
-        workflow = [pscustomobject]@{ id = 'workflow'; displayName = 'Workflow'; panels = $workflowPanels }
-        expert = [pscustomobject]@{ id = 'expert'; displayName = 'Expert'; panels = $workflowPanels }
-        recovery = [pscustomobject]@{ id = 'recovery'; displayName = 'Recovery'; panels = $workflowPanels }
-        metrics = [pscustomobject]@{ id = 'metrics'; displayName = 'Metrics'; panels = $workflowPanels }
-        release = [pscustomobject]@{ id = 'release'; displayName = 'Release'; panels = $workflowPanels }
+        simple = New-GglsProfile -Id 'simple' -DisplayName 'Simple'
+        workflow = New-GglsProfile -Id 'workflow' -DisplayName 'Workflow'
+        expert = New-GglsProfile -Id 'expert' -DisplayName 'Expert'
+        recovery = New-GglsProfile -Id 'recovery' -DisplayName 'Recovery'
+        metrics = New-GglsProfile -Id 'metrics' -DisplayName 'Metrics'
+        release = New-GglsProfile -Id 'release' -DisplayName 'Release'
     }
 
     return [pscustomobject]@{
@@ -98,6 +150,60 @@ function New-GglsDefaultLayoutState {
         savePolicy = (Get-GglsNormalizedSavePolicy -SavePolicy $SavePolicy)
         profiles = $profiles
     }
+}
+
+function Merge-GglsPanelTable {
+    param($DefaultPanels, $SourcePanels)
+
+    $merged = [ordered]@{}
+    $defaultPanelTable = ConvertTo-GglsPlainHashtable -Value $DefaultPanels
+
+	foreach ($key in @($defaultPanelTable.Keys | Sort-Object)) {
+		$canonical = Get-GglsCanonicalPanelId -PanelId $key
+		$merged[$canonical] = ConvertTo-GglsPlainHashtable -Value $defaultPanelTable[$key]
+	}
+
+    $source = ConvertTo-GglsPlainHashtable -Value $SourcePanels
+    foreach ($key in @($source.Keys)) {
+        $canonical = Get-GglsCanonicalPanelId -PanelId $key
+        $sourcePanel = ConvertTo-GglsPlainHashtable -Value $source[$key]
+
+        if (Test-GglsMapContainsKey -Map $sourcePanel -Key 'id') {
+            $canonical = Get-GglsCanonicalPanelId -PanelId ([string]$sourcePanel['id'])
+        }
+
+        $base = @{}
+        if (Test-GglsMapContainsKey -Map $merged -Key $canonical) {
+            $base = ConvertTo-GglsPlainHashtable -Value $merged[$canonical]
+        }
+
+        foreach ($prop in $sourcePanel.Keys) {
+			$base[$prop] = $sourcePanel[$prop]
+		}
+
+		$base['id'] = $canonical
+
+		if (-not (Test-GglsMapContainsKey -Map $base -Key 'displayName') -or [string]::IsNullOrWhiteSpace([string]$base['displayName'])) {
+            $base['displayName'] = $canonical
+        }
+
+        if (-not (Test-GglsMapContainsKey -Map $base -Key 'visible')) {
+            $base['visible'] = $true
+        }
+
+        if (-not (Test-GglsMapContainsKey -Map $base -Key 'collapsed')) {
+            $base['collapsed'] = $false
+        }
+
+        $merged[$canonical] = $base
+    }
+
+    $result = [ordered]@{}
+    foreach ($key in @($merged.Keys)) {
+		$result[$key] = [pscustomobject]$merged[$key]
+	}
+
+	return $result
 }
 
 function Get-GglsProfile {
@@ -116,11 +222,12 @@ function Get-GglsProfile {
 function Get-GglsPanelState {
     param($LayoutState, [string]$PanelId, [string]$ProfileName = '')
 
+    $canonicalPanelId = Get-GglsCanonicalPanelId -PanelId $PanelId
     $profile = Get-GglsProfile -LayoutState $LayoutState -ProfileName $ProfileName
     if ($null -eq $profile) { return $null }
     $profileHash = ConvertTo-GglsPlainHashtable -Value $profile
     $panels = ConvertTo-GglsPlainHashtable -Value $profileHash['panels']
-    if ($panels.ContainsKey($PanelId)) { return $panels[$PanelId] }
+    if ($panels.ContainsKey($canonicalPanelId)) { return $panels[$canonicalPanelId] }
     return $null
 }
 
@@ -145,7 +252,18 @@ function Merge-GglsLayoutState {
         $defaultProfiles = ConvertTo-GglsPlainHashtable -Value $defaultHash['profiles']
         $sourceProfiles = ConvertTo-GglsPlainHashtable -Value $sourceHash['profiles']
         foreach ($profileName in $sourceProfiles.Keys) {
-            $defaultProfiles[[string]$profileName] = $sourceProfiles[$profileName]
+            $sourceProfileHash = ConvertTo-GglsPlainHashtable -Value $sourceProfiles[$profileName]
+            $defaultProfileHash = @{}
+            if ($defaultProfiles.ContainsKey($profileName)) { $defaultProfileHash = ConvertTo-GglsPlainHashtable -Value $defaultProfiles[$profileName] }
+            foreach ($prop in $sourceProfileHash.Keys) {
+                if ($prop -ne 'panels') { $defaultProfileHash[$prop] = $sourceProfileHash[$prop] }
+            }
+            if (-not $defaultProfileHash.ContainsKey('id')) { $defaultProfileHash['id'] = [string]$profileName }
+            if (-not $defaultProfileHash.ContainsKey('displayName')) { $defaultProfileHash['displayName'] = [string]$profileName }
+            $defaultPanels = if ($defaultProfileHash.ContainsKey('panels')) { $defaultProfileHash['panels'] } else { (Get-GglsCanonicalPanelRegistry) }
+            $sourcePanels = if ($sourceProfileHash.ContainsKey('panels')) { $sourceProfileHash['panels'] } else { @{} }
+            $defaultProfileHash['panels'] = Merge-GglsPanelTable -DefaultPanels $defaultPanels -SourcePanels $sourcePanels
+            $defaultProfiles[[string]$profileName] = [pscustomobject]$defaultProfileHash
         }
         $defaultHash['profiles'] = $defaultProfiles
     }
@@ -167,17 +285,19 @@ function Set-GglsPanelState {
         [string]$ProfileName = ''
     )
 
+    $canonicalPanelId = Get-GglsCanonicalPanelId -PanelId $PanelId
     $state = if ($null -eq $LayoutState) { New-GglsDefaultLayoutState } else { Merge-GglsLayoutState -LayoutState $LayoutState }
     $profile = Get-GglsProfile -LayoutState $state -ProfileName $ProfileName
     if ($null -eq $profile) { return $state }
 
     $profileHash = ConvertTo-GglsPlainHashtable -Value $profile
     $panels = ConvertTo-GglsPlainHashtable -Value $profileHash['panels']
-    if (-not $panels.ContainsKey($PanelId)) {
-        $panels[$PanelId] = New-GglsPanelState -Id $PanelId -DisplayName $PanelId
+    if (-not $panels.ContainsKey($canonicalPanelId)) {
+        $panels[$canonicalPanelId] = New-GglsPanelState -Id $canonicalPanelId -DisplayName $canonicalPanelId
     }
 
-    $panelHash = ConvertTo-GglsPlainHashtable -Value $panels[$PanelId]
+    $panelHash = ConvertTo-GglsPlainHashtable -Value $panels[$canonicalPanelId]
+    $panelHash['id'] = $canonicalPanelId
     if ($null -ne $Visible) { $panelHash['visible'] = [bool]$Visible }
     if ($null -ne $Collapsed) { $panelHash['collapsed'] = [bool]$Collapsed }
     if (-not [string]::IsNullOrWhiteSpace($Dock)) { $panelHash['dock'] = $Dock }
@@ -186,7 +306,7 @@ function Set-GglsPanelState {
     if ($null -ne $SplitterDistance) { $panelHash['splitterDistance'] = [int]$SplitterDistance }
     if ($null -ne $LastSplitterDistance) { $panelHash['lastSplitterDistance'] = [int]$LastSplitterDistance }
 
-    $panels[$PanelId] = [pscustomobject]$panelHash
+    $panels[$canonicalPanelId] = [pscustomobject]$panelHash
     $profileHash['panels'] = $panels
 
     $stateHash = ConvertTo-GglsPlainHashtable -Value $state
@@ -227,7 +347,7 @@ function Set-GglsPanelCollapsed {
         [string]$ProfileName = ''
     )
 
-    return Set-GglsPanelState -LayoutState $LayoutState -PanelId $PanelId -Collapsed $Collapsed -Visible (-not $Collapsed) -ProfileName $ProfileName
+    return Set-GglsPanelState -LayoutState $LayoutState -PanelId (Get-GglsCanonicalPanelId -PanelId $PanelId) -Collapsed $Collapsed -Visible (-not $Collapsed) -ProfileName $ProfileName
 }
 
 function Toggle-GglsPanelCollapsed {
@@ -245,7 +365,7 @@ function Set-GglsPanelLastSize {
         [string]$ProfileName = ''
     )
 
-    return Set-GglsPanelState -LayoutState $LayoutState -PanelId $PanelId -LastSplitterDistance $LastSplitterDistance -ProfileName $ProfileName
+    return Set-GglsPanelState -LayoutState $LayoutState -PanelId (Get-GglsCanonicalPanelId -PanelId $PanelId) -LastSplitterDistance $LastSplitterDistance -ProfileName $ProfileName
 }
 
 function Get-GglsPanelLastSize {
@@ -352,6 +472,8 @@ Export-ModuleMember -Function `
     ConvertTo-GglsPlainHashtable, `
     Test-GglsLayoutSavePolicy, `
     Get-GglsNormalizedSavePolicy, `
+    Get-GglsCanonicalPanelId, `
+    Get-GglsCanonicalPanelRegistry, `
     New-GglsPanelState, `
     New-GglsDefaultLayoutState, `
     Get-GglsProfile, `
