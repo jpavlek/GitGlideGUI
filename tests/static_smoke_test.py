@@ -89,6 +89,50 @@ expected_parts = PARTS
 if manifest.get("split_script_parts") != expected_parts:
     fail("manifest split_script_parts does not match stable split script layout.")
 
+
+def assert_release_consistency(version):
+    expected_heading = f"# Git Glide GUI v{version}"
+    readme = read_text("README.md")
+    if expected_heading not in readme:
+        fail(f"README.md does not declare current version heading: {expected_heading}")
+    if f"Current focus: v{version}" not in readme:
+        fail(f"README.md current focus is not aligned with VERSION={version}")
+
+    start_here = read_text("docs/START_HERE.md")
+    if f"# Git Glide GUI v{version}" not in start_here:
+        fail(f"docs/START_HERE.md does not declare current version {version}")
+
+    # Metrics/report freshness is intentionally checked by
+    # tests/release_artifact_consistency_test.py after collect-metrics.bat runs.
+    # Keep static smoke non-mutating and focused on package/source structure.
+
+def assert_no_missing_launcher_script_references():
+    reference_files = [
+        "git-glide-gui.bat",
+        "git-flow-gui2.bat",
+        "run-quality-checks.bat",
+        "run-pester-tests.bat",
+        "init-gitglide-repo.bat",
+        "scripts/windows/run-quality-checks.bat",
+        "scripts/windows/run-pester-tests.bat",
+        "scripts/windows/package-release.bat",
+        "scripts/windows/smoke-launch.ps1",
+        "scripts/windows/GitGlideGUI.ps1",
+    ]
+    pattern = re.compile(r"(?:scripts[\\/]+windows[\\/]+)?GitGlideGUI-v[0-9][A-Za-z0-9_.-]*\.ps1", re.IGNORECASE)
+    for rel_path in reference_files:
+        path = ROOT / rel_path
+        if not path.exists():
+            continue
+        for match in pattern.findall(read_text(rel_path)):
+            normalized = match.replace('\\', '/')
+            target = normalized if normalized.startswith('scripts/') else f"scripts/windows/{normalized}"
+            if not (ROOT / target).exists():
+                fail(f"Stale launcher/script reference in {rel_path}: {match} -> missing {target}")
+
+assert_release_consistency(version)
+assert_no_missing_launcher_script_references()
+
 version_string = version.replace('.', '_')
 required = [
     "README.md",
@@ -155,11 +199,11 @@ required = [
     "tests/GitStashOperations.Tests.ps1",
     "tests/GitTagOperations.Tests.ps1",
     "tests/GitConflictAssistant.Tests.ps1",
-    
+
     # Documentation...
     "docs/START_HERE.md",
     "docs/METRICS_AND_VALUE_MODEL.md",
-    
+
     # Stable feature docs from previous major workflow features.
     "docs/CONFLICT_RESOLUTION_ASSISTANT.md",
     "docs/BRANCH_CLEANUP_ASSISTANT_v3_9_1.md",
@@ -171,6 +215,7 @@ required = [
     f"docs/ROADMAP_REVIEW_v{version_string}.md",
     f"docs/ARCHITECTURE_v{version_string}.md",
     f"docs/TECHNICAL_DEBT_REDUCTION_PLAN_v{version_string}.md",
+    "tests/release_artifact_consistency_test.py",
 ]
 
 require_paths(required)
@@ -181,7 +226,7 @@ require_markers(
         "Why this exists",
         "What makes it different?",
         "Core Features",
-        "Current focus: v3.10.1",
+        f"Current focus: v{version}",
         "Stable split-script layout",
     ],
     "README product positioning",
@@ -269,6 +314,35 @@ require_markers(
     "metrics launcher",
 )
 
+
+def require_ordered_markers(rel_path, markers, label=None):
+    text = read_text(rel_path)
+    cursor = -1
+    for marker in markers:
+        position = text.find(marker, cursor + 1)
+        if position < 0:
+            fail(f"Missing ordered {label or rel_path} marker in {rel_path}: {marker}")
+        cursor = position
+
+require_ordered_markers(
+    "scripts/windows/run-quality-checks.bat",
+    [
+        "[1/6] Static package smoke test",
+        "python -S tests\\static_smoke_test.py",
+        "[2/6] Windows smoke launch test",
+        "scripts\\windows\\smoke-launch.ps1",
+        "[3/6] Pester tests",
+        "scripts\\windows\\run-pester-tests.ps1",
+        "[4/6] ScriptAnalyzer checks",
+        "scripts\\windows\\run-scriptanalyzer.ps1",
+        "[5/6] Metrics collection and report refresh",
+        "call scripts\\windows\\collect-metrics.bat",
+        "[6/6] Release artifact consistency check",
+        "python -S tests\\release_artifact_consistency_test.py",
+    ],
+    "quality gate sequence",
+)
+
 require_markers(
     "docs/METRICS_AND_VALUE_MODEL.md",
     [
@@ -351,6 +425,8 @@ require_markers(
         "Set-GglsPanelCollapsed",
         "Toggle-GglsPanelCollapsed",
         "Get-GglsKnownPanelIds",
+        "Get-GglsCanonicalPanelId",
+        "Get-GglsCanonicalPanelRegistry",
         "Format-GglsPanelHostSummary",
     ],
     "layout state module",

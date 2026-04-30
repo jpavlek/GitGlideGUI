@@ -1,7 +1,7 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.10.1",
+  "version": "3.10.2",
   "created_utc": "2026-04-29T00:00:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
@@ -9,7 +9,7 @@
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.10.1 collapsible panel host and restorable panel collapsed state",
+  "iteration_focus": "v3.10.2 release hygiene, quality-gate hardening, and layout-host consistency",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -29,30 +29,30 @@
     "modules/GitGlideGUI.Core/GitLayoutState.psm1"
   ],
   "added": [
-    "Reusable collapsible panel host helpers for selected WinForms split panels",
-    "Layout state support for panel collapsed state and last splitter distance",
-    "Appearance tab controls for collapsing, restoring, and restoring all layout panels",
-    "Non-modal close-time layout persistence to avoid PipelineStoppedException/JIT dialogs",
-    "Restored nested scripts/windows/run-quality-checks.bat quality gate launcher"
+    "Release hygiene pass: current README, START_HERE, release notes, architecture, roadmap, SWOT, technical debt, and metrics docs now agree with VERSION and manifest.json",
+    "Quality-gate hardening: the full quality gate now refreshes metrics before the release artifact consistency check, while static smoke detects version/package structure issues and missing launcher/script references",
+    "Removed stale launcher artifacts from the release package to avoid broken entry points",
+	"Layout-host consistency: core Layout State Model now has a canonical panel registry that includes topWorkflow, diffAndOutput, and liveOutput",
+    "Save-policy naming cleanup: ask-on-exit is treated as a legacy alias and normalized to manual because close-time modal prompts are intentionally avoided"
   ],
   "next_recommended": [
-    "v3.10.2: stackable workspace groups for history, recovery, integrate, metrics, and output panels",
-    "v3.10.3: explicit layout save/discard/reset polish and profile selection",
-    "v3.10.4: dockable layout simulation with saved workspace profiles",
+    "v3.10.3: stackable workspace groups for history, recovery, integrate, metrics, and output panels",
+    "v3.10.4: explicit layout save/discard/reset polish and profile selection",
+    "v3.10.5: dockable layout simulation with saved workspace profiles",
     "v3.11.0: CI/CD and pull-request workflow integration"
   ],
   "highlights": [
-    "Makes the v3.10.0 layout model visible through practical collapsible panel controls",
-    "Keeps collapse/restore reversible and confirmation-free because no Git state is modified",
-    "Stores collapsed state in the same UI-independent layout model used for splitter distances",
-    "Avoids close-time modal prompts so the WinForms/PowerShell shutdown path remains safe"
+    "Turns v3.10.1 into a cleaner release-quality baseline before adding more layout complexity",
+    "Makes stale release artifacts visible through the quality gate instead of relying on manual review",
+    "Unifies the collapsible panel host vocabulary with the UI-independent layout model",
+    "Keeps layout save behavior honest: manual means explicit save, always means save on exit, never means do not persist layout changes"
   ],
   "iteration_highlights": [
-    "Extended modules/GitGlideGUI.Core/GitLayoutState.psm1 with collapsible panel helpers",
-    "Extended tests/GitLayoutState.Tests.ps1 with collapsible panel behavior coverage",
-    "Added Appearance tab Collapsible Panel Host controls",
-    "Updated static smoke checks for collapsible panel host markers",
-    "Added v3.10.1 layout documentation and release notes"
+    "Updated docs and package metadata to v3.10.2",
+    "Updated static smoke checks for release/version/metrics consistency and missing launcher references",
+    "Regenerated metrics snapshot and Markdown report for v3.10.2",
+    "Replaced ask-on-exit as the visible save-policy option with manual, while retaining legacy normalization",
+    "Added canonical panel registry and legacy commandOutput -> liveOutput aliasing in GitLayoutState.psm1"
   ],
   "split_script_parts": [
     "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",

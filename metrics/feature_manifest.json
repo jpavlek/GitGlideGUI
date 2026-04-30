@@ -266,6 +266,21 @@
       "user_facing": true,
       "engineering_value": 4,
       "status": "active"
+    },
+    {
+      "id": "quality.release_hygiene_gate",
+      "name": "Release hygiene and consistency quality gate",
+      "introduced": "3.10.2",
+      "problem_ids": [
+        "quality.observability",
+        "release.churn"
+      ],
+      "description": "Refreshes metrics before static smoke checks and fails stale version/docs/metrics or missing launcher-script references before packaging.",
+      "value_weight": 3,
+      "risk_reduction_weight": 5,
+      "user_facing": false,
+      "engineering_value": 5,
+      "status": "active"
     }
   ]
 }
