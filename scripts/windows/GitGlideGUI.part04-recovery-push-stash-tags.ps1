@@ -2192,6 +2192,193 @@ function Get-GitGlideLayoutSplitterControlMap {
     }
 }
 
+function Get-GitGlidePanelHostDefinitions {
+    # v3.10.1: Collapsible Panel Host. Keep this WinForms mapping outside the
+    # UI-free GitLayoutState module so the core model remains testable.
+    $defs = @(
+        [pscustomobject]@{ PanelId = 'repositoryStatus'; DisplayName = 'Repository status'; Splitter = $script:HeaderTopAreaSplit; Panel = 1; Notes = 'Collapse or restore the repository status header.' },
+        [pscustomobject]@{ PanelId = 'topWorkflow'; DisplayName = 'Top workflow area'; Splitter = $script:MainWorkSplit; Panel = 1; Notes = 'Collapse or restore the full upper workflow/action area.' },
+        [pscustomobject]@{ PanelId = 'changedFiles'; DisplayName = 'Changed files'; Splitter = $script:ContentSplit; Panel = 1; Notes = 'Collapse or restore the changed-file list and file action buttons.' },
+        [pscustomobject]@{ PanelId = 'diffAndOutput'; DisplayName = 'Diff and output area'; Splitter = $script:ContentSplit; Panel = 2; Notes = 'Collapse or restore the right-side diff/output area.' },
+        [pscustomobject]@{ PanelId = 'diffPreview'; DisplayName = 'Diff preview'; Splitter = $script:RightSplit; Panel = 1; Notes = 'Collapse or restore the diff preview panel.' },
+        [pscustomobject]@{ PanelId = 'liveOutput'; DisplayName = 'Live output'; Splitter = $script:RightSplit; Panel = 2; Notes = 'Collapse or restore the live command output panel.' }
+    )
+    return @($defs | Where-Object { $null -ne $_.Splitter })
+}
+
+function Get-GitGlideSelectedPanelHostId {
+    try {
+        if ($script:PanelHostComboBox -and $script:PanelHostComboBox.SelectedItem) {
+            $item = $script:PanelHostComboBox.SelectedItem
+            if ($item.PSObject.Properties['PanelId']) { return [string]$item.PanelId }
+        }
+        if ($script:PanelHostComboBox -and -not [string]::IsNullOrWhiteSpace([string]$script:PanelHostComboBox.Text)) {
+            $text = [string]$script:PanelHostComboBox.Text
+            foreach ($def in Get-GitGlidePanelHostDefinitions) {
+                if ($text -eq [string]$def.DisplayName -or $text -eq [string]$def.PanelId) { return [string]$def.PanelId }
+            }
+        }
+    } catch {}
+    return ''
+}
+
+function Get-GitGlidePanelHostDefinition {
+    param([string]$PanelId)
+    foreach ($def in Get-GitGlidePanelHostDefinitions) {
+        if ([string]$def.PanelId -eq [string]$PanelId) { return $def }
+    }
+    return $null
+}
+
+function Get-GitGlidePanelHostCollapsed {
+    param($Definition)
+    if ($null -eq $Definition -or $null -eq $Definition.Splitter) { return $false }
+    try {
+        if ([int]$Definition.Panel -eq 1) { return [bool]$Definition.Splitter.Panel1Collapsed }
+        return [bool]$Definition.Splitter.Panel2Collapsed
+    } catch { return $false }
+}
+
+function Set-GitGlidePanelHostCollapsedOnControl {
+    param($Definition, [bool]$Collapsed)
+    if ($null -eq $Definition -or $null -eq $Definition.Splitter) { return }
+    $splitter = $Definition.Splitter
+    try {
+        if ([int]$Definition.Panel -eq 1) {
+            if ($Collapsed -and $splitter.Panel2Collapsed) { $splitter.Panel2Collapsed = $false }
+            $splitter.Panel1Collapsed = $Collapsed
+        } else {
+            if ($Collapsed -and $splitter.Panel1Collapsed) { $splitter.Panel1Collapsed = $false }
+            $splitter.Panel2Collapsed = $Collapsed
+        }
+        try { $splitter.Invalidate() } catch {}
+    } catch {
+        Append-Log -Text ('Could not update collapsible panel host: ' + $_.Exception.Message) -Color ([System.Drawing.Color]::DarkOrange)
+    }
+}
+
+function Update-GitGlideLayoutStateFromPanelHosts {
+
+    param($LayoutState)
+
+    if ($null -eq $LayoutState) {
+        return $LayoutState
+    }
+
+    $state = $LayoutState
+    $profile = Get-GitGlideLayoutActiveProfile
+
+    foreach ($def in Get-GitGlidePanelHostDefinitions) {
+        if (-not (Get-Command Set-GglsPanelCollapsed -ErrorAction SilentlyContinue)) { continue }
+        $collapsed = Get-GitGlidePanelHostCollapsed -Definition $def
+        $distance = 0
+        try { $distance = [int]$def.Splitter.SplitterDistance } catch { $distance = 0 }
+        $state = Set-GglsPanelCollapsed -LayoutState $state -PanelId ([string]$def.PanelId) -Collapsed $collapsed -ProfileName $profile
+        if ($distance -gt 0 -and (Get-Command Set-GglsPanelLastSize -ErrorAction SilentlyContinue)) {
+            $state = Set-GglsPanelLastSize -LayoutState $state -PanelId ([string]$def.PanelId) -LastSplitterDistance $distance -ProfileName $profile
+        }
+    }
+    return $state
+}
+
+function Restore-GitGlidePanelHostState {
+    param($State = $null)
+    $state = if ($null -eq $State) { Get-GitGlideCurrentLayoutState } else { $State }
+    $profile = Get-GitGlideLayoutActiveProfile
+    foreach ($def in Get-GitGlidePanelHostDefinitions) {
+        $collapsed = $false
+        try {
+            if (Get-Command Get-GglsPanelCollapsed -ErrorAction SilentlyContinue) {
+                $collapsed = Get-GglsPanelCollapsed -LayoutState $state -PanelId ([string]$def.PanelId) -ProfileName $profile
+            }
+        } catch { $collapsed = $false }
+        Set-GitGlidePanelHostCollapsedOnControl -Definition $def -Collapsed ([bool]$collapsed)
+    }
+    Update-GitGlidePanelHostUi
+}
+
+function Set-GitGlidePanelCollapsed {
+    param([string]$PanelId, [bool]$Collapsed)
+    $def = Get-GitGlidePanelHostDefinition -PanelId $PanelId
+    if ($null -eq $def) {
+        [System.Windows.Forms.MessageBox]::Show('Select a collapsible panel first.', 'No panel selected', 'OK', 'Information') | Out-Null
+        return
+    }
+
+    Set-GitGlidePanelHostCollapsedOnControl -Definition $def -Collapsed $Collapsed
+    $state = Update-GitGlideLayoutStateFromPanelHosts -LayoutState (Get-GitGlideCurrentLayoutState)
+    Set-ConfigValue -Name 'LayoutState' -Value $state
+    Update-GitGlidePanelHostUi
+    $verb = if ($Collapsed) { 'Collapsed' } else { 'Restored' }
+    Set-CommandPreview -Title 'Collapsible Panel Host' -Commands (Format-GitGlidePanelHostSummary) -Notes ("$verb panel: $($def.DisplayName). Click Save layout now to persist this panel state.")
+}
+
+function Toggle-GitGlidePanelCollapsed {
+    param([string]$PanelId = '')
+    if ([string]::IsNullOrWhiteSpace($PanelId)) { $PanelId = Get-GitGlideSelectedPanelHostId }
+    $def = Get-GitGlidePanelHostDefinition -PanelId $PanelId
+    if ($null -eq $def) {
+        [System.Windows.Forms.MessageBox]::Show('Select a collapsible panel first.', 'No panel selected', 'OK', 'Information') | Out-Null
+        return
+    }
+    Set-GitGlidePanelCollapsed -PanelId $PanelId -Collapsed (-not (Get-GitGlidePanelHostCollapsed -Definition $def))
+}
+
+function Restore-GitGlideSelectedPanelHost {
+    $panelId = Get-GitGlideSelectedPanelHostId
+    Set-GitGlidePanelCollapsed -PanelId $panelId -Collapsed $false
+}
+
+function Restore-AllGitGlidePanelHosts {
+    foreach ($def in Get-GitGlidePanelHostDefinitions) {
+        Set-GitGlidePanelHostCollapsedOnControl -Definition $def -Collapsed $false
+    }
+    $state = Update-GitGlideLayoutStateFromPanelHosts -LayoutState (Get-GitGlideCurrentLayoutState)
+    Set-ConfigValue -Name 'LayoutState' -Value $state
+    Update-GitGlidePanelHostUi
+    Set-CommandPreview -Title 'Collapsible Panel Host' -Commands (Format-GitGlidePanelHostSummary) -Notes 'Restored all collapsible panels. Click Save layout now to persist this panel state.'
+}
+
+function Save-GitGlidePanelHostState {
+    $state = Update-GitGlideLayoutStateFromPanelHosts -LayoutState (Get-GitGlideCurrentLayoutState)
+    Set-ConfigValue -Name 'LayoutState' -Value $state
+    Save-GitGlideLayoutStateNow
+}
+
+function Format-GitGlidePanelHostSummary {
+    $state = Update-GitGlideLayoutStateFromPanelHosts -LayoutState (Get-GitGlideCurrentLayoutState)
+    if (Get-Command Format-GglsPanelHostSummary -ErrorAction SilentlyContinue) {
+        return Format-GglsPanelHostSummary -LayoutState $state -ProfileName (Get-GitGlideLayoutActiveProfile)
+    }
+
+    $lines = @('Collapsible Panel Host', '')
+    foreach ($def in Get-GitGlidePanelHostDefinitions) {
+        $lines += ('- {0}: collapsed={1}' -f $def.DisplayName, (Get-GitGlidePanelHostCollapsed -Definition $def))
+    }
+    return ($lines -join "`r`n")
+}
+
+function Refresh-GitGlidePanelHostList {
+    if (-not $script:PanelHostComboBox) { return }
+    try {
+        $previous = Get-GitGlideSelectedPanelHostId
+        $script:PanelHostComboBox.Items.Clear()
+        foreach ($def in Get-GitGlidePanelHostDefinitions) { [void]$script:PanelHostComboBox.Items.Add($def) }
+        $script:PanelHostComboBox.DisplayMember = 'DisplayName'
+        if (-not [string]::IsNullOrWhiteSpace($previous)) {
+            for ($i = 0; $i -lt $script:PanelHostComboBox.Items.Count; $i++) {
+                if ([string]$script:PanelHostComboBox.Items[$i].PanelId -eq $previous) { $script:PanelHostComboBox.SelectedIndex = $i; break }
+            }
+        }
+        if ($script:PanelHostComboBox.SelectedIndex -lt 0 -and $script:PanelHostComboBox.Items.Count -gt 0) { $script:PanelHostComboBox.SelectedIndex = 0 }
+    } catch {}
+}
+
+function Update-GitGlidePanelHostUi {
+    try { if ($script:PanelHostSummaryLabel) { $script:PanelHostSummaryLabel.Text = 'Collapsible Panel Host ready. Select a panel, collapse/restore it, then save layout when satisfied.' } } catch {}
+    try { if ($script:LayoutStateSummaryLabel) { $script:LayoutStateSummaryLabel.Text = ('Layout State Model active. Save policy: {0}' -f (Get-GitGlideLayoutSavePolicy)) } } catch {}
+}
+
 function Get-GitGlideCurrentLayoutState {
     $policy = Get-GitGlideLayoutSavePolicy
     $profile = Get-GitGlideLayoutActiveProfile
@@ -2205,6 +2392,9 @@ function Get-GitGlideCurrentLayoutState {
         try { $state.activeProfile = $profile } catch {}
         if (Get-Command Update-GglsLayoutStateFromSplitterDistances -ErrorAction SilentlyContinue) {
             $state = Update-GglsLayoutStateFromSplitterDistances -LayoutState $state -SplitterDistances (Get-GitGlideLayoutSplitterDistances) -ProfileName $profile
+        }
+        if (Get-Command Update-GitGlideLayoutStateFromPanelHosts -ErrorAction SilentlyContinue) {
+            $state = Update-GitGlideLayoutStateFromPanelHosts -LayoutState $state
         }
         return $state
     }
@@ -2235,6 +2425,7 @@ function Apply-GitGlideLayoutState {
             try { $distance = [int]$panel['splitterDistance'] } catch { $distance = 0 }
             if ($distance -gt 0) { Set-SafeSplitterDistance -Splitter $splitter -Distance $distance -FallbackDistance $distance }
         }
+        Restore-GitGlidePanelHostState -State $State
         Update-GitGlideLayoutPolicyUi
     } catch {
         Append-Log -Text ('Could not apply Layout State Model: ' + $_.Exception.Message) -Color ([System.Drawing.Color]::DarkOrange)
@@ -2245,18 +2436,25 @@ function Update-GitGlideLayoutPolicyUi {
     $policy = Get-GitGlideLayoutSavePolicy
     try { if ($script:LayoutSavePolicyComboBox) { $script:LayoutSavePolicyComboBox.Text = $policy } } catch {}
     try { if ($script:LayoutStateSummaryLabel) { $script:LayoutStateSummaryLabel.Text = ('Layout State Model active. Save policy: {0}' -f $policy) } } catch {}
+    try { Refresh-GitGlidePanelHostList } catch {}
+    try { Update-GitGlidePanelHostUi } catch {}
 }
 
 function Save-GitGlideLayoutStateNow {
+    param([switch]$Silent)
+
     $state = Get-GitGlideCurrentLayoutState
     Set-ConfigValue -Name 'LayoutState' -Value $state
     Set-ConfigValue -Name 'LayoutSavePolicy' -Value (Get-GitGlideLayoutSavePolicy)
     Save-Config -Config $script:Config
     Update-GitGlideLayoutPolicyUi
-    if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) {
-        Set-CommandPreview -Title 'Layout State Model' -Commands (Format-GglsLayoutSummary -LayoutState $state) -Notes 'Saved current splitter distances and layout save policy to GitGlideGUI-Config.json.'
+
+    if (-not $Silent) {
+        if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) {
+            Set-CommandPreview -Title 'Layout State Model' -Commands (Format-GglsLayoutSummary -LayoutState $state) -Notes 'Saved current splitter distances, collapsible panel state, and layout save policy to GitGlideGUI-Config.json.'
+        }
+        Append-Log -Text 'Saved layout state.' -Color ([System.Drawing.Color]::DarkGreen)
     }
-    Append-Log -Text 'Saved layout state.' -Color ([System.Drawing.Color]::DarkGreen)
 }
 
 function Set-GitGlideLayoutSavePolicy {
@@ -2279,12 +2477,12 @@ function Set-GitGlideLayoutSavePolicy {
 function Show-GitGlideLayoutState {
     $state = Get-GitGlideCurrentLayoutState
     $summary = if (Get-Command Format-GglsLayoutSummary -ErrorAction SilentlyContinue) { Format-GglsLayoutSummary -LayoutState $state } else { 'Layout State Model summary is unavailable.' }
-    Set-CommandPreview -Title 'Layout State Model' -Commands $summary -Notes 'This is the current UI-independent layout model that v3.10.1+ can use for collapsible, stackable, and dockable panels.'
+    Set-CommandPreview -Title 'Layout State Model' -Commands $summary -Notes 'This is the current UI-independent layout model that v3.10.1 uses for collapsible panels, and future versions can extend for stackable and dockable panels.'
     if ($script:HelpTextBox) { $script:HelpTextBox.Text = $summary }
 }
 
 function Reset-GitGlideLayoutState {
-    $ok = Confirm-GuiAction -Title 'Reset layout state' -Message 'Reset saved splitter/window layout state to the built-in v3.10.0 defaults? Theme colors are not changed.' -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
+    $ok = Confirm-GuiAction -Title 'Reset layout state' -Message 'Reset saved splitter/window layout state to the built-in v3.10.1 defaults? Theme colors are not changed.' -Icon ([System.Windows.Forms.MessageBoxIcon]::Question)
     if (-not $ok) { return }
     $policy = Get-GitGlideLayoutSavePolicy
     $state = if (Get-Command New-GglsDefaultLayoutState -ErrorAction SilentlyContinue) { New-GglsDefaultLayoutState -ActiveProfile (Get-GitGlideLayoutActiveProfile) -SavePolicy $policy } else { $null }
@@ -2342,8 +2540,11 @@ function Save-LayoutConfig {
     if (-not $ForceSave) {
         if ($policy -eq 'never') { return }
         if ($policy -eq 'ask-on-exit' -and $Reason -eq 'closing') {
-            $answer = [System.Windows.Forms.MessageBox]::Show('Save this session layout changes for the next Git Glide GUI launch?', 'Save layout on exit', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
-            if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+            # v3.10.1: never show modal dialogs from FormClosing. PowerShell/WinForms can
+            # raise PipelineStoppedException during shutdown if a scriptblock-backed event
+            # opens UI while the host pipeline is stopping. Users can persist intentionally
+            # with Save layout now; closing stays non-modal and safe.
+            return
         }
     }
 
@@ -2662,45 +2863,6 @@ function Invoke-BranchCleanupDeleteSelectedRemote {
             'OK',
             'Error'
         ) | Out-Null
-    }
-}
-
-function Save-GitGlideLayoutStateOnExit {
-    try {
-        if (-not $script:Config) {
-            return
-        }
-
-        $policy = 'ask-on-exit'
-        try {
-            if ($script:Config.ContainsKey('LayoutSavePolicy') -and -not [string]::IsNullOrWhiteSpace([string]$script:Config.LayoutSavePolicy)) {
-                $policy = [string]$script:Config.LayoutSavePolicy
-            }
-        } catch {}
-
-        if ($policy -eq 'never') {
-            return
-        }
-
-        if ($policy -eq 'ask-on-exit') {
-            # Do not show modal dialogs during shutdown. Treat ask-on-exit as
-            # no automatic save for now; the user can use "Save layout now".
-            return
-        }
-
-        if ($policy -ne 'always') {
-            return
-        }
-
-        if (Get-Command Save-GitGlideLayoutStateNow -ErrorAction SilentlyContinue) {
-            Save-GitGlideLayoutStateNow -Silent
-        }
-    } catch [System.Management.Automation.PipelineStoppedException] {
-        throw
-    } catch {
-        try {
-            Write-AuditLog -Message ("SHUTDOWN_CLEANUP_WARNING | layout state save failed: {0}" -f $_.Exception.Message)
-        } catch {}
     }
 }
 

@@ -1,47 +1,47 @@
 # Git Glide GUI Metrics Report
 
-Generated: `2026-04-28T21:57:29.651076+00:00`
+Generated: `2026-04-30T10:11:15.662834+00:00`
 
 ## Summary
 
-- Version: `3.10.0`
-- Branch: `feature/v3-10-modular-layout-state-model`
+- Version: `3.10.1`
+- Branch: `develop`
 - Baseline tag: `v3.9.1`
 - Quality score: **100 / 100**
-- Net maturity score: **41.34**
-- Technical debt points: **27.66**
-- Feature points total: **69**
+- Net maturity score: **44.31**
+- Technical debt points: **28.69**
+- Feature points total: **73**
 
 ## Release window
 
-- Commits since baseline: 1
-- Merge commits since baseline: 0
-- Non-merge commits since baseline: 1
-- Changed files since baseline: 22
-- Added lines since baseline: 1631
-- Deleted lines since baseline: 341
-- Release churn ratio: 27.3%
+- Commits since baseline: 5
+- Merge commits since baseline: 2
+- Non-merge commits since baseline: 3
+- Changed files since baseline: 23
+- Added lines since baseline: 1787
+- Deleted lines since baseline: 339
+- Release churn ratio: 30.4%
 
 ## Package change surface
 
-- Added KiB: 34.36
-- Changed KiB: 422.77
+- Added KiB: 39.5
+- Changed KiB: 434.57
 - Deleted KiB: 0.0
-- Package change surface KiB: **457.13**
-- Net package growth KiB: **58.12**
+- Package change surface KiB: **474.07**
+- Net package growth KiB: **75.84**
 
 ## Feature and problem model
 
 - Problem count: 5
-- Active feature count: 17
+- Active feature count: 18
 - Planned feature count: 0
-- Feature points total: 69
-- Risk-reduction points total: 72
+- Feature points total: 73
+- Risk-reduction points total: 75
 - Problem value points total: 110
 
 ## Technical debt
 
-- modularity_pressure: 12.66
+- modularity_pressure: 13.69
 - runtime_version_churn: 0.0
 - docs_regression_risk: 0.0
 - todo_fixme_hack_debt: 5.5
@@ -52,11 +52,11 @@ Generated: `2026-04-28T21:57:29.651076+00:00`
 ## Runtime script line counts
 
 - `scripts/windows/GitGlideGUI.ps1`: 53
-- `scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1`: 1125
+- `scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1`: 1126
 - `scripts/windows/GitGlideGUI.part02-state-selection.ps1`: 2184
 - `scripts/windows/GitGlideGUI.part03-previews-basic-ops.ps1`: 1503
-- `scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1`: 2707
-- `scripts/windows/GitGlideGUI.part05-ui.ps1`: 2769
+- `scripts/windows/GitGlideGUI.part04-recovery-push-stash-tags.ps1`: 2869
+- `scripts/windows/GitGlideGUI.part05-ui.ps1`: 2866
 - `scripts/windows/GitGlideGUI.part06-run.ps1`: 36
 
 ## Release churn candidate files
@@ -67,3 +67,4 @@ Generated: `2026-04-28T21:57:29.651076+00:00`
 - `docs/RELEASE_NOTES_v3_10_0.md`
 - `docs/START_HERE.md`
 - `manifest.json`
+- `scripts/windows/run-quality-checks.bat`

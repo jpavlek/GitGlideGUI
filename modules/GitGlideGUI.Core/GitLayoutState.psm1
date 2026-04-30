@@ -46,9 +46,12 @@ function New-GglsPanelState {
         [int]$Height = 0,
         [string]$SplitterKey = '',
         [int]$SplitterDistance = 0,
+        [int]$LastSplitterDistance = 0,
         [bool]$Visible = $true,
         [bool]$Collapsed = $false
     )
+
+    $effectiveLastSplitterDistance = if ([int]$LastSplitterDistance -gt 0) { [int]$LastSplitterDistance } else { [int]$SplitterDistance }
 
     return [pscustomobject]@{
         id = $Id
@@ -60,6 +63,7 @@ function New-GglsPanelState {
         height = [int]$Height
         splitterKey = $SplitterKey
         splitterDistance = [int]$SplitterDistance
+        lastSplitterDistance = $effectiveLastSplitterDistance
     }
 }
 
@@ -159,6 +163,7 @@ function Set-GglsPanelState {
         [Nullable[double]]$Weight = $null,
         [Nullable[int]]$Height = $null,
         [Nullable[int]]$SplitterDistance = $null,
+        [Nullable[int]]$LastSplitterDistance = $null,
         [string]$ProfileName = ''
     )
 
@@ -179,6 +184,7 @@ function Set-GglsPanelState {
     if ($null -ne $Weight) { $panelHash['weight'] = [double]$Weight }
     if ($null -ne $Height) { $panelHash['height'] = [int]$Height }
     if ($null -ne $SplitterDistance) { $panelHash['splitterDistance'] = [int]$SplitterDistance }
+    if ($null -ne $LastSplitterDistance) { $panelHash['lastSplitterDistance'] = [int]$LastSplitterDistance }
 
     $panels[$PanelId] = [pscustomobject]$panelHash
     $profileHash['panels'] = $panels
@@ -190,6 +196,87 @@ function Set-GglsPanelState {
     $profiles[$profileId] = [pscustomobject]$profileHash
     $stateHash['profiles'] = $profiles
     return [pscustomobject]$stateHash
+}
+
+function Get-GglsKnownPanelIds {
+    param($LayoutState, [string]$ProfileName = '')
+
+    $state = if ($null -eq $LayoutState) { New-GglsDefaultLayoutState } else { Merge-GglsLayoutState -LayoutState $LayoutState }
+    $profile = Get-GglsProfile -LayoutState $state -ProfileName $ProfileName
+    if ($null -eq $profile) { return @() }
+    $profileHash = ConvertTo-GglsPlainHashtable -Value $profile
+    $panels = ConvertTo-GglsPlainHashtable -Value $profileHash['panels']
+    return @($panels.Keys | Sort-Object)
+}
+
+function Get-GglsPanelCollapsed {
+    param($LayoutState, [string]$PanelId, [string]$ProfileName = '')
+
+    $panel = Get-GglsPanelState -LayoutState $LayoutState -PanelId $PanelId -ProfileName $ProfileName
+    if ($null -eq $panel) { return $false }
+    $panelHash = ConvertTo-GglsPlainHashtable -Value $panel
+    if ($panelHash.ContainsKey('collapsed')) { return [bool]$panelHash['collapsed'] }
+    return $false
+}
+
+function Set-GglsPanelCollapsed {
+    param(
+        $LayoutState,
+        [string]$PanelId,
+        [bool]$Collapsed,
+        [string]$ProfileName = ''
+    )
+
+    return Set-GglsPanelState -LayoutState $LayoutState -PanelId $PanelId -Collapsed $Collapsed -Visible (-not $Collapsed) -ProfileName $ProfileName
+}
+
+function Toggle-GglsPanelCollapsed {
+    param($LayoutState, [string]$PanelId, [string]$ProfileName = '')
+
+    $current = Get-GglsPanelCollapsed -LayoutState $LayoutState -PanelId $PanelId -ProfileName $ProfileName
+    return Set-GglsPanelCollapsed -LayoutState $LayoutState -PanelId $PanelId -Collapsed (-not $current) -ProfileName $ProfileName
+}
+
+function Set-GglsPanelLastSize {
+    param(
+        $LayoutState,
+        [string]$PanelId,
+        [int]$LastSplitterDistance,
+        [string]$ProfileName = ''
+    )
+
+    return Set-GglsPanelState -LayoutState $LayoutState -PanelId $PanelId -LastSplitterDistance $LastSplitterDistance -ProfileName $ProfileName
+}
+
+function Get-GglsPanelLastSize {
+    param($LayoutState, [string]$PanelId, [string]$ProfileName = '')
+
+    $panel = Get-GglsPanelState -LayoutState $LayoutState -PanelId $PanelId -ProfileName $ProfileName
+    if ($null -eq $panel) { return 0 }
+    $panelHash = ConvertTo-GglsPlainHashtable -Value $panel
+    if ($panelHash.ContainsKey('lastSplitterDistance')) { return [int]$panelHash['lastSplitterDistance'] }
+    if ($panelHash.ContainsKey('splitterDistance')) { return [int]$panelHash['splitterDistance'] }
+    return 0
+}
+
+function Format-GglsPanelHostSummary {
+    param($LayoutState, [string]$ProfileName = '')
+
+    $state = if ($null -eq $LayoutState) { New-GglsDefaultLayoutState } else { Merge-GglsLayoutState -LayoutState $LayoutState }
+    $profile = Get-GglsProfile -LayoutState $state -ProfileName $ProfileName
+    $profileHash = ConvertTo-GglsPlainHashtable -Value $profile
+    $panels = ConvertTo-GglsPlainHashtable -Value $profileHash['panels']
+
+    $lines = @()
+    $lines += 'Collapsible Panel Host'
+    $lines += ('Profile: {0}' -f $(if ([string]::IsNullOrWhiteSpace($ProfileName)) { $state.activeProfile } else { $ProfileName }))
+    $lines += ''
+    foreach ($id in @($panels.Keys | Sort-Object)) {
+        $panel = ConvertTo-GglsPlainHashtable -Value $panels[$id]
+        $last = if ($panel.ContainsKey('lastSplitterDistance')) { [int]$panel['lastSplitterDistance'] } else { [int]$panel['splitterDistance'] }
+        $lines += ('- {0}: collapsed={1}, visible={2}, lastSize={3}' -f $id, $panel['collapsed'], $panel['visible'], $last)
+    }
+    return ($lines -join "`r`n")
 }
 
 function Set-GglsLayoutSavePolicy {
@@ -221,6 +308,7 @@ function Update-GglsLayoutStateFromSplitterDistances {
         $key = [string]$panelHash['splitterKey']
         if (-not [string]::IsNullOrWhiteSpace($key) -and $SplitterDistances.ContainsKey($key)) {
             $panelHash['splitterDistance'] = [int]$SplitterDistances[$key]
+            $panelHash['lastSplitterDistance'] = [int]$SplitterDistances[$key]
             $panels[$panelId] = [pscustomobject]$panelHash
         }
     }
@@ -253,7 +341,8 @@ function Format-GglsLayoutSummary {
     $lines += 'Panels:'
     foreach ($id in @($panels.Keys | Sort-Object)) {
         $panel = ConvertTo-GglsPlainHashtable -Value $panels[$id]
-        $lines += ('- {0}: visible={1}, collapsed={2}, dock={3}, splitter={4}:{5}' -f $id, $panel['visible'], $panel['collapsed'], $panel['dock'], $panel['splitterKey'], $panel['splitterDistance'])
+        $last = if ($panel.ContainsKey('lastSplitterDistance')) { [int]$panel['lastSplitterDistance'] } else { [int]$panel['splitterDistance'] }
+        $lines += ('- {0}: visible={1}, collapsed={2}, dock={3}, splitter={4}:{5}, lastSize={6}' -f $id, $panel['visible'], $panel['collapsed'], $panel['dock'], $panel['splitterKey'], $panel['splitterDistance'], $last)
     }
 
     return ($lines -join "`r`n")
@@ -269,6 +358,13 @@ Export-ModuleMember -Function `
     Get-GglsPanelState, `
     Merge-GglsLayoutState, `
     Set-GglsPanelState, `
+    Get-GglsKnownPanelIds, `
+    Get-GglsPanelCollapsed, `
+    Set-GglsPanelCollapsed, `
+    Toggle-GglsPanelCollapsed, `
+    Set-GglsPanelLastSize, `
+    Get-GglsPanelLastSize, `
+    Format-GglsPanelHostSummary, `
     Set-GglsLayoutSavePolicy, `
     Update-GglsLayoutStateFromSplitterDistances, `
     Format-GglsLayoutSummary
