@@ -251,7 +251,21 @@
       "user_facing": true,
       "engineering_value": 5,
       "status": "active"
+    },
+    {
+      "id": "layout.collapsible_panel_host",
+      "name": "Collapsible panel host",
+      "introduced": "3.10.1",
+      "problem_ids": [
+        "git.decision_safety",
+        "quality.observability"
+      ],
+      "description": "Lets users collapse and restore selected workspace panels while storing collapsed state in the UI-independent layout model.",
+      "value_weight": 4,
+      "risk_reduction_weight": 3,
+      "user_facing": true,
+      "engineering_value": 4,
+      "status": "active"
     }
   ]
 }
-

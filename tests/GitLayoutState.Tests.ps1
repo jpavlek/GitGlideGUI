@@ -63,3 +63,29 @@ Describe 'GitLayoutState summary' {
         $summary | Should Match 'changedFiles'
     }
 }
+
+Describe 'GitLayoutState collapsible panels' {
+    It 'toggles panel collapsed state' {
+        $state = New-GglsDefaultLayoutState
+        $collapsed = Set-GglsPanelCollapsed -LayoutState $state -PanelId 'changedFiles' -Collapsed $true
+        Get-GglsPanelCollapsed -LayoutState $collapsed -PanelId 'changedFiles' | Should Be $true
+
+        $restored = Toggle-GglsPanelCollapsed -LayoutState $collapsed -PanelId 'changedFiles'
+        Get-GglsPanelCollapsed -LayoutState $restored -PanelId 'changedFiles' | Should Be $false
+    }
+
+    It 'preserves last splitter distance' {
+        $state = New-GglsDefaultLayoutState
+        $updated = Set-GglsPanelLastSize -LayoutState $state -PanelId 'diffPreview' -LastSplitterDistance 333
+        Get-GglsPanelLastSize -LayoutState $updated -PanelId 'diffPreview' | Should Be 333
+    }
+
+    It 'formats a collapsible panel host summary' {
+        $state = Set-GglsPanelCollapsed -LayoutState (New-GglsDefaultLayoutState) -PanelId 'commandOutput' -Collapsed $true
+        $summary = Format-GglsPanelHostSummary -LayoutState $state
+
+        $summary | Should Match 'Collapsible Panel Host'
+        $summary | Should Match 'commandOutput'
+        $summary | Should Match 'collapsed=True'
+    }
+}

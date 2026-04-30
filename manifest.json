@@ -1,15 +1,15 @@
 {
   "name": "Git Glide GUI",
   "former_name": "GitFlowGUI / Git Flow GUI",
-  "version": "3.10.0",
-  "created_utc": "2026-04-28T20:45:00Z",
+  "version": "3.10.1",
+  "created_utc": "2026-04-29T00:00:00Z",
   "entrypoint": "git-glide-gui.bat",
   "compatibility_entrypoint": "git-flow-gui2.bat",
   "main_script": "scripts/windows/GitGlideGUI.ps1",
   "startup_parameter": "-RepositoryPath <path-to-git-repository>",
   "smoke_test_parameter": "-SmokeTest",
   "release_packaging_gate": "scripts/windows/package-release.ps1",
-  "iteration_focus": "v3.10.0 modular layout state model and explicit layout save policy",
+  "iteration_focus": "v3.10.1 collapsible panel host and restorable panel collapsed state",
   "core_modules": [
     "modules/GitGlideGUI.Core/GitCommandSafety.psm1",
     "modules/GitGlideGUI.Core/GitRepositoryStatus.psm1",
@@ -29,30 +29,30 @@
     "modules/GitGlideGUI.Core/GitLayoutState.psm1"
   ],
   "added": [
-    "Modular layout state model independent of WinForms controls",
-    "UI-free GitLayoutState core module and Pester tests",
-    "Layout save policy: ask on exit, always save, or never save",
-    "Appearance tab controls for saving, discarding, resetting, and inspecting layout state",
-    "Layout documentation and v3.10.0 roadmap alignment"
+    "Reusable collapsible panel host helpers for selected WinForms split panels",
+    "Layout state support for panel collapsed state and last splitter distance",
+    "Appearance tab controls for collapsing, restoring, and restoring all layout panels",
+    "Non-modal close-time layout persistence to avoid PipelineStoppedException/JIT dialogs",
+    "Restored nested scripts/windows/run-quality-checks.bat quality gate launcher"
   ],
   "next_recommended": [
-    "v3.10.1: collapsible panel host helpers and restorable panel collapsed state",
     "v3.10.2: stackable workspace groups for history, recovery, integrate, metrics, and output panels",
-    "v3.10.3: dockable layout simulation with saved workspace profiles",
+    "v3.10.3: explicit layout save/discard/reset polish and profile selection",
+    "v3.10.4: dockable layout simulation with saved workspace profiles",
     "v3.11.0: CI/CD and pull-request workflow integration"
   ],
   "highlights": [
-    "Separates layout intent from direct WinForms control manipulation",
-    "Keeps current splitters functional while adding a durable state model for future panel hosts",
-    "Lets users choose whether layout changes are saved automatically, never saved, or confirmed on exit",
-    "Prepares the GUI for collapsible, stackable, and dockable workspace panels without a risky UI rewrite"
+    "Makes the v3.10.0 layout model visible through practical collapsible panel controls",
+    "Keeps collapse/restore reversible and confirmation-free because no Git state is modified",
+    "Stores collapsed state in the same UI-independent layout model used for splitter distances",
+    "Avoids close-time modal prompts so the WinForms/PowerShell shutdown path remains safe"
   ],
   "iteration_highlights": [
-    "Added modules/GitGlideGUI.Core/GitLayoutState.psm1",
-    "Added tests/GitLayoutState.Tests.ps1",
-    "Added docs/LAYOUT_STATE_MODEL_v3_10_0.md",
-    "Extended Appearance tab with layout save/discard/reset controls",
-    "Updated static smoke checks for the layout state model"
+    "Extended modules/GitGlideGUI.Core/GitLayoutState.psm1 with collapsible panel helpers",
+    "Extended tests/GitLayoutState.Tests.ps1 with collapsible panel behavior coverage",
+    "Added Appearance tab Collapsible Panel Host controls",
+    "Updated static smoke checks for collapsible panel host markers",
+    "Added v3.10.1 layout documentation and release notes"
   ],
   "split_script_parts": [
     "scripts/windows/GitGlideGUI.part01-bootstrap-config.ps1",

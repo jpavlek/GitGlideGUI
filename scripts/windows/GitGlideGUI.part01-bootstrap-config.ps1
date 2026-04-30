@@ -41,6 +41,7 @@
 # - v3.6.13: workflow checklist and branch cleanup guidance with release consistency smoke checks.
 # - v3.8: repository state doctor, conflict marker scanner, dynamic banner sizing, branch relationships, and local quality checks.
 # - v3.10.0: modular layout state model with explicit save policy controls.
+# - v3.10.1: Collapsible Panel Host with reversible panel collapse/restore and non-modal shutdown layout persistence.
 
 param(
     [string]$RepositoryPath = '',
