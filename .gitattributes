@@ -1,33 +1,80 @@
 # Git Glide GUI line-ending policy
-# Windows-first project: PowerShell and batch files should be CRLF.
-# Text/code files are normalized by Git to avoid mixed-line-ending noise.
+#
+# Why this file exists:
+# Different operating systems historically use different text line endings:
+#
+# - Windows normally uses CRLF:
+#     Carriage Return + Line Feed
+#     Written as: \r\n
+#
+# - Linux and macOS normally use LF:
+#     Line Feed only
+#     Written as: \n
+#
+# - Older classic Mac OS used CR:
+#     Carriage Return only
+#     Written as: \r
+#     This is mostly obsolete today.
+#
+# Git stores text files most cleanly when line endings are normalized.
+# Without a clear policy, the same file can appear changed only because
+# one editor converted LF to CRLF or CRLF to LF. That creates noisy diffs,
+# unnecessary merge conflicts, and confusing release changes.
+#
+# Project policy:
+# - Windows launcher files and PowerShell source use CRLF because this is a
+#   Windows-first WinForms/PowerShell application.
+# - Documentation, JSON metrics, manifests, Python, YAML, shell scripts,
+#   and Git metadata use LF because they are often read by Git, CI tools,
+#   Python, Linux/macOS tools, and release scripts.
+# - Binary/archive files are never normalized as text.
+#
+# Important:
+# - The rules below are the source of truth for this repository.
+# - After changing this file, run:
+#     git add .gitattributes
+#     git add --renormalize .
+#     git diff --cached --check
+#     git commit -m "Normalize repository line endings"
 
 * text=auto
 
-# Windows scripts
-*.ps1  text eol=crlf
-*.psm1 text eol=crlf
-*.psd1 text eol=crlf
+# Windows launcher scripts
+# These are normally edited and executed directly on Windows.
 *.bat  text eol=crlf
 *.cmd  text eol=crlf
 
-# Cross-platform/script/config text files
+# PowerShell source
+# Git Glide GUI is a Windows-first WinForms/PowerShell application.
+# Keep all PowerShell-related files consistent as CRLF to avoid mixed policy noise.
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+
+# Cross-platform scripts and configuration text files
+# Keep these as LF because they are commonly used by Git, Python, CI tools,
+# Linux/macOS shells, and YAML parsers.
 *.py   text eol=lf
 *.sh   text eol=lf
 *.yml  text eol=lf
 *.yaml text eol=lf
 
 # Documentation and structured data
+# Keep these as LF so release docs, metrics snapshots, manifests,
+# and generated reports do not create CRLF/LF churn.
 *.md   text eol=lf
 *.txt  text eol=lf
 *.json text eol=lf
 *.csv  text eol=lf
 
+
 # Git metadata/helpers
+# These should stay LF and predictable across all environments.
 .gitattributes text eol=lf
 .gitignore     text eol=lf
 
 # Binary/archive files
+# Never normalize or diff these as text.
 *.zip  binary
 *.7z   binary
 *.tar  binary
@@ -39,3 +86,16 @@
 *.ico  binary
 *.exe  binary
 *.dll  binary
+
+
+
+
+
+
+
+
+
+
+
+
+
