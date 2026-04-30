@@ -355,3 +355,8 @@ docs/ROADMAP_REVIEW_v3_8.md
 docs/SWOT_AND_ROADMAP_v3_8.md
 docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_8.md
 ```
+
+
+## Collapsible Panel Host
+
+v3.10.1 adds Appearance-tab controls for collapsing and restoring selected workspace panels. Use this when the screen feels crowded, then click Save layout now to persist the current panel state.

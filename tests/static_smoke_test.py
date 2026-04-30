@@ -156,14 +156,14 @@ required = [
     "tests/GitTagOperations.Tests.ps1",
     "tests/GitConflictAssistant.Tests.ps1",
     
-    # ...
+    # Documentation...
     "docs/START_HERE.md",
     "docs/METRICS_AND_VALUE_MODEL.md",
     
     # Stable feature docs from previous major workflow features.
     "docs/CONFLICT_RESOLUTION_ASSISTANT.md",
     "docs/BRANCH_CLEANUP_ASSISTANT_v3_9_1.md",
-    
+
     # Current version docs.
     f"docs/LAYOUT_STATE_MODEL_v{version_string}.md",
     f"docs/RELEASE_NOTES_v{version_string}.md",
@@ -181,7 +181,7 @@ require_markers(
         "Why this exists",
         "What makes it different?",
         "Core Features",
-        "Current focus: v3.10.0",
+        "Current focus: v3.10.1",
         "Stable split-script layout",
     ],
     "README product positioning",
@@ -244,6 +244,7 @@ require_markers(
         "quality.observability",
         "quality.metrics_observability",
         "layout.state_model",
+        "layout.collapsible_panel_host",
     ],
     "feature manifest",
 )
@@ -347,6 +348,10 @@ require_markers(
         "Set-GglsLayoutSavePolicy",
         "Update-GglsLayoutStateFromSplitterDistances",
         "Format-GglsLayoutSummary",
+        "Set-GglsPanelCollapsed",
+        "Toggle-GglsPanelCollapsed",
+        "Get-GglsKnownPanelIds",
+        "Format-GglsPanelHostSummary",
     ],
     "layout state module",
 )
@@ -357,6 +362,9 @@ require_markers(
         "GitLayoutState default model",
         "GitLayoutState panel updates",
         "GitLayoutState summary",
+        "GitLayoutState collapsible panels",
+        "toggles panel collapsed state",
+        "preserves last splitter distance",
     ],
     "layout state tests",
 )
@@ -398,6 +406,12 @@ split_markers = [
     "Set-GitGlideLayoutSavePolicy",
     "Reset-GitGlideLayoutState",
     "Discard-GitGlideSessionLayoutChanges",
+    "Collapsible Panel Host",
+    "Get-GitGlidePanelHostDefinitions",
+    "Toggle-GitGlidePanelCollapsed",
+    "Restore-GitGlidePanelHostState",
+    "Save-GitGlidePanelHostState",
+    "Format-GitGlidePanelHostSummary",
 ]
 
 for marker in split_markers:

@@ -7,16 +7,21 @@ if /I not "%GITGLIDE_SKIP_TOOL_BOOTSTRAP%"=="1" (
         if errorlevel 1 exit /b %errorlevel%
     )
 )
+
 setlocal
 set "ROOT=%~dp0..\.."
 cd /d "%ROOT%"
+if errorlevel 1 exit /b 1
 
 set PYTHONNOUSERSITE=1
 
 set "GITGLIDE_VERSION=0.0.0-dev"
 if exist "%ROOT%\VERSION" (
-    for /f "usebackq delims=" %%V in ("%ROOT%\VERSION") do set "GITGLIDE_VERSION=%%V"
+    for /f "usebackq delims=" %%V in ("%ROOT%\VERSION") do (
+        if not "%%V"=="" set "GITGLIDE_VERSION=%%V"
+    )
 )
+
 echo === Git Glide GUI v%GITGLIDE_VERSION% quality checks ===
 
 echo.

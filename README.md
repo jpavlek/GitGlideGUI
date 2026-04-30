@@ -1,4 +1,4 @@
-# Git Glide GUI v3.10.0
+# Git Glide GUI v3.10.1
 
 Git Glide GUI is a lightweight, privacy-first Windows Git interface built with PowerShell/WinForms and designed for both manual and AI-assisted software development.
 
@@ -30,15 +30,17 @@ This makes it especially useful in fast manual and AI-assisted development workf
 
 - ***For Every Skill Level***: Onboarding learning sections help beginners understand the "why" behind actions, while reminders and custom actions help experienced users move quickly without losing transparency or control.
 
-## Current focus: v3.10.0 modular layout state model
+## Current focus: v3.10.1 collapsible panel host
 
-v3.10.0 is an architecture-focused release. It keeps the current WinForms splitter layout functional while introducing a UI-independent Layout State Model that future releases can use for collapsible, stackable, and dockable workspace panels.
+v3.10.1 makes the layout state model practical by adding reversible collapse/restore controls for key workspace panels, while keeping layout persistence non-modal during shutdown.
+
+v3.10.1 builds on the v3.10.0 architecture release. It keeps the current WinForms splitter layout functional while adding a Collapsible Panel Host that uses the UI-independent Layout State Model for reversible panel collapse/restore behavior.
 
 The release focuses on three areas:
 
-1. **Layout state as data** — splitter distances, panel identities, visibility, collapsed state, dock preference, and active profile now have a durable model.
-2. **Explicit save policy** — users can choose `ask-on-exit`, `always`, or `never` for saving layout changes.
-3. **Low-risk migration path** — current controls still work, while v3.10.1+ can build reusable panel hosts on top of the model.
+1. **Layout state as data** — splitter distances, panel identities, visibility, collapsed state, dock preference, and active profile have a durable model.
+2. **Collapsible Panel Host** — selected workspace panels can be collapsed, restored, restored all at once, and saved deliberately.
+3. **Safe shutdown path** — close-time layout persistence no longer opens modal prompts from `FormClosing`.
 
 The goal is to reduce layout pressure without rewriting the application in a different UI framework.
 
@@ -124,8 +126,8 @@ docs/REPOSITORY_WORKFLOW.md
 Release notes:
 
 ```text
-docs/RELEASE_NOTES_v3_10_0.md
-docs/LAYOUT_STATE_MODEL_v3_10_0.md
+docs/RELEASE_NOTES_v3_10_1.md
+docs/LAYOUT_STATE_MODEL_v3_10_1.md
 docs/RELEASE_NOTES_v3_9_1.md
 ```
 
@@ -148,7 +150,7 @@ docs/RELEASE_NOTES_v3_8_2.md
 v3.10 layout architecture:
 
 ```text
-docs/LAYOUT_STATE_MODEL_v3_10_0.md
-docs/ARCHITECTURE_v3_10_0.md
-docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_10_0.md
+docs/LAYOUT_STATE_MODEL_v3_10_1.md
+docs/ARCHITECTURE_v3_10_1.md
+docs/TECHNICAL_DEBT_REDUCTION_PLAN_v3_10_1.md
 ```
